@@ -1,0 +1,26 @@
+{
+  "name": "leadclient-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LeadClient — multi-tenant lead management CRM (React + Node.js + MySQL)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace client run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "eslint": "^9.17.0",
+    "node-sql-parser": "^5.4.0",
+    "prettier": "^3.4.2"
+  }
+}

@@ -1,0 +1,11 @@
+# Optional: only if serving the SPA via Apache separately from the Node API.
+# Place as public_html/.htaccess. Adjust the Node app port/URL as needed.
+RewriteEngine On
+
+# Proxy API calls to the Node app (replace PORT with your Passenger app port/URL)
+RewriteRule ^api/(.*)$ http://127.0.0.1:PORT/api/$1 [P,L]
+
+# SPA fallback: serve index.html for any non-file route
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
