@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LangProvider } from './context/LangContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -57,5 +58,5 @@ function Routing() {
 }
 
 export default function App() {
-  return (<BrowserRouter><AuthProvider><Routing /></AuthProvider></BrowserRouter>);
+  return (<BrowserRouter><LangProvider><AuthProvider><Routing /></AuthProvider></LangProvider></BrowserRouter>);
 }

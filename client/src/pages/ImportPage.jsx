@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LangContext';
 import { api } from '../api';
 
 export default function ImportPage() {
   const { token, user } = useAuth();
+  const { t } = useLang();
   const needsPicker = user?.role !== 'company_admin' && user?.role !== 'company_user';
   const [companies, setCompanies] = useState([]);
   const [companyId, setCompanyId] = useState('');
@@ -30,21 +32,21 @@ export default function ImportPage() {
 
   return (
     <div>
-      <div className="page-header"><h1>ייבוא לידים</h1></div>
+      <div className="page-header"><h1>{t('nav.import')}</h1></div>
       {error && <p className="error">{error}</p>}
-      {result && <p className="success-note">יובאו {result.success}/{result.total} לידים.</p>}
+      {result && <p className="success-note">{t('imp.imported')} {result.success}/{result.total}.</p>}
       {needsPicker && (
         <div className="inline-form"><select value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
-          <option value="">בחר חברה</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          <option value="">{t('imp.pickCompany')}</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></div>
       )}
       {activeCompany && (
-        <div className="panel"><h2>הוספת ליד בודד</h2>
+        <div className="panel"><h2>{t('imp.single')}</h2>
           <form className="inline-form" onSubmit={add}>
-            <input placeholder="שם" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input placeholder="טלפון" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <input placeholder="אימייל" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            <button className="btn btn-primary">הוספה</button>
+            <input placeholder={t('common.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input placeholder={t('common.phone')} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input placeholder={t('common.email')} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <button className="btn btn-primary">{t('common.add')}</button>
           </form>
         </div>
       )}

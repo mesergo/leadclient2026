@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LangContext';
 import { api } from '../api';
 
 export default function ContactsPage() {
   const { token } = useAuth();
+  const { t } = useLang();
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState('');
   const [error, setError] = useState('');
@@ -11,17 +13,17 @@ export default function ContactsPage() {
   useEffect(() => { load(); }, [token]);
   return (
     <div>
-      <div className="page-header"><h1>אנשי קשר</h1></div>
+      <div className="page-header"><h1>{t('nav.contacts')}</h1></div>
       {error && <p className="error">{error}</p>}
       <form className="inline-form" onSubmit={(e) => { e.preventDefault(); load(q); }}>
-        <input placeholder="חיפוש שם/טלפון/אימייל" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button className="btn btn-secondary">חיפוש</button>
+        <input placeholder={t('con.searchPh')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn btn-secondary">{t('common.search')}</button>
       </form>
       <div className="table-wrap"><table className="data-table">
-        <thead><tr><th>שם מלא</th><th>טלפון</th><th>אימייל</th><th>תאריך יצירה</th></tr></thead>
+        <thead><tr><th>{t('con.fullName')}</th><th>{t('common.phone')}</th><th>{t('common.email')}</th><th>{t('con.created')}</th></tr></thead>
         <tbody>{rows.map((c) => (<tr key={c.id}><td>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '-'}</td><td>{c.phone}</td><td>{c.email || '-'}</td><td>{c.created_at}</td></tr>))}</tbody>
       </table></div>
-      {rows.length === 0 && <p className="muted">אין אנשי קשר.</p>}
+      {rows.length === 0 && <p className="muted">{t('con.none')}</p>}
     </div>
   );
 }

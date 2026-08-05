@@ -11,3 +11,4 @@ server/public/uploads/*
 db/*.local.sql
 coverage/
 .vite/
+.playwright-cli/

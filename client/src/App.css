@@ -36,7 +36,7 @@ h3 { font-size: 16px; font-weight: 600; margin: 0; }
 .app-shell { display: flex; min-height: 100vh; }
 .sidebar {
   width: var(--sidebar-w); background: var(--surface); border-inline-start: 1px solid var(--border);
-  display: flex; flex-direction: column; position: fixed; inset-inline-end: 0; top: 0; bottom: 0; z-index: 30;
+  display: flex; flex-direction: column; position: fixed; inset-inline-start: 0; top: 0; bottom: 0; z-index: 30;
 }
 .sidebar-logo { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
 .sidebar-logo img { max-height: 34px; }
@@ -50,7 +50,7 @@ h3 { font-size: 16px; font-weight: 600; margin: 0; }
 .nav a.active { background: rgba(0, 131, 143, 0.1); font-weight: 600; border-inline-start: 3px solid var(--accent); }
 .nav a svg { flex-shrink: 0; opacity: 0.85; }
 
-.main { flex: 1; margin-inline-end: var(--sidebar-w); display: flex; flex-direction: column; min-width: 0; }
+.main { flex: 1; margin-inline-start: var(--sidebar-w); display: flex; flex-direction: column; min-width: 0; }
 .header {
   height: var(--header-h); background: var(--surface); border-bottom: 4px solid var(--border);
   display: flex; align-items: center; justify-content: space-between; padding: 0 1.25rem; position: sticky; top: 0; z-index: 20;
@@ -142,9 +142,10 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 /* ---------- responsive ---------- */
 .nav-backdrop { display: none; }
 @media (max-width: 860px) {
-  .sidebar { transform: translateX(100%); transition: transform 0.2s; }
+  .sidebar { transform: translateX(calc(var(--sidebar-w) * -1)); transition: transform 0.2s; }
+  [dir=rtl] .sidebar { transform: translateX(var(--sidebar-w)); }
   .sidebar.open { transform: translateX(0); }
-  .main { margin-inline-end: 0; }
+  .main { margin-inline-start: 0; }
   .hamburger { display: inline-flex; }
   .nav-backdrop.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 25; }
 }
