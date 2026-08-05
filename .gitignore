@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+npm-debug.log*
+.DS_Store
+server/public/uploads/*
+!server/public/uploads/.gitkeep
+db/*.local.sql
+coverage/
+.vite/
