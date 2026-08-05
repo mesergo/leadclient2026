@@ -259,6 +259,16 @@ for (const cfg of TABLES) {
 // single-row config table: keep only first
 if (dataset.billing_defaults) dataset.billing_defaults = dataset.billing_defaults.slice(0, 1);
 
+// ensure unique usernames (legacy `user` had duplicates: HTML-encoded emails, google signups)
+const seenUser = new Set();
+for (const u of dataset.users || []) {
+  let name = (u.username || 'user' + u.id).replace(/&#64;/g, '@');
+  const key = name.toLowerCase();
+  if (seenUser.has(key)) name = name + '_' + u.id;
+  seenUser.add(name.toLowerCase());
+  u.username = name;
+}
+
 // ---- PASS B: clean referential integrity (order matters: parents cleaned first) ----
 const idSet = (t, key = 'id') => new Set((dataset[t] || []).map((r) => String(r[key])));
 const clean = []; // log

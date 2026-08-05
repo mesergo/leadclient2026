@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LangContext';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { t } = useLang();
   const nav = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -21,11 +23,11 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <h1>LeadClient</h1>
+        <h1>{t('brand')}</h1>
         {error && <p className="error">{error}</p>}
-        <div className="field"><label>שם משתמש</label><input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus /></div>
-        <div className="field"><label>סיסמה</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-        <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? 'מתחבר...' : 'התחברות'}</button>
+        <div className="field"><label>{t('login.username')}</label><input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus /></div>
+        <div className="field"><label>{t('login.password')}</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+        <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? t('login.signing') : t('login.signin')}</button>
       </form>
     </div>
   );
