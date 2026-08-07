@@ -10,7 +10,8 @@ const router = express.Router();
 router.use(requireAuth);
 
 const FIELDS = `c.id, c.agency_id, c.name, c.logo_url, c.phone, c.fax, c.address, c.zip_code, c.industry,
-  c.public_token, c.contacts_access, c.is_donation_center, c.payment_package, c.is_active, c.created_at`;
+  c.public_token, c.contacts_access, c.is_donation_center, c.payment_package, c.is_active, c.created_at,
+  c.returning_sms_enabled, c.returning_sms_from, c.returning_sms_text, c.leads_distribution_enabled`;
 
 router.get('/', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'c.id');
@@ -56,7 +57,8 @@ router.post('/', requireRole('super_admin', 'agency_admin'), asyncHandler(async 
 }));
 
 const EDITABLE = ['name', 'phone', 'fax', 'address', 'zip_code', 'industry', 'is_active',
-  'contacts_access', 'is_donation_center', 'payment_package'];
+  'contacts_access', 'is_donation_center', 'payment_package',
+  'returning_sms_enabled', 'returning_sms_from', 'returning_sms_text', 'leads_distribution_enabled'];
 
 router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'id');

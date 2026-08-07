@@ -8,6 +8,10 @@ import AgenciesPage from './pages/AgenciesPage';
 import AgencyEditPage from './pages/AgencyEditPage';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
+import CompanyEditPage from './pages/CompanyEditPage';
+import CompanyStatusesPage from './pages/CompanyStatusesPage';
+import CompanyTagsPage from './pages/CompanyTagsPage';
+import CompanyFilesPage from './pages/CompanyFilesPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import ContactsPage from './pages/ContactsPage';
@@ -43,6 +47,10 @@ function Routing() {
         <Route path="/agencies/:id" element={<Role roles={["super_admin","agency_admin"]}><AgencyEditPage /></Role>} />
         <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin']}><CompaniesPage /></Role>} />
         <Route path="/companies/:id" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyDetailPage /></Role>} />
+        <Route path="/companies/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyEditPage /></Role>} />
+        <Route path="/companies/:id/statuses" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyStatusesPage /></Role>} />
+        <Route path="/companies/:id/tags" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyTagsPage /></Role>} />
+        <Route path="/companies/:id/files" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyFilesPage /></Role>} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/leads/:id" element={<LeadDetailPage />} />
         <Route path="/import" element={<ImportPage />} />

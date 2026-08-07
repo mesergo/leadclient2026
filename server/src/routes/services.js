@@ -44,4 +44,11 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   res.json({ service: rows[0] });
 }));
 
+router.delete('/:id', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
+  const sc = companyScope(req.user, 'company_id');
+  const r = await query(`DELETE FROM services WHERE id = ? AND (${sc.sql})`, [req.params.id, ...sc.params]);
+  if (!r.affectedRows) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  res.json({ ok: true });
+}));
+
 module.exports = router;

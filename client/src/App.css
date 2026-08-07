@@ -193,3 +193,34 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .icon-btn--amber { color: #b8860b; }
 
 .reveal-block { background: #f8fafb; border-inline-start: 3px solid var(--accent); border-radius: var(--radius); padding: 0.75rem 1rem; margin: -0.4rem 0 0.4rem; display: flex; flex-direction: column; gap: 1rem; }
+
+/* companies grouped by agency + channel cards */
+.agency-group { margin-bottom: 1.75rem; }
+.agency-group-title { font-size: 16px; border-bottom: 2px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 1rem; }
+.company-card { display: flex; flex-direction: column; }
+.company-card-head { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+.company-card-head h3 { display: flex; align-items: center; gap: 0.4rem; font-size: 14px; }
+.company-card-actions { display: flex; gap: 0.75rem; justify-content: flex-start; margin-bottom: 0.4rem; flex-wrap: wrap; }
+.link-action { background: none; border: none; cursor: pointer; color: var(--accent); font-size: 12px; display: inline-flex; align-items: center; gap: 3px; padding: 0; }
+.link-action:hover { text-decoration: underline; }
+.link-action--green { color: #16a34a; }
+.channel-list { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+.channel-row { display: flex; align-items: center; gap: 0.4rem; font-size: 13px; padding: 0.15rem 0; border-bottom: 1px dashed var(--border); }
+.channel-name { flex: 1; }
+.icon-xs { width: 22px; height: 22px; }
+.channel-add { display: flex; gap: 0.4rem; align-items: center; margin-top: auto; }
+.channel-add input { font-size: 12px; padding: 4px 8px; }
+
+/* company profile hub */
+.hub-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); max-width: 720px; }
+.hub-row { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); text-decoration: none; }
+.hub-row:last-child { border-bottom: none; }
+.hub-row:hover { background: #f8fafb; text-decoration: none; }
+.hub-icon { flex-shrink: 0; }
+.hub-text { display: flex; flex-direction: column; }
+.hub-title { font-size: 16px; font-weight: 600; }
+.hub-desc { font-size: 13px; color: var(--text-dim); }
+/* tabs */
+.tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; border-bottom: 2px solid var(--border); }
+.tab { background: none; border: none; padding: 0.6rem 1.1rem; cursor: pointer; font-size: 14px; color: var(--text-dim); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }

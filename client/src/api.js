@@ -44,11 +44,21 @@ export const api = {
   impersonateCompany: (id, token) => request(`/api/companies/${id}/impersonate`, { method: 'POST', token }),
 
   services: (token, companyId) => request(`/api/services${qs({ company_id: companyId })}`, { token }),
+  createService: (body, token) => request('/api/services', { method: 'POST', body, token }),
+  updateService: (id, body, token) => request(`/api/services/${id}`, { method: 'PATCH', body, token }),
+  deleteService: (id, token) => request(`/api/services/${id}`, { method: 'DELETE', token }),
   users: (token, f) => request(`/api/users${qs(f)}`, { token }),
   createUser: (body, token) => request('/api/users', { method: 'POST', body, token }),
   updateUser: (id, body, token) => request(`/api/users/${id}`, { method: 'PATCH', body, token }),
 
   statuses: (token, companyId) => request(`/api/statuses${qs({ company_id: companyId })}`, { token }),
+  createStatus: (body, token) => request('/api/statuses', { method: 'POST', body, token }),
+  updateStatus: (id, body, token) => request(`/api/statuses/${id}`, { method: 'PATCH', body, token }),
+  deleteStatus: (id, token) => request(`/api/statuses/${id}`, { method: 'DELETE', token }),
+  createTag: (body, token) => request('/api/tags', { method: 'POST', body, token }),
+  companyFiles: (companyId, token) => request(`/api/files${qs({ company_id: companyId })}`, { token }),
+  uploadCompanyFile: (companyId, file, token) => uploadForm('/api/files', 'file', file, { company_id: companyId }, token),
+  deleteCompanyFile: (id, token) => request(`/api/files/${id}`, { method: 'DELETE', token }),
   tags: (token, companyId) => request(`/api/tags${qs({ company_id: companyId })}`, { token }),
 
   leads: (token, f) => request(`/api/leads${qs(f)}`, { token }),
