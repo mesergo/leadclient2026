@@ -12,3 +12,7 @@ db/*.local.sql
 coverage/
 .vite/
 .playwright-cli/
+# real customer data — never commit
+db/localhost.sql
+db/*.local.sql
+db/prod-*.sql
