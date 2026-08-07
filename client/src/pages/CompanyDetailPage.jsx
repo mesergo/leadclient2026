@@ -3,34 +3,41 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import * as Icons from '../icons';
 
+// Company profile hub — mirrors the legacy company profile screen.
 export default function CompanyDetailPage() {
   const { id } = useParams();
   const { token } = useAuth();
   const { t } = useLang();
   const [c, setC] = useState(null);
-  const [form, setForm] = useState({});
-  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
-  const load = () => api.company(id, token).then((d) => { setC(d.company); setForm(d.company); }).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, [id, token]);
-  async function save(e) { e.preventDefault(); setMsg('');
-    try { await api.updateCompany(id, { name: form.name, phone: form.phone, fax: form.fax, address: form.address, zip_code: form.zip_code, industry: form.industry }, token); setMsg(t('cod.saved')); load(); }
-    catch (e) { setError(e.message); } }
+
+  useEffect(() => { api.company(id, token).then((d) => setC(d.company)).catch((e) => setError(e.message)); }, [id, token]);
+
   if (error) return <p className="error">{error}</p>;
   if (!c) return <p className="muted">{t('common.loading')}</p>;
-  const fld = (k, label) => (<div className="form-field"><label>{label}</label><div className="form-field-control"><input value={form[k] || ''} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></div></div>);
+
+  const sections = [
+    { to: `/companies/${id}/edit`, Icon: Icons.Pencil, color: '#e8710a', title: t('cop.company'), desc: t('cop.companyDesc') },
+    { to: `/companies?agency=${c.agency_id || ''}`, Icon: Icons.Chart, color: '#00838f', title: t('cop.channels'), desc: t('cop.channelsDesc') },
+    { to: `/users?company=${id}`, Icon: Icons.Users, color: '#e91e63', title: t('cop.users'), desc: t('cop.usersDesc') },
+    { to: `/companies/${id}/statuses`, Icon: Icons.Grid, color: '#16a34a', title: t('cop.statuses'), desc: t('cop.statusesDesc') },
+    { to: `/companies/${id}/tags`, Icon: Icons.Contacts, color: '#337ab7', title: t('cop.tags'), desc: t('cop.tagsDesc') },
+    { to: `/companies/${id}/files`, Icon: Icons.Upload, color: '#8bc34a', title: t('cop.files'), desc: t('cop.filesDesc') },
+  ];
+
   return (
     <div>
-      <div className="page-header"><h1>{c.name}</h1><Link className="btn btn-secondary" to="/companies">{t('common.back')}</Link></div>
-      {msg && <p className="success-note">{msg}</p>}
-      <form className="form-panel" onSubmit={save}>
-        <div className="form-panel-body">
-          {fld('name', t('cod.name'))}{fld('phone', t('cod.phone'))}{fld('fax', t('cod.fax'))}
-          {fld('address', t('cod.address'))}{fld('zip_code', t('cod.zip'))}{fld('industry', t('cod.industry'))}
-        </div>
-        <div className="form-actions"><button className="btn btn-primary">{t('common.save')}</button></div>
-      </form>
+      <div className="page-header"><h1>{t('cop.title')}: {c.name}</h1><Link className="btn btn-secondary" to="/companies">{t('common.back')}</Link></div>
+      <div className="hub-list">
+        {sections.map((s) => (
+          <Link key={s.to} to={s.to} className="hub-row">
+            <span className="hub-icon" style={{ color: s.color }}><s.Icon size={22} /></span>
+            <span className="hub-text"><span className="hub-title" style={{ color: s.color }}>{s.title}</span><span className="hub-desc">{s.desc}</span></span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
