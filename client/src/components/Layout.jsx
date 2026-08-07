@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { LANGS } from '../i18n';
 import * as Icons from '../icons';
+import logo from '../assets/logo.png';
 
 const NAV = [
   { to: '/', key: 'nav.dashboard', Icon: Icons.Grid, end: true },
@@ -40,7 +41,7 @@ export default function Layout() {
     <div className="app-shell">
       <div className={'nav-backdrop' + (open ? ' show' : '')} onClick={() => setOpen(false)} />
       <aside className={'sidebar' + (open ? ' open' : '')}>
-        <div className="sidebar-logo"><span className="brand">{t('brand')}</span></div>
+        <div className="sidebar-logo"><img src={logo} alt="LeadClient" className="sidebar-logo-img" /></div>
         <nav className="nav" onClick={() => setOpen(false)}>
           {items.map(({ to, key, Icon, end }) => (
             <NavLink key={to} to={to} end={end}><Icon size={18} /> {t(key)}</NavLink>

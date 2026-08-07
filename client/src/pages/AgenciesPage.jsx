@@ -1,47 +1,85 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api, API_ORIGIN } from '../api';
-import { Check, X, Pencil, Lock } from '../icons';
+import { Building, Lock, Unlock, Pencil, Plus } from '../icons';
 
 export default function AgenciesPage() {
   const { token } = useAuth();
   const { t } = useLang();
   const [rows, setRows] = useState([]);
-  const [name, setName] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('');
+  const [newName, setNewName] = useState('');
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
-  const load = () => api.agencies(token).then((d) => setRows(d.agencies)).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, [token]);
-  async function create(e) { e.preventDefault(); if (!name.trim()) return; try { await api.createAgency(name.trim(), token); setName(''); load(); } catch (e) { setError(e.message); } }
-  async function save(id) { try { await api.updateAgency(id, { name: editName }, token); setEditing(null); load(); } catch (e) { setError(e.message); } }
-  async function toggle(a) { try { await api.updateAgency(a.id, { is_active: a.is_active ? 0 : 1 }, token); load(); } catch (e) { setError(e.message); } }
+
+  const load = () => api.agencies(token, { q, status }).then((d) => setRows(d.agencies)).catch((e) => setError(e.message));
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [token, status]);
+
+  async function create(e) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    try { await api.createAgency(newName.trim(), token); setNewName(''); setAdding(false); load(); }
+    catch (e) { setError(e.message); }
+  }
+  async function toggle(a) {
+    try { await api.updateAgency(a.id, { is_active: a.is_active ? 0 : 1 }, token); load(); }
+    catch (e) { setError(e.message); }
+  }
+
+  const stat = (label, val) => (
+    <div className="ag-stat"><span className="ag-stat-label">{label}:</span> <span className="ag-stat-val">{Number(val).toLocaleString()}</span></div>
+  );
+
   return (
     <div>
-      <div className="page-header"><h1>{t('nav.agencies')}</h1></div>
+      <div className="page-header">
+        <h1>{t('nav.agencies')}</h1>
+        <button className="btn btn-primary" onClick={() => setAdding((v) => !v)}><Plus size={15} /> {t('ag.addBtn')}</button>
+      </div>
       {error && <p className="error">{error}</p>}
-      <form className="inline-form" onSubmit={create}>
-        <input placeholder={t('ag.newName')} value={name} onChange={(e) => setName(e.target.value)} />
-        <button className="btn btn-primary">{t('ag.addBtn')}</button>
+
+      {adding && (
+        <form className="inline-form" onSubmit={create}>
+          <input placeholder={t('ag.newName')} value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
+          <button className="btn btn-primary">{t('common.save')}</button>
+        </form>
+      )}
+
+      <form className="inline-form" onSubmit={(e) => { e.preventDefault(); load(); }}>
+        <input placeholder={t('ag.searchPh')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">{t('ag.filterAll')}</option>
+          <option value="active">{t('ag.filterActive')}</option>
+          <option value="suspended">{t('ag.filterSuspended')}</option>
+        </select>
+        <button className="btn btn-secondary">{t('common.search')}</button>
       </form>
-      <div className="card-grid">
+
+      <div className="card-grid ag-grid">
         {rows.map((a) => (
-          <div className="entity-card" key={a.id}>
-            <div className="entity-card-head">
-              {a.logo_url && <img className="entity-card-logo" src={API_ORIGIN + a.logo_url} alt="" />}
-              {editing === a.id ? <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus /> : <h3>{a.name}</h3>}
-              <span className={'status-pill ' + (a.is_active ? 'active' : 'inactive')}>{a.is_active ? t('common.active') : t('common.suspended')}</span>
+          <div className="entity-card ag-card" key={a.id}>
+            <div className="ag-card-head">
+              {a.logo_url ? <img className="ag-logo" src={API_ORIGIN + a.logo_url} alt="" /> : null}
+              <h3>{a.name}</h3>
+              {!a.is_active && <span className="status-pill inactive">{t('common.suspended')}</span>}
             </div>
-            <dl className="entity-card-stats"><div><dt>{t('ag.companies')}</dt><dd>{a.companies_count}</dd></div><div><dt>IVR</dt><dd style={{ fontSize: 12 }}>{a.ivr_provider}</dd></div></dl>
-            <div className="entity-card-actions">
-              {editing === a.id ? (
-                <><button className="icon-btn icon-btn--green" onClick={() => save(a.id)}><Check size={15} /></button>
-                <button className="icon-btn" onClick={() => setEditing(null)}><X size={15} /></button></>
-              ) : (
-                <><button className="icon-btn icon-btn--cyan" onClick={() => { setEditing(a.id); setEditName(a.name); }}><Pencil size={15} /></button>
-                <button className="icon-btn icon-btn--red" onClick={() => toggle(a)}><Lock size={15} /></button></>
-              )}
+            <div className="ag-stats">
+              {stat(t('ag.companies'), a.companies_count)}
+              {stat(t('ag.channels'), a.services_count)}
+              {stat(t('ag.users'), a.users_count)}
+              {stat(t('ag.leads'), a.leads_count)}
+              {stat(t('ag.phones'), a.phones_count)}
+            </div>
+            <div className="ag-actions">
+              <Link className="icon-btn icon-btn--amber" title={t('ag.toCompanies')} to={`/companies?agency=${a.id}`}><Building size={15} /></Link>
+              <button className={'icon-btn ' + (a.is_active ? 'icon-btn--red' : 'icon-btn--green')} title={a.is_active ? t('ag.suspend') : t('ag.activate')} onClick={() => toggle(a)}>
+                {a.is_active ? <Lock size={15} /> : <Unlock size={15} />}
+              </button>
+              <Link className="icon-btn icon-btn--green" title={t('ag.edit')} to={`/agencies/${a.id}`}><Pencil size={15} /></Link>
+              <Link className="icon-btn icon-btn--green" title={t('ag.addCompany')} to={`/companies?agency=${a.id}&add=1`}><Plus size={15} /></Link>
             </div>
           </div>
         ))}

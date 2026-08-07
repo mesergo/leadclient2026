@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import AgenciesPage from './pages/AgenciesPage';
+import AgencyEditPage from './pages/AgencyEditPage';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
 import LeadsPage from './pages/LeadsPage';
@@ -18,6 +19,7 @@ import BillingPage from './pages/BillingPage';
 import LanguagePage from './pages/LanguagePage';
 import ProfilePage from './pages/ProfilePage';
 import DevelopersPage from './pages/DevelopersPage';
+import ActionsPage from './pages/ActionsPage';
 import './App.css';
 
 function Protected() {
@@ -38,6 +40,7 @@ function Routing() {
       <Route element={<Protected />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />
+        <Route path="/agencies/:id" element={<Role roles={["super_admin","agency_admin"]}><AgencyEditPage /></Role>} />
         <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin']}><CompaniesPage /></Role>} />
         <Route path="/companies/:id" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyDetailPage /></Role>} />
         <Route path="/leads" element={<LeadsPage />} />
@@ -51,6 +54,7 @@ function Routing() {
         <Route path="/language" element={<Role roles={['super_admin']}><LanguagePage /></Role>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/developers" element={<DevelopersPage />} />
+        <Route path="/actions" element={<ActionsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

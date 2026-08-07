@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
@@ -7,11 +7,17 @@ import { api } from '../api';
 export default function LeadsPage() {
   const { token } = useAuth();
   const { t } = useLang();
+  const [sp] = useSearchParams();
+  // carry filters coming from the dashboard tile
+  const initial = {
+    q: sp.get('q') || '', start: sp.get('start') || '', end: sp.get('end') || '',
+    agency: sp.get('agency') || '', company_id: sp.get('company_id') || '', service_id: sp.get('service_id') || '',
+  };
   const [rows, setRows] = useState([]);
-  const [f, setF] = useState({ q: '', start: '', end: '' });
+  const [f, setF] = useState(initial);
   const [error, setError] = useState('');
   const load = (filters) => api.leads(token, filters).then((d) => setRows(d.leads)).catch((e) => setError(e.message));
-  useEffect(() => { load({}); }, [token]);
+  useEffect(() => { load(initial); /* eslint-disable-next-line */ }, [token, sp]);
   return (
     <div>
       <div className="page-header"><h1>{t('nav.leads')}</h1></div>
@@ -22,6 +28,7 @@ export default function LeadsPage() {
         <input type="date" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} />
         <button className="btn btn-primary">{t('lead.show')}</button>
       </form>
+      <p className="muted" style={{ fontSize: 13 }}>{rows.length >= 500 ? '500+' : rows.length} {t('nav.leads')}</p>
       <div className="table-wrap"><table className="data-table">
         <thead><tr><th>{t('lead.num')}</th><th>{t('lead.name')}</th><th>{t('common.phone')}</th><th>{t('common.company')}</th><th>{t('lead.channel')}</th><th>{t('lead.agent')}</th><th>{t('lead.received')}</th><th>{t('common.status')}</th></tr></thead>
         <tbody>{rows.map((l) => (

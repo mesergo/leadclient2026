@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
+import logo from '../assets/logo.png';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -23,7 +24,7 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <h1>{t('brand')}</h1>
+        <img src={logo} alt="LeadClient" className="login-logo" />
         {error && <p className="error">{error}</p>}
         <div className="field"><label>{t('login.username')}</label><input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus /></div>
         <div className="field"><label>{t('login.password')}</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>

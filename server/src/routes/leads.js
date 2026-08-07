@@ -10,7 +10,8 @@ router.get('/', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'l.company_id');
   const params = [...s.params];
   let extra = '';
-  const { company_id, service_id, status_id, start, end, q } = req.query;
+  const { company_id, service_id, status_id, start, end, q, agency } = req.query;
+  if (agency) { extra += ' AND l.company_id IN (SELECT id FROM companies WHERE agency_id = ?)'; params.push(agency); }
   if (company_id) { extra += ' AND l.company_id = ?'; params.push(company_id); }
   if (service_id) { extra += ' AND l.service_id = ?'; params.push(service_id); }
   if (status_id) { extra += ' AND l.status_id = ?'; params.push(status_id); }

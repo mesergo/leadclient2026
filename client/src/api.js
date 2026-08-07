@@ -31,9 +31,10 @@ export const api = {
   login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
   me: (token) => request('/api/auth/me', { token }),
 
-  agencies: (token, q) => request(`/api/agencies${qs({ q })}`, { token }),
+  agencies: (token, filters) => request(`/api/agencies${qs(typeof filters === 'string' ? { q: filters } : filters)}`, { token }),
   createAgency: (name, token) => request('/api/agencies', { method: 'POST', body: { name }, token }),
   updateAgency: (id, body, token) => request(`/api/agencies/${id}`, { method: 'PATCH', body, token }),
+  agency: (id, token) => request(`/api/agencies/${id}`, { token }),
   uploadAgencyLogo: (id, file, token) => uploadForm(`/api/agencies/${id}/logo`, 'logo', file, {}, token),
 
   companies: (token) => request('/api/companies', { token }),
@@ -60,8 +61,11 @@ export const api = {
   reminders: (token) => request('/api/reminders', { token }),
   templates: (token, agencyId) => request(`/api/templates${qs({ agency_id: agencyId })}`, { token }),
 
-  dashboardSummary: (token) => request('/api/dashboard/summary', { token }),
+  dashboardSummary: (token, filters) => request(`/api/dashboard/summary${qs(filters)}`, { token }),
+  dashboardByAgency: (token, filters) => request(`/api/dashboard/by-agency${qs(filters)}`, { token }),
+  dashboardOnline: (token) => request('/api/dashboard/online-users', { token }),
   dashboardRecent: (token) => request('/api/dashboard/recent', { token }),
+  dashboardActions: (token, filters) => request(`/api/dashboard/actions${qs(filters)}`, { token }),
   reports: (token, f) => request(`/api/reports${qs(f)}`, { token }),
   billing: (token, month) => request(`/api/billing${qs({ month })}`, { token }),
   virtual: (token) => request('/api/virtual', { token }),

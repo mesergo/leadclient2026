@@ -14,10 +14,12 @@ export const Card = (p) => <I {...p}><rect x="2" y="5" width="20" height="14" rx
 export const Contacts = (p) => <I {...p}><path d="M17 18a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2M4 4h16v16H4zM12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></I>;
 export const Code = (p) => <I {...p}><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></I>;
 export const Bell = (p) => <I {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></I>;
+export const Plus = (p) => <I {...p}><path d="M12 5v14M5 12h14" /></I>;
 export const Menu = (p) => <I {...p}><path d="M4 6h16M4 12h16M4 18h16"/></I>;
 export const X = (p) => <I {...p}><path d="M18 6 6 18M6 6l12 12"/></I>;
 export const Check = (p) => <I {...p}><path d="M20 6 9 17l-5-5"/></I>;
 export const Pencil = (p) => <I {...p}><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></I>;
+export const Unlock = (p) => <I {...p}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></I>;
 export const Lock = (p) => <I {...p}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></I>;
 export const Swap = (p) => <I {...p}><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></I>;
 export const Trash = (p) => <I {...p}><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></I>;
