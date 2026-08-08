@@ -10,7 +10,11 @@ router.use(requireAuth);
 // Each number carries its channel's lead count within an optional date range.
 router.get('/', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'p.company_id');
-  const { start, end } = req.query;
+  const { start, end, agency, company_id } = req.query;
+  const params = [...s.params];
+  let where = s.sql;
+  if (agency) { where += ' AND c.agency_id = ?'; params.push(agency); }
+  if (company_id) { where += ' AND p.company_id = ?'; params.push(company_id); }
   const rows = await query(
     `SELECT p.id, p.company_id, p.service_id, p.ivr_provider, p.phone_number, p.number_to_display,
             p.redirect_to_number, p.is_premium, p.is_visible,
@@ -19,9 +23,9 @@ router.get('/', asyncHandler(async (req, res) => {
      LEFT JOIN companies c ON c.id = p.company_id
      LEFT JOIN agencies a ON a.id = c.agency_id
      LEFT JOIN services sv ON sv.id = p.service_id
-     WHERE (${s.sql})
+     WHERE (${where})
      ORDER BY a.name, c.name, p.phone_number
-     LIMIT 1000`, s.params);
+     LIMIT 1000`, params);
 
   // lead counts per channel (service) within date range
   const serviceIds = [...new Set(rows.map((r) => r.service_id).filter(Boolean))];
