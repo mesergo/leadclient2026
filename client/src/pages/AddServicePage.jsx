@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import MultiSelect from '../components/MultiSelect';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
@@ -23,7 +24,7 @@ export default function AddServicePage() {
   const [form, setForm] = useState({
     name: '', description: '', service_type: 'phone', site_url: '',
     line_type: '', phone_number_id: '', redirect_to_number: '',
-    service_ref: '', export_webhook_url: '',
+    service_ref: '', export_webhook_url: '', close_hours_phone: '',
     returning_sms_from: '', returning_sms_text: '',
   });
   const [assigned, setAssigned] = useState([]);
@@ -31,6 +32,7 @@ export default function AddServicePage() {
   const [smsCost, setSmsCost] = useState(false);
   const [hoursOn, setHoursOn] = useState(false);
   const [hours, setHours] = useState(Array(168).fill(false));
+  const [afterMode, setAfterMode] = useState('none');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -75,6 +77,7 @@ export default function AddServicePage() {
       distribute_leads: assigned,
       service_ref: form.service_ref || null, export_webhook_url: form.export_webhook_url || null,
       open_hours: hoursOn ? serializeHours(hours) : '',
+      close_hours_phone: hoursOn && afterMode === 'phone' ? form.close_hours_phone : null,
     };
     try {
       const d = await api.createService(body, token);
@@ -155,15 +158,8 @@ export default function AddServicePage() {
           )}
 
           <div className="form-field"><label>{t('es.assign')}</label><div className="form-field-control">
-            <div className="assign-box">
-              {users.length === 0 && <span className="muted">{t('es.assignNone')}</span>}
-              {users.map((u) => (
-                <label key={u.id} className={'assign-chip' + (assigned.includes(String(u.id)) ? ' on' : '')}>
-                  <input type="checkbox" checked={assigned.includes(String(u.id))} onChange={() => toggleAssigned(String(u.id))} /> {u.name}
-                </label>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>{assignedLabel}</p>
+            <MultiSelect options={users.map((u) => ({ value: u.id, label: u.name }))} value={assigned} onChange={setAssigned}
+              placeholder={t('es.assignNone')} searchPlaceholder={t('es.search')} />
           </div></div>
 
           <div className="form-field"><label>{t('es.serviceRef')}</label><div className="form-field-control">
@@ -193,6 +189,19 @@ export default function AddServicePage() {
                   ))}
                 </tbody>
               </table></div>
+
+              <div className="after-hours">
+                <strong>{t('es.afterHours')}</strong>
+                <div className="after-hours-opts">
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'none'} onChange={() => setAfterMode('none')} /> {t('es.afterNone')}</label>
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'phone'} onChange={() => setAfterMode('phone')} /> {t('es.afterPhone')}</label>
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'audio'} onChange={() => setAfterMode('audio')} /> {t('es.afterAudio')}</label>
+                </div>
+                {afterMode === 'phone' && (
+                  <input className="after-hours-phone" value={form.close_hours_phone} onChange={(e) => set('close_hours_phone', e.target.value)} placeholder={t('es.afterPhonePh')} />
+                )}
+                {afterMode === 'audio' && <p className="muted" style={{ fontSize: 13 }}>{t('es.audioAfterSave')}</p>}
+              </div>
             </div>
           )}
         </div>

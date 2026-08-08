@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import MultiSelect from '../components/MultiSelect';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
@@ -35,6 +36,9 @@ export default function EditServicePage() {
   const [smsCost, setSmsCost] = useState(false);
   const [hoursOn, setHoursOn] = useState(false);
   const [hours, setHours] = useState(Array(168).fill(false));
+  const [afterMode, setAfterMode] = useState('none');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [audioBusy, setAudioBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
@@ -49,6 +53,7 @@ export default function EditServicePage() {
         line_type: s.line_type || '', phone_service_number: s.phone_service_number || '',
         returning_sms_from: s.returning_sms_from || '', returning_sms_text: s.returning_sms_text || '',
         service_ref: s.service_ref || '', export_webhook_url: s.export_webhook_url || '',
+        close_hours_phone: s.close_hours_phone || '',
         is_active: s.is_active,
       });
       setPhones((d.phones || []).map((p) => ({ ...p })));
@@ -58,6 +63,8 @@ export default function EditServicePage() {
       const h = parseHours(s.open_hours);
       setHoursOn(h.some(Boolean));
       setHours(h);
+      setAudioUrl(s.close_hours_audio_url || '');
+      setAfterMode(s.close_hours_audio_url ? 'audio' : (s.close_hours_phone ? 'phone' : 'none'));
     }).catch((e) => setError(e.message));
   }, [id, token]);
 
@@ -98,11 +105,21 @@ export default function EditServicePage() {
       distribute_leads: assigned,
       service_ref: form.service_ref, export_webhook_url: form.export_webhook_url,
       open_hours: hoursOn ? serializeHours(hours) : '',
+      close_hours_phone: hoursOn && afterMode === 'phone' ? form.close_hours_phone : null,
+      close_hours_audio_url: hoursOn && afterMode === 'audio' ? (audioUrl || null) : null,
       is_active: form.is_active ? 1 : 0,
       phones: type === 'phone' ? phones.map((p) => ({ id: p.id, redirect_to_number: p.redirect_to_number })) : undefined,
     };
     try { await api.updateService(id, body, token); setMsg(t('es.saved')); }
     catch (err) { setError(err.message); }
+  }
+
+  async function onAudio(e) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setAudioBusy(true); setError('');
+    try { const d = await api.uploadServiceCloseAudio(id, f, token); setAudioUrl(d.close_hours_audio_url); setAfterMode('audio'); }
+    catch (err) { setError(err.message); }
+    setAudioBusy(false);
   }
 
   if (!id) return <p className="error">Missing id</p>;
@@ -183,15 +200,8 @@ export default function EditServicePage() {
           )}
 
           <div className="form-field"><label>{t('es.assign')}</label><div className="form-field-control">
-            <div className="assign-box">
-              {users.length === 0 && <span className="muted">{t('es.assignNone')}</span>}
-              {users.map((u) => (
-                <label key={u.id} className={'assign-chip' + (assigned.includes(String(u.id)) ? ' on' : '')}>
-                  <input type="checkbox" checked={assigned.includes(String(u.id))} onChange={() => toggleAssigned(String(u.id))} /> {u.name}
-                </label>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>{assignedLabel}</p>
+            <MultiSelect options={users.map((u) => ({ value: u.id, label: u.name }))} value={assigned} onChange={setAssigned}
+              placeholder={t('es.assignNone')} searchPlaceholder={t('es.search')} />
           </div></div>
 
           <div className="form-field"><label>{t('es.serviceRef')}</label><div className="form-field-control">
@@ -221,6 +231,24 @@ export default function EditServicePage() {
                   ))}
                 </tbody>
               </table></div>
+
+              <div className="after-hours">
+                <strong>{t('es.afterHours')}</strong>
+                <div className="after-hours-opts">
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'none'} onChange={() => setAfterMode('none')} /> {t('es.afterNone')}</label>
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'phone'} onChange={() => setAfterMode('phone')} /> {t('es.afterPhone')}</label>
+                  <label><input type="radio" name="afterMode" checked={afterMode === 'audio'} onChange={() => setAfterMode('audio')} /> {t('es.afterAudio')}</label>
+                </div>
+                {afterMode === 'phone' && (
+                  <input className="after-hours-phone" value={form.close_hours_phone} onChange={(e) => set('close_hours_phone', e.target.value)} placeholder={t('es.afterPhonePh')} />
+                )}
+                {afterMode === 'audio' && (
+                  <div className="after-hours-audio">
+                    <input type="file" accept="audio/*" onChange={onAudio} disabled={audioBusy} />
+                    {audioUrl && <audio controls src={audioUrl} />}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

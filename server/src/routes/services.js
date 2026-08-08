@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
+const { upload, fileUrl } = require('../services/uploads');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -70,15 +71,15 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
     `INSERT INTO services
        (company_id, name, service_type, public_hash, description, site_url, line_type,
         phone_service_number, is_whatsapp_service, returning_sms_from, returning_sms_text,
-        distribute_leads, service_ref, export_webhook_url, open_hours, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+        distribute_leads, service_ref, export_webhook_url, open_hours, close_hours_phone, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
     [company_id, name, service_type || null, crypto.randomUUID(),
      b.description ?? null, service_type === 'website' ? (b.site_url ?? null) : null,
      service_type === 'phone' ? (b.line_type ?? null) : null,
      service_type === 'phone' ? (b.phone_service_number ?? null) : null,
      service_type === 'whatsapp' ? 1 : 0,
      b.returning_sms_from ?? null, b.returning_sms_text ?? null,
-     distribute, b.service_ref ?? null, b.export_webhook_url ?? null, b.open_hours ?? '']);
+     distribute, b.service_ref ?? null, b.export_webhook_url ?? null, b.open_hours ?? '', b.close_hours_phone ?? null]);
   // Optionally claim one of the company's unassigned numbers for this channel.
   if (b.phone_number_id) {
     await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = COALESCE(?, redirect_to_number) WHERE id = ? AND company_id = ? AND service_id IS NULL',
@@ -115,6 +116,8 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
        service_ref = ${has('service_ref') ? '?' : 'service_ref'},
        export_webhook_url = ${has('export_webhook_url') ? '?' : 'export_webhook_url'},
        open_hours = ${has('open_hours') ? '?' : 'open_hours'},
+       close_hours_phone = ${has('close_hours_phone') ? '?' : 'close_hours_phone'},
+       close_hours_audio_url = ${has('close_hours_audio_url') ? '?' : 'close_hours_audio_url'},
        is_active = COALESCE(?, is_active)
      WHERE id = ?`,
     [
@@ -132,6 +135,8 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
       ...(has('service_ref') ? [b.service_ref ?? null] : []),
       ...(has('export_webhook_url') ? [b.export_webhook_url ?? null] : []),
       ...(has('open_hours') ? [b.open_hours ?? null] : []),
+      ...(has('close_hours_phone') ? [b.close_hours_phone ?? null] : []),
+      ...(has('close_hours_audio_url') ? [b.close_hours_audio_url ?? null] : []),
       has('is_active') ? (b.is_active ? 1 : 0) : null,
       req.params.id,
     ]);
@@ -146,6 +151,18 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url, is_active FROM services WHERE id = ?', [req.params.id]);
   res.json({ service: rows[0] });
 }));
+
+// Upload an after-hours audio clip for the channel.
+router.post('/:id/close-audio', requireRole('super_admin', 'agency_admin', 'company_admin'),
+  upload.single('audio'), asyncHandler(async (req, res) => {
+    const s = companyScope(req.user, 'company_id');
+    const owned = await query(`SELECT id FROM services WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+    if (!owned[0]) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+    if (!req.file) return res.status(400).json({ error: 'לא נבחר קובץ' });
+    const url = fileUrl(req.file.filename);
+    await query('UPDATE services SET close_hours_audio_url = ? WHERE id = ?', [url, req.params.id]);
+    res.json({ close_hours_audio_url: url });
+  }));
 
 router.delete('/:id', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
   const sc = companyScope(req.user, 'company_id');

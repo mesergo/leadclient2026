@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS services (
   returning_sms_text    VARCHAR(500) NULL,
   open_hours            TEXT NULL,
   close_hours_phone     VARCHAR(30) NULL,
+  close_hours_audio_url VARCHAR(500) NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   is_active             TINYINT(1) NOT NULL DEFAULT 1,
   legacy_id             BIGINT UNSIGNED NULL,
