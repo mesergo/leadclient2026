@@ -73,6 +73,10 @@ export default function EditServicePage() {
     const n = [...h]; const all = HOURS.every((hr) => h[day * 24 + hr]);
     HOURS.forEach((hr) => (n[day * 24 + hr] = !all)); return n;
   });
+  const toggleHour = (hour) => setHours((h) => {
+    const n = [...h]; const all = [0, 1, 2, 3, 4, 5, 6].every((d) => h[d * 24 + hour]);
+    for (let d = 0; d < 7; d++) n[d * 24 + hour] = !all; return n;
+  });
   const allOn = hours.every(Boolean);
   const toggleAll = () => setHours(Array(168).fill(!allOn));
 
@@ -205,7 +209,7 @@ export default function EditServicePage() {
                 <label style={{ fontSize: 13 }}><input type="checkbox" checked={allOn} onChange={toggleAll} /> {t('es.selectAll')}</label>
               </div>
               <div className="hours-grid-wrap"><table className="hours-grid">
-                <thead><tr><th></th>{HOURS.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <thead><tr><th></th>{HOURS.map((h) => <th key={h} className="hours-hour" onClick={() => toggleHour(h)} title={t('es.selectAll')}>{h}</th>)}</tr></thead>
                 <tbody>
                   {days.map((d, di) => (
                     <tr key={di}>
