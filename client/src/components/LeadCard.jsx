@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api, API_ORIGIN } from '../api';
 import { Star, X } from '../icons';
+import { isAutoTag, displayTag, extractRecordingUrl } from '../tags';
 
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
 const CHANNELS = ['sms', 'whatsapp', 'email'];
@@ -39,9 +40,15 @@ export default function LeadCard({ id, onClose }) {
 
   async function addTag(e) {
     e.preventDefault();
-    const found = companyTags.find((tg) => tg.label === tagInput.trim());
-    if (!found) return;
-    try { await api.addLeadTag(id, found.id, token); setTagInput(''); load(); } catch (e) { setError(e.message); }
+    const label = tagInput.trim();
+    if (!label) return;
+    try {
+      let tg = companyTags.find((x) => x.label.toLowerCase() === label.toLowerCase());
+      if (!tg) { const r = await api.createTag({ company_id: l.company_id, label }, token); tg = { id: r.tag.id, label }; setCompanyTags((c) => [...c, tg]); }
+      await api.addLeadTag(id, tg.id, token);
+      setTagInput('');
+      load();
+    } catch (e) { setError(e.message); }
   }
   const removeTag = (tagId) => api.removeLeadTag(id, tagId, token).then(load).catch((e) => setError(e.message));
   async function addTreatment(e) { e.preventDefault(); try { await api.addTreatment(id, treat, token); setTreat({ action_type: 'promised', content: '' }); load(); } catch (e) { setError(e.message); } }
@@ -75,15 +82,30 @@ export default function LeadCard({ id, onClose }) {
             </select>
           ))}
           {row(t('lc.rating'), <span style={{ color: '#f5a623', display: 'flex', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <span key={n} style={{ cursor: 'pointer' }} onClick={() => upd({ lead_rating: n })}><Star size={18} filled={n <= (l.lead_rating || 0)} /></span>)}</span>)}
-          {isPhoneLead(l) && row(t('lc.recording'), l.recording_url
-            ? <audio controls src={API_ORIGIN + l.recording_url} style={{ height: 32 }} />
-            : <span className="muted">{t('lc.noRecording')}</span>)}
+          {(() => {
+            const rec = l.recording_url || extractRecordingUrl(l.lead_info) || extractRecordingUrl(l.referrer);
+            if (!isPhoneLead(l) && !rec) return null;
+            return row(t('lc.recording'), rec ? (
+              <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <audio controls preload="none" src={rec} style={{ height: 32 }} />
+                <a href={rec} target="_blank" rel="noreferrer" className="chip-link email">{t('lc.download')}</a>
+              </span>
+            ) : <span className="muted">{t('lc.noRecording')}</span>);
+          })()}
           {row(t('lead.tags'), (
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-              {(data.tags || []).map((tg) => <span key={tg.id} className="tag-chip removable">{tg.label}<button onClick={() => removeTag(tg.id)}>×</button></span>)}
+              {(data.tags || []).map((tg) => {
+                const auto = isAutoTag(tg.label);
+                return (
+                  <span key={tg.id} className={'tag-chip ' + (auto ? 'tag-auto' : 'removable')} title={auto ? t('lc.autoTag') : ''}>
+                    {auto && <span className="auto-dot" />}{displayTag(tg.label)}
+                    {!auto && <button onClick={() => removeTag(tg.id)}>×</button>}
+                  </span>
+                );
+              })}
               <form onSubmit={addTag} style={{ display: 'inline-flex' }}>
                 <input list="ctags" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder={t('lc.addTag')} style={{ width: 140, padding: '4px 8px' }} />
-                <datalist id="ctags">{companyTags.map((tg) => <option key={tg.id} value={tg.label} />)}</datalist>
+                <datalist id="ctags">{companyTags.map((tg) => <option key={tg.id} value={displayTag(tg.label)} />)}</datalist>
               </form>
             </div>
           ))}

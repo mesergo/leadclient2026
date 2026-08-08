@@ -251,3 +251,7 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .link-name { background: none; border: none; color: var(--link); cursor: pointer; padding: 0; font-size: 13px; }
 .link-name:hover { text-decoration: underline; }
 @media (max-width: 700px) { .lead-modal-overlay { padding: 1rem 0.5rem; } .lead-modal { padding: 1rem; } }
+
+/* auto (system) tags */
+.tag-chip.tag-auto { background: #eef1f4; color: #55606b; border: 1px dashed #c0c7cf; }
+.auto-dot { width: 6px; height: 6px; border-radius: 50%; background: #f5a623; display: inline-block; margin-inline-end: 4px; }

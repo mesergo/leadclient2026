@@ -5,6 +5,7 @@ import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import * as Icons from '../icons';
 import LeadCard from '../components/LeadCard';
+import { displayTag, isAutoTag } from '../tags';
 
 // map a lead's source to an icon
 function typeIcon(l) {
@@ -137,7 +138,7 @@ export default function LeadsPage() {
               <td>{l.created_at}</td>
               <td>{l.last_interaction_type || ''}</td>
               <td>{l.status_text ? <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span> : '-'}</td>
-              <td>{(l.tags || []).map((tg) => <span key={tg.id} className="tag-chip" style={{ marginInlineStart: 2 }}>{tg.label}</span>)}</td>
+              <td>{(l.tags || []).map((tg) => <span key={tg.id} className={'tag-chip ' + (isAutoTag(tg.label) ? 'tag-auto' : '')} style={{ marginInlineStart: 2 }}>{displayTag(tg.label)}</span>)}</td>
             </tr>
           );
         })}</tbody>
