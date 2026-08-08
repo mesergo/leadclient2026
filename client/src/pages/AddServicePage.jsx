@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
@@ -10,69 +10,46 @@ const DAYS = {
   he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
   en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
 };
-
-// open_hours is a 168-char bitmap: index = day*24 + hour, '1' = open.
-const parseHours = (s) => {
-  const arr = Array(168).fill(false);
-  if (typeof s === 'string') for (let i = 0; i < 168 && i < s.length; i++) arr[i] = s[i] === '1';
-  return arr;
-};
 const serializeHours = (arr) => arr.map((b) => (b ? '1' : '0')).join('');
 
-export default function EditServicePage() {
+export default function AddServicePage() {
   const [sp] = useSearchParams();
-  const id = sp.get('id');
+  const companyId = sp.get('company') || sp.get('id');
   const { token } = useAuth();
   const { t, lang } = useLang();
   const nav = useNavigate();
 
-  const [svc, setSvc] = useState(null);
-  const [form, setForm] = useState({});
-  const [phones, setPhones] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [ctx, setCtx] = useState(null);
+  const [form, setForm] = useState({
+    name: '', description: '', service_type: 'phone', site_url: '',
+    line_type: '', phone_number_id: '', redirect_to_number: '',
+    service_ref: '', export_webhook_url: '',
+    returning_sms_from: '', returning_sms_text: '',
+  });
   const [assigned, setAssigned] = useState([]);
   const [smsOn, setSmsOn] = useState(false);
   const [smsCost, setSmsCost] = useState(false);
   const [hoursOn, setHoursOn] = useState(false);
   const [hours, setHours] = useState(Array(168).fill(false));
-  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    api.service(id, token).then((d) => {
-      const s = d.service;
-      setSvc(s);
-      setForm({
-        name: s.name || '', description: s.description || '',
-        service_type: s.service_type || 'phone', site_url: s.site_url || '',
-        line_type: s.line_type || '', phone_service_number: s.phone_service_number || '',
-        returning_sms_from: s.returning_sms_from || '', returning_sms_text: s.returning_sms_text || '',
-        service_ref: s.service_ref || '', export_webhook_url: s.export_webhook_url || '',
-        is_active: s.is_active,
-      });
-      setPhones((d.phones || []).map((p) => ({ ...p })));
-      setUsers(d.users || []);
-      setAssigned((s.distribute_leads || []).map(String));
-      setSmsOn(!!(s.returning_sms_from || s.returning_sms_text));
-      const h = parseHours(s.open_hours);
-      setHoursOn(h.some(Boolean));
-      setHours(h);
-    }).catch((e) => setError(e.message));
-  }, [id, token]);
+    if (!companyId) return;
+    api.serviceNewContext(companyId, token).then(setCtx).catch((e) => setError(e.message));
+  }, [companyId, token]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const type = form.service_type;
+  const users = ctx?.users || [];
+  const numbers = ctx?.numbers || [];
 
   const smsChars = (form.returning_sms_text || '').length;
-  const smsMsgs = smsChars ? Math.ceil(smsChars / 70) : 0; // unicode (Hebrew) SMS = 70 chars/segment
+  const smsMsgs = smsChars ? Math.ceil(smsChars / 70) : 0;
 
   const toggleAssigned = (uid) => setAssigned((a) => (a.includes(uid) ? a.filter((x) => x !== uid) : [...a, uid]));
   const setCell = (day, hour, val) => setHours((h) => { const n = [...h]; n[day * 24 + hour] = val; return n; });
-  const toggleDay = (day) => setHours((h) => {
-    const n = [...h]; const all = HOURS.every((hr) => h[day * 24 + hr]);
-    HOURS.forEach((hr) => (n[day * 24 + hr] = !all)); return n;
-  });
+  const toggleDay = (day) => setHours((h) => { const n = [...h]; const all = HOURS.every((hr) => h[day * 24 + hr]); HOURS.forEach((hr) => (n[day * 24 + hr] = !all)); return n; });
   const allOn = hours.every(Boolean);
   const toggleAll = () => setHours(Array(168).fill(!allOn));
 
@@ -82,28 +59,31 @@ export default function EditServicePage() {
   }, [assigned, users, t]);
 
   async function save(e) {
-    e.preventDefault(); setMsg(''); setError('');
+    e.preventDefault(); setError('');
+    if (!form.name.trim()) return setError(t('es.nameRequired'));
+    setSaving(true);
     const body = {
-      name: form.name, description: form.description, service_type: form.service_type,
+      company_id: Number(companyId), name: form.name.trim(), service_type: form.service_type,
+      description: form.description || null,
       site_url: type === 'website' ? form.site_url : null,
       line_type: type === 'phone' ? form.line_type : null,
-      phone_service_number: type === 'phone' ? form.phone_service_number : null,
-      is_whatsapp_service: type === 'whatsapp' ? 1 : 0,
+      phone_number_id: type === 'phone' && form.phone_number_id ? Number(form.phone_number_id) : null,
+      redirect_to_number: type === 'phone' ? (form.redirect_to_number || null) : null,
       returning_sms_from: smsOn ? form.returning_sms_from : null,
       returning_sms_text: smsOn ? form.returning_sms_text : null,
       distribute_leads: assigned,
-      service_ref: form.service_ref, export_webhook_url: form.export_webhook_url,
+      service_ref: form.service_ref || null, export_webhook_url: form.export_webhook_url || null,
       open_hours: hoursOn ? serializeHours(hours) : '',
-      is_active: form.is_active ? 1 : 0,
-      phones: type === 'phone' ? phones.map((p) => ({ id: p.id, redirect_to_number: p.redirect_to_number })) : undefined,
     };
-    try { await api.updateService(id, body, token); setMsg(t('es.saved')); }
-    catch (err) { setError(err.message); }
+    try {
+      const d = await api.createService(body, token);
+      nav(`/companies/edit-service?id=${d.service.id}`);
+    } catch (err) { setError(err.message); setSaving(false); }
   }
 
-  if (!id) return <p className="error">Missing id</p>;
-  if (error && !svc) return <p className="error">{error}</p>;
-  if (!svc) return <p className="muted">{t('common.loading')}</p>;
+  if (!companyId) return <p className="error">Missing company</p>;
+  if (error && !ctx) return <p className="error">{error}</p>;
+  if (!ctx) return <p className="muted">{t('common.loading')}</p>;
 
   const typeBtn = (val, label) => (
     <button type="button" className={'tab' + (type === val ? ' active' : '')} onClick={() => set('service_type', val)}>{label}</button>
@@ -113,20 +93,16 @@ export default function EditServicePage() {
   return (
     <div>
       <div className="page-header">
-        <h1>{t('es.title')}: {svc.name}</h1>
+        <h1>{t('es.addTitle')}</h1>
         <button className="btn btn-secondary" onClick={() => nav(-1)}>{t('es.back')}</button>
       </div>
-      <p className="muted" style={{ marginTop: -8 }}>{svc.agency_name} › {svc.company_name}</p>
-      {msg && <p className="success-note">{msg}</p>}
+      {ctx.company && <p className="muted" style={{ marginTop: -8 }}>{ctx.company.agency_name} › {ctx.company.name}</p>}
       {error && <p className="error">{error}</p>}
 
       <form className="form-panel" onSubmit={save}>
         <div className="form-panel-body">
           <div className="form-field"><label>{t('es.name')}</label><div className="form-field-control">
-            <input value={form.name} onChange={(e) => set('name', e.target.value)} /></div></div>
-
-          <div className="form-field"><label>{t('es.code')}</label><div className="form-field-control">
-            <input value={svc.public_hash || ''} readOnly className="input-readonly" /></div></div>
+            <input value={form.name} autoFocus onChange={(e) => set('name', e.target.value)} /></div></div>
 
           <div className="form-field"><label>{t('es.description')}</label><div className="form-field-control">
             <textarea rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} /></div></div>
@@ -141,21 +117,20 @@ export default function EditServicePage() {
           {type === 'phone' && (<>
             <div className="form-field"><label>{t('es.lineType')}</label><div className="form-field-control">
               <select value={form.line_type} onChange={(e) => set('line_type', e.target.value)}>
-                <option value="">—</option>
-                {(form.line_type && !LINE_TYPES.includes(form.line_type)) && <option value={form.line_type}>{form.line_type}</option>}
+                <option value="">{t('es.selectPlan')}</option>
                 {LINE_TYPES.map((l) => <option key={l} value={l}>{l}</option>)}
               </select></div></div>
 
             <div className="form-field"><label>{t('es.virtualNumber')}</label><div className="form-field-control">
-              {phones.length === 0 && <span className="muted">{t('es.noNumbers')}</span>}
-              {phones.map((p) => <input key={'n' + p.id} value={p.number_to_display || p.phone_number || ''} readOnly className="input-readonly" style={{ marginBottom: 4 }} />)}
-            </div></div>
+              <select value={form.phone_number_id} onChange={(e) => set('phone_number_id', e.target.value)}>
+                <option value="">{t('es.numberNone')}</option>
+                {numbers.map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
+              </select></div></div>
 
-            {phones.map((p, i) => (
-              <div className="form-field" key={'r' + p.id}><label>{t('es.redirect')}</label><div className="form-field-control">
-                <input value={p.redirect_to_number || ''} onChange={(e) => setPhones((arr) => arr.map((x, xi) => (xi === i ? { ...x, redirect_to_number: e.target.value } : x)))} />
-              </div></div>
-            ))}
+            {form.phone_number_id && (
+              <div className="form-field"><label>{t('es.redirect')}</label><div className="form-field-control">
+                <input value={form.redirect_to_number} onChange={(e) => set('redirect_to_number', e.target.value)} /></div></div>
+            )}
           </>)}
 
           {type === 'website' && (
@@ -220,7 +195,7 @@ export default function EditServicePage() {
             </div>
           )}
         </div>
-        <div className="form-actions"><button className="btn btn-primary">{t('es.save')}</button></div>
+        <div className="form-actions"><button className="btn btn-primary" disabled={saving}>{t('es.addSave')}</button></div>
       </form>
     </div>
   );

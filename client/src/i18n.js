@@ -60,6 +60,7 @@ const DICT = {
     'es.assign': 'הקצאת לידים', 'es.assignNone': 'לא נבחרו משתמשים', 'es.serviceRef': 'service_ref', 'es.webhook': 'כתובת webhook לייצוא לידים',
     'es.openHours': 'אפשר עריכת שעות פתיחה?', 'es.workHours': 'שעות עבודה', 'es.selectAll': 'סמן הכל', 'es.save': 'עריכת ערוץ', 'es.saved': 'הערוץ עודכן בהצלחה',
     'es.noNumbers': 'אין מספרים וירטואליים מקושרים', 'es.back': 'חזרה',
+    'es.addTitle': 'הוספת ערוץ', 'es.addSave': 'הוספת ערוץ', 'es.numberNone': 'ללא', 'es.selectPlan': 'בחר מסלול', 'es.nameRequired': 'שם ערוץ נדרש',
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
@@ -120,6 +121,7 @@ const DICT = {
     'es.assign': 'Lead assignment', 'es.assignNone': 'No users selected', 'es.serviceRef': 'service_ref', 'es.webhook': 'Lead-export webhook URL',
     'es.openHours': 'Enable open-hours editing?', 'es.workHours': 'Working hours', 'es.selectAll': 'Select all', 'es.save': 'Save channel', 'es.saved': 'Channel updated successfully',
     'es.noNumbers': 'No linked virtual numbers', 'es.back': 'Back',
+    'es.addTitle': 'Add channel', 'es.addSave': 'Add channel', 'es.numberNone': 'None', 'es.selectPlan': 'Choose plan', 'es.nameRequired': 'Channel name is required',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
