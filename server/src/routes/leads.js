@@ -93,7 +93,7 @@ async function ownLead(req) {
 // ---- update (status / assign agent / rating / convert) ----
 router.patch('/:id', asyncHandler(async (req, res) => {
   if (!(await ownLead(req))) return res.status(404).json({ error: 'ליד לא נמצא' });
-  const editable = ['status_id', 'current_agent_id', 'lead_rating', 'lead_name', 'lead_email', 'is_converted', 'lead_info'];
+  const editable = ['status_id', 'current_agent_id', 'lead_rating', 'lead_name', 'lead_phone', 'lead_email', 'is_converted', 'lead_info'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
   if (sets.length) { sets.push('updated_at = NOW()'); params.push(req.params.id); await query(`UPDATE leads SET ${sets.join(', ')} WHERE id = ?`, params); }
