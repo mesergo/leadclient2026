@@ -65,6 +65,11 @@ export const api = {
   lead: (id, token) => request(`/api/leads/${id}`, { token }),
   updateLead: (id, body, token) => request(`/api/leads/${id}`, { method: 'PATCH', body, token }),
   addNote: (id, body, token) => request(`/api/leads/${id}/notes`, { method: 'POST', body, token }),
+  addTreatment: (id, body, token) => request(`/api/leads/${id}/treatment`, { method: 'POST', body, token }),
+  sendLeadMessage: (id, body, token) => request(`/api/leads/${id}/message`, { method: 'POST', body, token }),
+  addLeadReminder: (id, body, token) => request(`/api/leads/${id}/reminders`, { method: 'POST', body, token }),
+  addLeadTag: (id, tagId, token) => request(`/api/leads/${id}/tags`, { method: 'POST', body: { tag_id: tagId }, token }),
+  removeLeadTag: (id, tagId, token) => request(`/api/leads/${id}/tags/${tagId}`, { method: 'DELETE', token }),
 
   contacts: (token, f) => request(`/api/contacts${qs(f)}`, { token }),
   contact: (id, token) => request(`/api/contacts/${id}`, { token }),
