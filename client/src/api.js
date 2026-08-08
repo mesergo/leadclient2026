@@ -47,6 +47,7 @@ export const api = {
   services: (token, companyId) => request(`/api/services${qs({ company_id: companyId })}`, { token }),
   service: (id, token) => request(`/api/services/${id}`, { token }),
   serviceNewContext: (companyId, token) => request(`/api/services/new-context${qs({ company_id: companyId })}`, { token }),
+  uploadServiceCloseAudio: (id, file, token) => uploadForm(`/api/services/${id}/close-audio`, 'audio', file, {}, token),
   createService: (body, token) => request('/api/services', { method: 'POST', body, token }),
   updateService: (id, body, token) => request(`/api/services/${id}`, { method: 'PATCH', body, token }),
   deleteService: (id, token) => request(`/api/services/${id}`, { method: 'DELETE', token }),
