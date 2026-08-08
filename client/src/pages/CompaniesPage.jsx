@@ -19,6 +19,7 @@ export default function CompaniesPage() {
   const [addingName, setAddingName] = useState('');
   const [showAdd, setShowAdd] = useState(sp.get('add') === '1');
   const [channelDraft, setChannelDraft] = useState({}); // companyId -> new channel name
+  const [editCh, setEditCh] = useState(null); // { id, name }
   const canManage = user?.role === 'super_admin' || user?.role === 'agency_admin';
   const canImpersonate = canManage;
 
@@ -71,6 +72,13 @@ export default function CompaniesPage() {
     if (!confirm(t('co.confirmDelChannel'))) return;
     try { await api.deleteService(id, token); loadServices(); } catch (e) { setError(e.message); }
   }
+  async function toggleChannel(s) {
+    try { await api.updateService(s.id, { is_active: s.is_active ? 0 : 1 }, token); loadServices(); } catch (e) { setError(e.message); }
+  }
+  async function saveChannelName() {
+    if (!editCh || !editCh.name.trim()) { setEditCh(null); return; }
+    try { await api.updateService(editCh.id, { name: editCh.name.trim() }, token); setEditCh(null); loadServices(); } catch (e) { setError(e.message); }
+  }
 
   return (
     <div>
@@ -116,9 +124,16 @@ export default function CompaniesPage() {
                   <div className="channel-list">
                     {channels.length === 0 && <p className="muted" style={{ fontSize: 12 }}>{t('co.noChannels')}</p>}
                     {channels.map((s) => (
-                      <div className="channel-row" key={s.id}>
-                        <button className="icon-btn icon-btn--red icon-xs" title="מחיקה" onClick={() => delChannel(s.id)}><Icons.Trash size={13} /></button>
-                        <span className="channel-name">{s.name}</span>
+                      <div className={'channel-row' + (s.is_active ? '' : ' channel-suspended')} key={s.id}>
+                        {canManage && <button className="icon-btn icon-btn--red icon-xs" title="מחיקה" onClick={() => delChannel(s.id)}><Icons.Trash size={13} /></button>}
+                        {canManage && <button className={'icon-btn icon-xs ' + (s.is_active ? 'icon-btn--amber' : 'icon-btn--green')} title={s.is_active ? t('co.suspendChannel') : t('co.activateChannel')} onClick={() => toggleChannel(s)}>{s.is_active ? <Icons.Lock size={12} /> : <Icons.Unlock size={12} />}</button>}
+                        {canManage && editCh?.id !== s.id && <button className="icon-btn icon-xs" title={t('co.editChannel')} onClick={() => setEditCh({ id: s.id, name: s.name })}><Icons.Pencil size={12} /></button>}
+                        {editCh?.id === s.id ? (
+                          <input className="channel-edit-input" value={editCh.name} autoFocus onChange={(e) => setEditCh({ ...editCh, name: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveChannelName(); if (e.key === 'Escape') setEditCh(null); }} onBlur={saveChannelName} />
+                        ) : (
+                          <span className="channel-name">{s.name}</span>
+                        )}
                       </div>
                     ))}
                   </div>

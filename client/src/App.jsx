@@ -12,6 +12,7 @@ import CompanyEditPage from './pages/CompanyEditPage';
 import CompanyStatusesPage from './pages/CompanyStatusesPage';
 import CompanyTagsPage from './pages/CompanyTagsPage';
 import CompanyFilesPage from './pages/CompanyFilesPage';
+import CompanyMessagesPage from './pages/CompanyMessagesPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import ContactsPage from './pages/ContactsPage';
@@ -50,6 +51,7 @@ function Routing() {
         <Route path="/companies/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyEditPage /></Role>} />
         <Route path="/companies/:id/statuses" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyStatusesPage /></Role>} />
         <Route path="/companies/:id/tags" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyTagsPage /></Role>} />
+        <Route path="/companies/:id/messages" element={<Role roles={["super_admin","agency_admin","company_admin"]}><CompanyMessagesPage /></Role>} />
         <Route path="/companies/:id/files" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyFilesPage /></Role>} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/leads/:id" element={<LeadDetailPage />} />
