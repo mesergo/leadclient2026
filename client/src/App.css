@@ -241,3 +241,13 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .chip-link.wa { background: #25d366; }
 .chip-link.email { background: #337ab7; }
 .lead-info { background: #f4f6f8; padding: 0.75rem; border-radius: var(--radius); white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 260px; overflow: auto; }
+
+/* lead card floating modal */
+.lead-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 3rem 1rem; overflow-y: auto; }
+.lead-modal { background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); width: 760px; max-width: 100%; padding: 1.25rem 1.5rem; }
+.lead-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.lead-card-head h2 { font-size: 18px; margin: 0; }
+.lead-card-body { min-height: 220px; }
+.link-name { background: none; border: none; color: var(--link); cursor: pointer; padding: 0; font-size: 13px; }
+.link-name:hover { text-decoration: underline; }
+@media (max-width: 700px) { .lead-modal-overlay { padding: 1rem 0.5rem; } .lead-modal { padding: 1rem; } }
