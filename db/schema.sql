@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS leads (
   platform              VARCHAR(30) NULL,
   last_interaction_at   DATETIME NULL,
   last_interaction_type VARCHAR(30) NULL,
+  recording_url         VARCHAR(500) NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   legacy_id             BIGINT UNSIGNED NULL,

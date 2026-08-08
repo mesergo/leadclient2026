@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import * as Icons from '../icons';
+import LeadCard from '../components/LeadCard';
 
 // map a lead's source to an icon
 function typeIcon(l) {
@@ -32,6 +33,7 @@ export default function LeadsPage() {
     status_id: '', start: sp.get('start') || '', end: sp.get('end') || '', q: '',
   });
   const [sort, setSort] = useState({ col: 'created_at', dir: 'desc' });
+  const [selected, setSelected] = useState(null); // lead id for the floating card
   const [error, setError] = useState('');
 
   const load = (filters) => api.leads(token, filters).then((d) => setRows(d.leads)).catch((e) => setError(e.message));
@@ -128,7 +130,7 @@ export default function LeadsPage() {
           return (
             <tr key={l.id}>
               <td><TI size={16} /></td>
-              <td><Link to={`/leads/${l.id}`}>{l.lead_name || t('lead.na')}</Link></td>
+              <td><button className="link-name" onClick={() => setSelected(l.id)}>{l.lead_name || t('lead.na')}</button></td>
               <td>{l.lead_phone}</td><td>{l.lead_email || '--'}</td>
               <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>
               <td><span className={'presence ' + (/(available|online)/i.test(l.agent_status || '') ? 'on' : 'off')} /> {l.agent_name || t('lead.general')}</td>
@@ -141,6 +143,14 @@ export default function LeadsPage() {
         })}</tbody>
       </table></div>
       {sorted.length === 0 && <p className="muted">{t('lead.none')}</p>}
+
+      {selected && (
+        <div className="lead-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setSelected(null); load(f); } }}>
+          <div className="lead-modal">
+            <LeadCard id={selected} onClose={() => { setSelected(null); load(f); }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
