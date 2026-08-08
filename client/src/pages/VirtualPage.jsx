@@ -57,8 +57,8 @@ export default function VirtualPage() {
     </th>
   );
 
-  // clicking a number opens the channel's company (where the channel is edited)
-  const editChannel = (n) => nav(n.agency_id ? `/companies?agency=${n.agency_id}` : `/companies/${n.company_id}`);
+  // clicking a number opens the linked channel's edit page (falls back to the company view)
+  const editChannel = (n) => nav(n.service_id ? `/companies/edit-service?id=${n.service_id}` : `/companies/${n.company_id}`);
 
   return (
     <div>

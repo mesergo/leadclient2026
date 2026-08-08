@@ -45,6 +45,7 @@ export const api = {
 
   importLeads: (body, token) => request('/api/import', { method: 'POST', body, token }),
   services: (token, companyId) => request(`/api/services${qs({ company_id: companyId })}`, { token }),
+  service: (id, token) => request(`/api/services/${id}`, { token }),
   createService: (body, token) => request('/api/services', { method: 'POST', body, token }),
   updateService: (id, body, token) => request(`/api/services/${id}`, { method: 'PATCH', body, token }),
   deleteService: (id, token) => request(`/api/services/${id}`, { method: 'DELETE', token }),

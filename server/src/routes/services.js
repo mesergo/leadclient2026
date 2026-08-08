@@ -22,6 +22,29 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ services: rows });
 }));
 
+// Full detail for the channel-edit page: service row + linked virtual numbers + company users.
+router.get('/:id', asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'sv.company_id');
+  const rows = await query(
+    `SELECT sv.*, c.name AS company_name, c.agency_id, a.name AS agency_name
+     FROM services sv
+     LEFT JOIN companies c ON c.id = sv.company_id
+     LEFT JOIN agencies a ON a.id = c.agency_id
+     WHERE sv.id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const service = rows[0];
+  if (!service) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  let assigned = [];
+  try { assigned = JSON.parse(service.distribute_leads || '[]'); } catch { assigned = []; }
+  service.distribute_leads = Array.isArray(assigned) ? assigned.map(String) : [];
+  const phones = await query(
+    `SELECT id, phone_number, number_to_display, redirect_to_number, ivr_provider
+     FROM phone_numbers WHERE service_id = ? ORDER BY id`, [req.params.id]);
+  const users = await query(
+    `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
+     FROM users WHERE company_id = ? AND is_active = 1 ORDER BY name`, [service.company_id]);
+  res.json({ service, phones, users });
+}));
+
 router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
   const { company_id, name, service_type } = req.body || {};
   if (!company_id || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
@@ -37,10 +60,57 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT id FROM services WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'ערוץ לא נמצא' });
-  const { name, service_type, site_url, is_active } = req.body || {};
-  await query('UPDATE services SET name = COALESCE(?, name), service_type = COALESCE(?, service_type), site_url = COALESCE(?, site_url), is_active = COALESCE(?, is_active) WHERE id = ?',
-    [name ?? null, service_type ?? null, site_url ?? null, is_active ?? null, req.params.id]);
-  const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url FROM services WHERE id = ?', [req.params.id]);
+  const b = req.body || {};
+  // Only overwrite a column when the key was sent (COALESCE keeps the current value for undefined→null).
+  const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+  const distribute = has('distribute_leads')
+    ? JSON.stringify((Array.isArray(b.distribute_leads) ? b.distribute_leads : []).map(String))
+    : null;
+  await query(
+    `UPDATE services SET
+       name = COALESCE(?, name),
+       description = ${has('description') ? '?' : 'description'},
+       service_type = COALESCE(?, service_type),
+       site_url = ${has('site_url') ? '?' : 'site_url'},
+       phone_service_number = ${has('phone_service_number') ? '?' : 'phone_service_number'},
+       line_type = ${has('line_type') ? '?' : 'line_type'},
+       is_whatsapp_service = COALESCE(?, is_whatsapp_service),
+       is_import_service = COALESCE(?, is_import_service),
+       returning_sms_from = ${has('returning_sms_from') ? '?' : 'returning_sms_from'},
+       returning_sms_text = ${has('returning_sms_text') ? '?' : 'returning_sms_text'},
+       distribute_leads = COALESCE(?, distribute_leads),
+       service_ref = ${has('service_ref') ? '?' : 'service_ref'},
+       export_webhook_url = ${has('export_webhook_url') ? '?' : 'export_webhook_url'},
+       open_hours = ${has('open_hours') ? '?' : 'open_hours'},
+       is_active = COALESCE(?, is_active)
+     WHERE id = ?`,
+    [
+      b.name ?? null,
+      ...(has('description') ? [b.description ?? null] : []),
+      b.service_type ?? null,
+      ...(has('site_url') ? [b.site_url ?? null] : []),
+      ...(has('phone_service_number') ? [b.phone_service_number ?? null] : []),
+      ...(has('line_type') ? [b.line_type ?? null] : []),
+      has('is_whatsapp_service') ? (b.is_whatsapp_service ? 1 : 0) : null,
+      has('is_import_service') ? (b.is_import_service ? 1 : 0) : null,
+      ...(has('returning_sms_from') ? [b.returning_sms_from ?? null] : []),
+      ...(has('returning_sms_text') ? [b.returning_sms_text ?? null] : []),
+      distribute,
+      ...(has('service_ref') ? [b.service_ref ?? null] : []),
+      ...(has('export_webhook_url') ? [b.export_webhook_url ?? null] : []),
+      ...(has('open_hours') ? [b.open_hours ?? null] : []),
+      has('is_active') ? (b.is_active ? 1 : 0) : null,
+      req.params.id,
+    ]);
+  // Per-number redirect updates (only numbers linked to this service).
+  if (Array.isArray(b.phones)) {
+    for (const p of b.phones) {
+      if (!p || p.id == null) continue;
+      await query('UPDATE phone_numbers SET redirect_to_number = ? WHERE id = ? AND service_id = ?',
+        [p.redirect_to_number ?? null, p.id, req.params.id]);
+    }
+  }
+  const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url, is_active FROM services WHERE id = ?', [req.params.id]);
   res.json({ service: rows[0] });
 }));
 
