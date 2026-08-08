@@ -9,6 +9,7 @@ import AgencyEditPage from './pages/AgencyEditPage';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
 import CompanyEditPage from './pages/CompanyEditPage';
+import EditServicePage from './pages/EditServicePage';
 import CompanyStatusesPage from './pages/CompanyStatusesPage';
 import CompanyTagsPage from './pages/CompanyTagsPage';
 import CompanyFilesPage from './pages/CompanyFilesPage';
@@ -47,6 +48,7 @@ function Routing() {
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />
         <Route path="/agencies/:id" element={<Role roles={["super_admin","agency_admin"]}><AgencyEditPage /></Role>} />
         <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin']}><CompaniesPage /></Role>} />
+        <Route path="/companies/edit-service" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><EditServicePage /></Role>} />
         <Route path="/companies/:id" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyDetailPage /></Role>} />
         <Route path="/companies/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyEditPage /></Role>} />
         <Route path="/companies/:id/statuses" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyStatusesPage /></Role>} />

@@ -255,3 +255,22 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 /* auto (system) tags */
 .tag-chip.tag-auto { background: #eef1f4; color: #55606b; border: 1px dashed #c0c7cf; }
 .auto-dot { width: 6px; height: 6px; border-radius: 50%; background: #f5a623; display: inline-block; margin-inline-end: 4px; }
+
+/* ---------- Edit-service (channel) page ---------- */
+.input-readonly { background: #f4f6f8; color: #55606b; cursor: default; }
+button.channel-name.link-name { background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: #00838f; text-align: start; }
+button.channel-name.link-name:hover { text-decoration: underline; }
+.assign-box { display: flex; flex-wrap: wrap; gap: 6px; }
+.assign-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid #c0c7cf; border-radius: 14px; font-size: 13px; cursor: pointer; background: #fff; }
+.assign-chip.on { background: #e0f4f6; border-color: #00838f; color: #00636b; }
+.assign-chip input { margin: 0; }
+.hours-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.hours-head label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.hours-grid-wrap { overflow-x: auto; }
+.hours-grid { border-collapse: collapse; font-size: 11px; }
+.hours-grid th { font-weight: 600; color: #55606b; padding: 2px 4px; text-align: center; }
+.hours-grid th.hours-day { cursor: pointer; white-space: nowrap; text-align: start; padding-inline-end: 8px; }
+.hours-grid th.hours-day:hover { color: #00838f; }
+.hours-grid td { width: 20px; height: 20px; border: 1px solid #e2e6ea; cursor: pointer; background: #fff; }
+.hours-grid td.on { background: #4caf50; border-color: #43a047; }
+.hours-grid td:hover { outline: 2px solid #00bcd4; outline-offset: -2px; }
