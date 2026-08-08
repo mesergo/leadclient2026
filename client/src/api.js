@@ -43,6 +43,7 @@ export const api = {
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),
   impersonateCompany: (id, token) => request(`/api/companies/${id}/impersonate`, { method: 'POST', token }),
 
+  importLeads: (body, token) => request('/api/import', { method: 'POST', body, token }),
   services: (token, companyId) => request(`/api/services${qs({ company_id: companyId })}`, { token }),
   createService: (body, token) => request('/api/services', { method: 'POST', body, token }),
   updateService: (id, body, token) => request(`/api/services/${id}`, { method: 'PATCH', body, token }),
