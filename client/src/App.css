@@ -271,6 +271,8 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .hours-grid th { font-weight: 600; color: #55606b; padding: 2px 4px; text-align: center; }
 .hours-grid th.hours-day { cursor: pointer; white-space: nowrap; text-align: start; padding-inline-end: 8px; }
 .hours-grid th.hours-day:hover { color: #00838f; }
+.hours-grid th.hours-hour { cursor: pointer; }
+.hours-grid th.hours-hour:hover { color: #00838f; }
 .hours-grid td { width: 20px; height: 20px; border: 1px solid #e2e6ea; cursor: pointer; background: #fff; }
 .hours-grid td.on { background: #4caf50; border-color: #43a047; }
 .hours-grid td:hover { outline: 2px solid #00bcd4; outline-offset: -2px; }
