@@ -133,10 +133,9 @@ export default function CompaniesPage() {
                     ))}
                   </div>
                   {canManage && (
-                    <form className="channel-add" onSubmit={(e) => { e.preventDefault(); addChannel(c.id); }}>
-                      <input placeholder={t('co.channelNamePh')} value={channelDraft[c.id] || ''} onChange={(e) => setChannelDraft({ ...channelDraft, [c.id]: e.target.value })} />
-                      <button className="link-action link-action--green"><Icons.Plus size={13} /> {t('co.newChannel')}</button>
-                    </form>
+                    <div className="channel-add">
+                      <button className="link-action link-action--green" onClick={() => nav(`/companies/add-service?company=${c.id}`)}><Icons.Plus size={13} /> {t('co.newChannel')}</button>
+                    </div>
                   )}
                 </div>
               );

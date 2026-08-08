@@ -22,6 +22,21 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ services: rows });
 }));
 
+// Context for the new-channel form: company users + that company's unassigned numbers.
+router.get('/new-context', asyncHandler(async (req, res) => {
+  const companyId = req.query.company_id;
+  if (!companyId) return res.status(400).json({ error: 'חסר מזהה חברה' });
+  if (canAccessCompany(req.user, companyId) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const users = await query(
+    `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
+     FROM users WHERE company_id = ? AND is_active = 1 ORDER BY name`, [companyId]);
+  const numbers = await query(
+    `SELECT id, phone_number, number_to_display FROM phone_numbers
+     WHERE service_id IS NULL AND company_id = ? ORDER BY phone_number`, [companyId]);
+  const company = await query('SELECT c.id, c.name, c.agency_id, a.name AS agency_name FROM companies c LEFT JOIN agencies a ON a.id = c.agency_id WHERE c.id = ?', [companyId]);
+  res.json({ company: company[0] || null, users, numbers });
+}));
+
 // Full detail for the channel-edit page: service row + linked virtual numbers + company users.
 router.get('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'sv.company_id');
@@ -46,12 +61,30 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
-  const { company_id, name, service_type } = req.body || {};
+  const b = req.body || {};
+  const { company_id, name, service_type } = b;
   if (!company_id || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
   if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const distribute = JSON.stringify((Array.isArray(b.distribute_leads) ? b.distribute_leads : []).map(String));
   const r = await query(
-    'INSERT INTO services (company_id, name, service_type, public_hash, created_at) VALUES (?, ?, ?, ?, NOW())',
-    [company_id, name, service_type || null, crypto.randomUUID()]);
+    `INSERT INTO services
+       (company_id, name, service_type, public_hash, description, site_url, line_type,
+        phone_service_number, is_whatsapp_service, returning_sms_from, returning_sms_text,
+        distribute_leads, service_ref, export_webhook_url, open_hours, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+    [company_id, name, service_type || null, crypto.randomUUID(),
+     b.description ?? null, service_type === 'website' ? (b.site_url ?? null) : null,
+     service_type === 'phone' ? (b.line_type ?? null) : null,
+     service_type === 'phone' ? (b.phone_service_number ?? null) : null,
+     service_type === 'whatsapp' ? 1 : 0,
+     b.returning_sms_from ?? null, b.returning_sms_text ?? null,
+     distribute, b.service_ref ?? null, b.export_webhook_url ?? null, b.open_hours ?? '']);
+  // Optionally claim one of the company's unassigned numbers for this channel.
+  if (b.phone_number_id) {
+    await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = COALESCE(?, redirect_to_number) WHERE id = ? AND company_id = ? AND service_id IS NULL',
+      [r.insertId, b.redirect_to_number ?? null, b.phone_number_id, company_id]);
+    await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
+  }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, created_at FROM services WHERE id = ?', [r.insertId]);
   res.status(201).json({ service: rows[0] });
 }));

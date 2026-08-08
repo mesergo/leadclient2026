@@ -5,7 +5,7 @@ import { useLang } from '../context/LangContext';
 import { api } from '../api';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד', 'מספר 1-800', 'מספר 1-700', 'מספר וירטואלי בחו״ל'];
+const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
 const DAYS = {
   he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
   en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
