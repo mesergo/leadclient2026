@@ -14,7 +14,7 @@ export default function VirtualPage() {
   const [rows, setRows] = useState([]);
   const [agencies, setAgencies] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [preset, setPreset] = useState('thisMonth');
+  const [preset, setPreset] = useState('allTime');
   const [sel, setSel] = useState({ agency: '', company_id: '' });
   const [sort, setSort] = useState({ col: 'agency_name', dir: 'asc' });
   const [error, setError] = useState('');

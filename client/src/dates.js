@@ -7,12 +7,13 @@ const fmt = (d) => {
 };
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 
-export const DATE_PRESETS = ['today', 'yesterday', 'last2', 'thisWeek', 'last7', 'prevWeek', 'last14', 'thisMonth', 'last30', 'prevMonth'];
+export const DATE_PRESETS = ['allTime', 'today', 'yesterday', 'last2', 'thisWeek', 'last7', 'prevWeek', 'last14', 'thisMonth', 'last30', 'prevMonth'];
 
 export function dateRange(preset) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   switch (preset) {
+    case 'allTime': return { start: '', end: '' };
     case 'today': return { start: fmt(today), end: fmt(today) };
     case 'yesterday': { const y = addDays(today, -1); return { start: fmt(y), end: fmt(y) }; }
     case 'last2': return { start: fmt(addDays(today, -1)), end: fmt(today) };
