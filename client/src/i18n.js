@@ -40,7 +40,7 @@ const DICT = {
     // leads
     'lead.searchPh': 'חיפוש שם/טלפון/אימייל', 'lead.show': 'הצגה', 'lead.num': "מס'", 'lead.name': 'שם הפונה',
     'lead.channel': 'ערוץ', 'lead.agent': 'נציג', 'lead.received': 'התקבל', 'lead.none': 'אין לידים.',
-    'lead.na': 'לא זמין', 'lead.general': 'כללי',
+    'lead.na': 'לא זמין', 'lead.general': 'כללי', 'lead.count': 'רשומות', 'lead.export': 'ייצוא', 'lead.status': 'סטטוס', 'lead.tags': 'תגיות', 'lead.lastCall': 'שיחה אחרונה', 'ltab.general': 'מידע כללי', 'ltab.extra': 'מידע נוסף', 'ltab.treatment': 'טיפול בלקוח', 'ltab.chat': 'שיחה', 'ltab.assign': 'הקצאה', 'ltab.reminder': 'תזכורת', 'lc.rating': 'דירוג', 'lc.addTag': 'הוסף תגית', 'lc.leadInfo': 'פרטי הטופס', 'lc.tracking': 'מקור ומעקב', 'lc.source': 'מקור', 'lc.ip': 'כתובת IP', 'lc.browser': 'דפדפן', 'lc.referrer': 'הפניה', 'lc.actionType': 'סוג פעולה', 'lc.addTreatment': 'הוסף תיעוד', 'lc.treatmentEmpty': 'אין תיעוד טיפול', 'lc.msgChannel': 'ערוץ', 'lc.msgSend': 'שלח', 'lc.assignAgent': 'שייך נציג', 'lc.assign': 'שייך', 'lc.reminderAt': 'תאריך תזכורת', 'lc.addReminder': 'הוסף תזכורת', 'lc.noReminders': 'אין תזכורות', 'lc.convert': 'סמן כהומר', 'act.promised': 'הובטח ללקוח', 'act.offered': 'הוצע ללקוח', 'act.called': 'בוצעה שיחה', 'act.meeting': 'נקבעה פגישה', 'act.other': 'אחר',
     'leadd.title': 'ליד', 'leadd.rating': 'דירוג', 'leadd.convos': 'שיחות והערות', 'leadd.addNote': 'הוספת הערה...',
     'leadd.content': 'תוכן', 'leadd.type': 'סוג',
     // contacts
@@ -95,7 +95,7 @@ const DICT = {
     'cod.zip': 'Zip code', 'cod.industry': 'Industry',
     'lead.searchPh': 'Search name/phone/email', 'lead.show': 'Show', 'lead.num': '#', 'lead.name': 'Lead name',
     'lead.channel': 'Channel', 'lead.agent': 'Agent', 'lead.received': 'Received', 'lead.none': 'No leads.',
-    'lead.na': 'N/A', 'lead.general': 'General',
+    'lead.na': 'N/A', 'lead.general': 'General', 'lead.count': 'records', 'lead.export': 'Export', 'lead.status': 'Status', 'lead.tags': 'Tags', 'lead.lastCall': 'Last call', 'ltab.general': 'General info', 'ltab.extra': 'More info', 'ltab.treatment': 'Handling', 'ltab.chat': 'Conversation', 'ltab.assign': 'Assign', 'ltab.reminder': 'Reminder', 'lc.rating': 'Rating', 'lc.addTag': 'Add tag', 'lc.leadInfo': 'Form details', 'lc.tracking': 'Source & tracking', 'lc.source': 'Source', 'lc.ip': 'IP address', 'lc.browser': 'Browser', 'lc.referrer': 'Referrer', 'lc.actionType': 'Action type', 'lc.addTreatment': 'Add entry', 'lc.treatmentEmpty': 'No handling entries', 'lc.msgChannel': 'Channel', 'lc.msgSend': 'Send', 'lc.assignAgent': 'Assign agent', 'lc.assign': 'Assign', 'lc.reminderAt': 'Reminder date', 'lc.addReminder': 'Add reminder', 'lc.noReminders': 'No reminders', 'lc.convert': 'Mark converted', 'act.promised': 'Promised to customer', 'act.offered': 'Offered to customer', 'act.called': 'Called', 'act.meeting': 'Meeting set', 'act.other': 'Other',
     'leadd.title': 'Lead', 'leadd.rating': 'Rating', 'leadd.convos': 'Conversations & notes', 'leadd.addNote': 'Add a note...',
     'leadd.content': 'Content', 'leadd.type': 'Type',
     'con.searchPh': 'Search name/phone/email', 'con.fullName': 'Full name', 'con.created': 'Created', 'con.none': 'No contacts.',
