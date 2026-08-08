@@ -24,6 +24,7 @@ export default function CompanyDetailPage() {
     { to: `/users?company=${id}`, Icon: Icons.Users, color: '#e91e63', title: t('cop.users'), desc: t('cop.usersDesc') },
     { to: `/companies/${id}/statuses`, Icon: Icons.Grid, color: '#16a34a', title: t('cop.statuses'), desc: t('cop.statusesDesc') },
     { to: `/companies/${id}/tags`, Icon: Icons.Contacts, color: '#337ab7', title: t('cop.tags'), desc: t('cop.tagsDesc') },
+    { to: `/companies/${id}/messages`, Icon: Icons.Inbox, color: '#e8710a', title: t('cop.messages'), desc: t('cop.messagesDesc') },
     { to: `/companies/${id}/files`, Icon: Icons.Upload, color: '#8bc34a', title: t('cop.files'), desc: t('cop.filesDesc') },
   ];
 

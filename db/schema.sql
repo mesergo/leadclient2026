@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS services (
   open_hours            TEXT NULL,
   close_hours_phone     VARCHAR(30) NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  is_active             TINYINT(1) NOT NULL DEFAULT 1,
   legacy_id             BIGINT UNSIGNED NULL,
   CONSTRAINT fk_services_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
   UNIQUE KEY uq_services_hash (public_hash),

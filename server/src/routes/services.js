@@ -14,7 +14,7 @@ router.get('/', asyncHandler(async (req, res) => {
   if (req.query.company_id) { extra = ' AND sv.company_id = ?'; params.push(req.query.company_id); }
   const rows = await query(
     `SELECT sv.id, sv.company_id, sv.name, sv.service_type, sv.public_hash, sv.phone_service_number,
-            sv.site_url, sv.is_import_service, sv.is_whatsapp_service, sv.created_at, c.name AS company_name
+            sv.site_url, sv.is_import_service, sv.is_whatsapp_service, sv.is_active, sv.created_at, c.name AS company_name
      FROM services sv LEFT JOIN companies c ON c.id = sv.company_id
      WHERE (${s.sql})${extra} ORDER BY sv.created_at DESC`,
     params
@@ -37,9 +37,9 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT id FROM services WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'ערוץ לא נמצא' });
-  const { name, service_type, site_url } = req.body || {};
-  await query('UPDATE services SET name = COALESCE(?, name), service_type = COALESCE(?, service_type), site_url = COALESCE(?, site_url) WHERE id = ?',
-    [name ?? null, service_type ?? null, site_url ?? null, req.params.id]);
+  const { name, service_type, site_url, is_active } = req.body || {};
+  await query('UPDATE services SET name = COALESCE(?, name), service_type = COALESCE(?, service_type), site_url = COALESCE(?, site_url), is_active = COALESCE(?, is_active) WHERE id = ?',
+    [name ?? null, service_type ?? null, site_url ?? null, is_active ?? null, req.params.id]);
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url FROM services WHERE id = ?', [req.params.id]);
   res.json({ service: rows[0] });
 }));

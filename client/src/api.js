@@ -70,6 +70,8 @@ export const api = {
   contact: (id, token) => request(`/api/contacts/${id}`, { token }),
   reminders: (token) => request('/api/reminders', { token }),
   templates: (token, agencyId) => request(`/api/templates${qs({ agency_id: agencyId })}`, { token }),
+  createTemplate: (body, token) => request('/api/templates', { method: 'POST', body, token }),
+  deleteTemplate: (id, token) => request(`/api/templates/${id}`, { method: 'DELETE', token }),
 
   dashboardSummary: (token, filters) => request(`/api/dashboard/summary${qs(filters)}`, { token }),
   dashboardByAgency: (token, filters) => request(`/api/dashboard/by-agency${qs(filters)}`, { token }),
