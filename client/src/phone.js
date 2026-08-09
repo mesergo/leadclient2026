@@ -1,22 +1,29 @@
-// Israeli phone formatting.
-// Display: local dashed form, e.g. 972585050000 / 585050000 -> 058-5050000.
-// WhatsApp: international form keeping 972, e.g. 972585050000.
+// Phone formatting.
+// Israeli numbers -> local dashed form (972585050000 / 585050000 -> 058-5050000).
+// Non-Israeli numbers -> international "+<digits>".
+// Empty / "0" / all-zeros / too-short -> the given fallback (e.g. "unidentified").
+// WhatsApp: keep 972 for Israeli, own country code otherwise.
 
-export function formatIL(raw) {
-  if (raw == null || raw === '') return '';
-  let d = String(raw).replace(/\D/g, '');
-  if (!d) return String(raw);
-  if (d.startsWith('972')) d = '0' + d.slice(3);
-  else if (!d.startsWith('0')) d = '0' + d;
-  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3)}`; // mobile / 07x
-  if (d.length === 9) return `${d.slice(0, 2)}-${d.slice(2)}`;  // landline 0X
-  return d; // short codes / other lengths — leave normalised
+const groupIL = (loc) => {
+  if (loc.length === 10) return `${loc.slice(0, 3)}-${loc.slice(3)}`; // mobile / 07x
+  if (loc.length === 9) return `${loc.slice(0, 2)}-${loc.slice(2)}`;  // landline 0X
+  return loc;
+};
+
+export function formatIL(raw, fallback = '') {
+  const d = String(raw ?? '').replace(/\D/g, '');
+  if (!d || /^0+$/.test(d) || d.length < 7) return fallback;
+  if (d.startsWith('972')) return groupIL('0' + d.slice(3));
+  if (d.startsWith('0')) return groupIL(d);
+  if (d.length === 9) return groupIL('0' + d); // IL mobile/landline missing the trunk 0
+  return '+' + d; // international
 }
 
 export function waNumber(raw) {
-  let d = String(raw ?? '').replace(/\D/g, '');
-  if (!d) return '';
+  const d = String(raw ?? '').replace(/\D/g, '');
+  if (!d || /^0+$/.test(d)) return '';
   if (d.startsWith('972')) return d;
   if (d.startsWith('0')) return '972' + d.slice(1);
-  return '972' + d;
+  if (d.length === 9) return '972' + d;
+  return d; // already carries a country code
 }
