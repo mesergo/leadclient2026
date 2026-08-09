@@ -57,7 +57,7 @@ export default function Layout() {
         <header className="header">
           <button className="hamburger" onClick={() => setOpen((v) => !v)} aria-label="menu"><Icons.Menu /></button>
           <NavLink to="/profile" className="header-user" title={t('nav.profile')}>
-            <Icons.User size={18} /> {t('header.welcome')}, <strong>{user?.name || ''}</strong>
+            <Icons.User size={18} /> {t('header.welcome')}, <strong>{user?.name || user?.display_name || user?.username || ''}</strong>
           </NavLink>
           <div className="header-actions">
             <label className="lang-picker" title={t('nav.language')}>

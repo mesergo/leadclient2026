@@ -38,11 +38,13 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const rows = await query(
-      'SELECT id, username, display_name, email, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, display_name, first_name, last_name, email, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
-    res.json({ user: { ...rows[0], impersonated_by: req.user.impersonated_by } });
+    const u = rows[0];
+    const name = u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
+    res.json({ user: { ...rows[0], name, impersonated_by: req.user.impersonated_by } });
   } catch (e) {
     next(e);
   }
