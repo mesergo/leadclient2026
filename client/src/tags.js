@@ -13,6 +13,14 @@ export function isAutoTag(label) {
   return /^\s*\[lang:/i.test(label || '');
 }
 
+// Hide our telephony suppliers from customers: replace any provider URL
+// (maskyoo / micropay / paycall …) in displayed raw text with a neutral label.
+const SUPPLIER_URL = /https?:\/\/[^\s"'<>]*(?:maskyoo|micropay|paycall|masqyoo)[^\s"'<>]*/gi;
+export function maskSuppliers(s) {
+  if (s == null) return s;
+  return String(s).replace(SUPPLIER_URL, '[הקלטה]');
+}
+
 // Default lead statuses are stored as i18n placeholders like "[lang:status_waiting]".
 const STATUS_MAP = {
   status_new: 'חדש', status_waiting: 'ממתין', status_treatment: 'בטיפול', status_in_process: 'בטיפול',
