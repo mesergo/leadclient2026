@@ -90,7 +90,7 @@ const DICT = {
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
     'bil.subtitle': 'ניהול סיכומי חשבון לפי שימוש', 'bil.month': 'חודש', 'bil.numbers': 'מספרים', 'bil.premium': 'פרימיום', 'bil.calls': 'שיחות', 'bil.minutes': 'דקות', 'bil.sms': 'SMS', 'bil.leadsCol': 'לידים', 'bil.none': 'אין נתונים לחודש זה.',
-    'bil.tabUsage': 'סיכום שימוש', 'bil.tabPrices': 'הגדרות מחירים', 'bil.pMinute': 'מחיר לדקת שיחה', 'bil.pLead': 'מחיר לליד', 'bil.pPremiumPhone': 'מחיר למספר פרימיום', 'bil.pRegularPhone': 'מחיר למספר רגיל', 'bil.pSms': 'מחיר ל-SMS', 'bil.pTax': 'מע"מ (%)', 'bil.pCurrency': 'סימן מטבע', 'bil.pricesSaved': 'המחירים נשמרו', 'bil.packagesOverride': 'חבילות (גוברות על המחירים)', 'bil.pkgMinutes': 'דקות בחבילה', 'bil.pkgLeads': 'לידים בחבילה',
+    'bil.tabUsage': 'סיכום שימוש', 'bil.tabPrices': 'הגדרות מחירים', 'bil.pMinute': 'מחיר לדקת שיחה', 'bil.pLead': 'מחיר לליד', 'bil.pPremiumPhone': 'מחיר למספר פרימיום', 'bil.pRegularPhone': 'מחיר למספר רגיל', 'bil.pSms': 'מחיר ל-SMS', 'bil.pTax': 'מע"מ (%)', 'bil.pCurrency': 'סימן מטבע', 'bil.pricesSaved': 'המחירים נשמרו', 'bil.packagesOverride': 'חבילות (גוברות על המחירים)', 'bil.pkgMinutes': 'דקות בחבילה', 'bil.pkgLeads': 'לידים בחבילה', 'bil.perMonth': '/ חודש', 'bil.setupFee': 'דמי התקנה', 'bil.oneTime': 'חד-פעמי', 'bil.popular': 'הכי פופולרי',
     'bil.packages': 'חבילות', 'bil.package': 'חבילה', 'bil.price': 'מחיר', 'bil.users': 'משתמשים', 'bil.phones': 'טלפונים',
     'bil.leads': 'לידים', 'bil.invoices': 'חשבוניות', 'bil.type': 'סוג', 'bil.month': 'חודש',
     // language
@@ -176,7 +176,7 @@ const DICT = {
     'pr.title': 'Profile', 'pr.subtitle': 'Edit your profile', 'ue.currentPassword': 'Current password',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.subtitle': 'Account summaries by usage', 'bil.month': 'Month', 'bil.numbers': 'Numbers', 'bil.premium': 'Premium', 'bil.calls': 'Calls', 'bil.minutes': 'Minutes', 'bil.sms': 'SMS', 'bil.leadsCol': 'Leads', 'bil.none': 'No data for this month.',
-    'bil.tabUsage': 'Usage', 'bil.tabPrices': 'Price settings', 'bil.pMinute': 'Price per minute', 'bil.pLead': 'Price per lead', 'bil.pPremiumPhone': 'Price per premium number', 'bil.pRegularPhone': 'Price per regular number', 'bil.pSms': 'Price per SMS', 'bil.pTax': 'VAT (%)', 'bil.pCurrency': 'Currency sign', 'bil.pricesSaved': 'Prices saved', 'bil.packagesOverride': 'Packages (override the prices)', 'bil.pkgMinutes': 'Package minutes', 'bil.pkgLeads': 'Package leads',
+    'bil.tabUsage': 'Usage', 'bil.tabPrices': 'Price settings', 'bil.pMinute': 'Price per minute', 'bil.pLead': 'Price per lead', 'bil.pPremiumPhone': 'Price per premium number', 'bil.pRegularPhone': 'Price per regular number', 'bil.pSms': 'Price per SMS', 'bil.pTax': 'VAT (%)', 'bil.pCurrency': 'Currency sign', 'bil.pricesSaved': 'Prices saved', 'bil.packagesOverride': 'Packages (override the prices)', 'bil.pkgMinutes': 'Package minutes', 'bil.pkgLeads': 'Package leads', 'bil.perMonth': '/ month', 'bil.setupFee': 'Setup fee', 'bil.oneTime': 'one-time', 'bil.popular': 'Most popular',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
     'lng.language': 'Language', 'lng.english': 'English', 'lng.dir': 'Direction', 'lng.active': 'Active',

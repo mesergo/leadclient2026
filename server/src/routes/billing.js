@@ -65,7 +65,11 @@ router.get('/', asyncHandler(async (req, res) => {
   }
   const rows = [...map.values()].sort((a, b) => b.leads - a.leads);
   const prices = (await query('SELECT * FROM billing_defaults ORDER BY id LIMIT 1'))[0] || null;
-  const packages = await query('SELECT id, price, users, phones, call_minutes, leads FROM payment_packages ORDER BY price ASC').catch(() => []);
+  const packages = await query(
+    `SELECT id, name, subtitle, price, original_price, setup_fee, is_popular, users, companies, phones,
+            call_minutes, leads, additional_minute_price, additional_phone_price, features
+     FROM payment_packages ORDER BY sort_order, price`).catch(() => []);
+  for (const p of packages) { try { p.features = p.features ? JSON.parse(p.features) : []; } catch { p.features = []; } }
   res.json({ month, rows, prices, packages });
 }));
 
