@@ -8,6 +8,8 @@ const { upload, fileUrl } = require('../services/uploads');
 const router = express.Router();
 router.use(requireAuth);
 
+const safeParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+
 router.get('/', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'sv.company_id');
   const params = [...s.params];
@@ -53,7 +55,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   try { assigned = JSON.parse(service.distribute_leads || '[]'); } catch { assigned = []; }
   service.distribute_leads = Array.isArray(assigned) ? assigned.map(String) : [];
   const phones = await query(
-    `SELECT id, phone_number, number_to_display, redirect_to_number, ivr_provider
+    `SELECT id, phone_number, number_to_display, redirect_to_number, redirect_config, ivr_provider
      FROM phone_numbers WHERE service_id = ? ORDER BY id`, [req.params.id]);
   const users = await query(
     `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
@@ -67,23 +69,31 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
   if (!company_id || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
   if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   const distribute = JSON.stringify((Array.isArray(b.distribute_leads) ? b.distribute_leads : []).map(String));
+  const closeCfg = b.close_hours_config == null ? null : (typeof b.close_hours_config === 'string' ? b.close_hours_config : JSON.stringify(b.close_hours_config));
   const r = await query(
     `INSERT INTO services
        (company_id, name, service_type, public_hash, description, site_url, line_type,
         phone_service_number, is_whatsapp_service, returning_sms_from, returning_sms_text,
-        distribute_leads, service_ref, export_webhook_url, open_hours, close_hours_phone, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
+        distribute_leads, service_ref, export_webhook_url, open_hours, close_hours_phone, close_hours_config, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())`,
     [company_id, name, service_type || null, crypto.randomUUID(),
      b.description ?? null, service_type === 'website' ? (b.site_url ?? null) : null,
      service_type === 'phone' ? (b.line_type ?? null) : null,
      service_type === 'phone' ? (b.phone_service_number ?? null) : null,
      service_type === 'whatsapp' ? 1 : 0,
      b.returning_sms_from ?? null, b.returning_sms_text ?? null,
-     distribute, b.service_ref ?? null, b.export_webhook_url ?? null, b.open_hours ?? '', b.close_hours_phone ?? null]);
+     distribute, b.service_ref ?? null, b.export_webhook_url ?? null, b.open_hours ?? '', b.close_hours_phone ?? null, closeCfg]);
   // Optionally claim one of the company's unassigned numbers for this channel.
   if (b.phone_number_id) {
-    await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = COALESCE(?, redirect_to_number) WHERE id = ? AND company_id = ? AND service_id IS NULL',
-      [r.insertId, b.redirect_to_number ?? null, b.phone_number_id, company_id]);
+    let cfg = null, primary = b.redirect_to_number ?? null;
+    if (b.redirect_config != null) {
+      const obj = typeof b.redirect_config === 'string' ? safeParse(b.redirect_config) : b.redirect_config;
+      cfg = JSON.stringify(obj);
+      const nums = Array.isArray(obj?.numbers) ? obj.numbers.filter(Boolean) : [];
+      if (nums.length) primary = nums[0];
+    }
+    await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = ?, redirect_config = ? WHERE id = ? AND company_id = ? AND service_id IS NULL',
+      [r.insertId, primary, cfg, b.phone_number_id, company_id]);
     await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, created_at FROM services WHERE id = ?', [r.insertId]);
@@ -118,6 +128,7 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
        open_hours = ${has('open_hours') ? '?' : 'open_hours'},
        close_hours_phone = ${has('close_hours_phone') ? '?' : 'close_hours_phone'},
        close_hours_audio_url = ${has('close_hours_audio_url') ? '?' : 'close_hours_audio_url'},
+       close_hours_config = ${has('close_hours_config') ? '?' : 'close_hours_config'},
        is_active = COALESCE(?, is_active)
      WHERE id = ?`,
     [
@@ -137,6 +148,7 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
       ...(has('open_hours') ? [b.open_hours ?? null] : []),
       ...(has('close_hours_phone') ? [b.close_hours_phone ?? null] : []),
       ...(has('close_hours_audio_url') ? [b.close_hours_audio_url ?? null] : []),
+      ...(has('close_hours_config') ? [b.close_hours_config == null ? null : (typeof b.close_hours_config === 'string' ? b.close_hours_config : JSON.stringify(b.close_hours_config))] : []),
       has('is_active') ? (b.is_active ? 1 : 0) : null,
       req.params.id,
     ]);
@@ -144,8 +156,15 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   if (Array.isArray(b.phones)) {
     for (const p of b.phones) {
       if (!p || p.id == null) continue;
-      await query('UPDATE phone_numbers SET redirect_to_number = ? WHERE id = ? AND service_id = ?',
-        [p.redirect_to_number ?? null, p.id, req.params.id]);
+      let cfg = null, primary = p.redirect_to_number ?? null;
+      if (p.redirect_config != null) {
+        const obj = typeof p.redirect_config === 'string' ? safeParse(p.redirect_config) : p.redirect_config;
+        cfg = JSON.stringify(obj);
+        const nums = Array.isArray(obj?.numbers) ? obj.numbers.filter(Boolean) : [];
+        if (nums.length) primary = nums[0];
+      }
+      await query('UPDATE phone_numbers SET redirect_to_number = ?, redirect_config = ? WHERE id = ? AND service_id = ?',
+        [primary, cfg, p.id, req.params.id]);
     }
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url, is_active FROM services WHERE id = ?', [req.params.id]);

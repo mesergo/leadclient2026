@@ -297,3 +297,18 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .after-hours-opts input { margin: 0; }
 .after-hours-phone { max-width: 260px; }
 .after-hours-audio audio { display: block; margin-top: 10px; max-width: 320px; }
+
+/* redirect config (multiple targets + type/ring) */
+.redirect-config { display: flex; flex-direction: column; gap: 6px; }
+.redirect-row { display: flex; align-items: center; gap: 6px; }
+.redirect-row input { flex: 1 1 auto; }
+.rc-btn { flex: none; width: 30px; height: 34px; border-radius: 6px; border: 1px solid var(--border-strong); background: #fff; cursor: pointer; font-size: 18px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.rc-btn--green { color: #137333; border-color: #bcdcc4; }
+.rc-btn--green:hover { background: #e6f4ea; }
+.rc-btn--red { color: #c5221f; border-color: #f0c4c2; }
+.rc-btn--red:hover { background: #fce8e6; }
+.rc-advanced-toggle { align-self: flex-start; background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 2px 0; }
+.rc-advanced { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; padding: 10px; background: #f7f9fa; border: 1px solid var(--border); border-radius: 6px; }
+.rc-field { display: flex; flex-direction: column; gap: 4px; font-weight: 400; }
+.rc-field > span { font-size: 12px; color: var(--text-dim); }
+.rc-field select, .rc-field input { min-width: 160px; }

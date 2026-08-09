@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import MultiSelect from '../components/MultiSelect';
+import RedirectConfig, { emptyRedirect } from '../components/RedirectConfig';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
@@ -33,6 +34,8 @@ export default function AddServicePage() {
   const [hoursOn, setHoursOn] = useState(false);
   const [hours, setHours] = useState(Array(168).fill(false));
   const [afterMode, setAfterMode] = useState('none');
+  const [redirectConfig, setRedirectConfig] = useState(emptyRedirect());
+  const [closeConfig, setCloseConfig] = useState(emptyRedirect());
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -71,13 +74,15 @@ export default function AddServicePage() {
       site_url: type === 'website' ? form.site_url : null,
       line_type: type === 'phone' ? form.line_type : null,
       phone_number_id: type === 'phone' && form.phone_number_id ? Number(form.phone_number_id) : null,
-      redirect_to_number: type === 'phone' ? (form.redirect_to_number || null) : null,
+      redirect_to_number: type === 'phone' ? (redirectConfig.numbers.filter(Boolean)[0] || null) : null,
+      redirect_config: type === 'phone' && form.phone_number_id ? redirectConfig : null,
       returning_sms_from: smsOn ? form.returning_sms_from : null,
       returning_sms_text: smsOn ? form.returning_sms_text : null,
       distribute_leads: assigned,
       service_ref: form.service_ref || null, export_webhook_url: form.export_webhook_url || null,
       open_hours: hoursOn ? serializeHours(hours) : '',
-      close_hours_phone: hoursOn && afterMode === 'phone' ? form.close_hours_phone : null,
+      close_hours_phone: hoursOn && afterMode === 'phone' ? (closeConfig.numbers.filter(Boolean)[0] || null) : null,
+      close_hours_config: hoursOn && afterMode === 'phone' ? closeConfig : null,
     };
     try {
       const d = await api.createService(body, token);
@@ -133,7 +138,7 @@ export default function AddServicePage() {
 
             {form.phone_number_id && (
               <div className="form-field"><label>{t('es.redirect')}</label><div className="form-field-control">
-                <input value={form.redirect_to_number} onChange={(e) => set('redirect_to_number', e.target.value)} /></div></div>
+                <RedirectConfig value={redirectConfig} onChange={setRedirectConfig} /></div></div>
             )}
           </>)}
 
@@ -198,7 +203,7 @@ export default function AddServicePage() {
                   <label><input type="radio" name="afterMode" checked={afterMode === 'audio'} onChange={() => setAfterMode('audio')} /> {t('es.afterAudio')}</label>
                 </div>
                 {afterMode === 'phone' && (
-                  <input className="after-hours-phone" value={form.close_hours_phone} onChange={(e) => set('close_hours_phone', e.target.value)} placeholder={t('es.afterPhonePh')} />
+                  <RedirectConfig value={closeConfig} onChange={setCloseConfig} />
                 )}
                 {afterMode === 'audio' && <p className="muted" style={{ fontSize: 13 }}>{t('es.audioAfterSave')}</p>}
               </div>
