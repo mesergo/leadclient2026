@@ -68,7 +68,8 @@ export default function ContactDetailPage() {
       {error && <p className="error">{error}</p>}
 
       <div className="contact-layout">
-        {/* editable details */}
+        {/* right column: details + more-info stacked */}
+        <div className="contact-side">
         <form className="form-panel" onSubmit={save}>
           <div className="form-panel-body">
             <h3>{t('con.details')}</h3>
@@ -97,8 +98,9 @@ export default function ContactDetailPage() {
             )}
           </div>
         )}
+        </div>
 
-        {/* submitted leads */}
+        {/* left column: submitted leads */}
         <div className="panel">
           <h3>{t('con.leads')} ({leads.length})</h3>
           {leads.length === 0 ? <p className="muted">{t('con.noLeads')}</p> : (

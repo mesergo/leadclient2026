@@ -8,6 +8,23 @@ import { formatIL, waNumber } from '../phone';
 
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
 const CHANNELS = ['sms', 'whatsapp', 'email'];
+
+// Raw lead_info is JSON with \uXXXX-escaped Hebrew (sometimes double-encoded).
+// Decode + pretty-print so it's readable.
+function prettyRaw(s) {
+  if (s == null) return '';
+  if (typeof s === 'object') return JSON.stringify(s, null, 2);
+  let v = String(s);
+  for (let i = 0; i < 3; i++) {
+    try {
+      const o = JSON.parse(v);
+      if (o && typeof o === 'object') return JSON.stringify(o, null, 2);
+      if (typeof o === 'string') { v = o; continue; }
+      return String(o);
+    } catch { break; }
+  }
+  return v.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
 const isPhoneLead = (l) => /phone|call|טלפון|שיח/i.test(((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')));
 
 // Shared lead card content — used both as a floating modal and as a full page.
@@ -143,7 +160,7 @@ export default function LeadCard({ id, onClose }) {
           {row(t('lc.referrer'), l.referrer || '-')}
           <div style={{ marginTop: '0.75rem' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowRaw((v) => !v)}>{showRaw ? t('lc.hideRaw') : t('lc.showRaw')}</button>
-            {showRaw && <pre className="lead-info" style={{ marginTop: '0.5rem' }}>{l.lead_info || JSON.stringify(l, null, 2)}</pre>}
+            {showRaw && <pre className="lead-info" style={{ marginTop: '0.5rem' }}>{l.lead_info ? prettyRaw(l.lead_info) : JSON.stringify(l, null, 2)}</pre>}
           </div>
         </>)}
 
