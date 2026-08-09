@@ -70,6 +70,7 @@ export default function VirtualPage() {
             <label className="filter-item"><span>{t('common.agency')}</span>
               <select value={sel.agency} onChange={(e) => { const f = { agency: e.target.value, company_id: '' }; setSel(f); load(preset, f); }}>
                 <option value="">{t('common.all')}</option>
+                <option value="none">{t('vir.unassigned')}</option>
                 {agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </label>
@@ -100,7 +101,7 @@ export default function VirtualPage() {
           <tr key={n.id}>
             <td><button className="link-name" title={t('vir.editChannel')} onClick={() => editChannel(n)}>{n.phone_number}</button></td>
             <td>{n.redirect_to_number || '-'}</td><td>{n.ivr_provider}</td>
-            <td>{n.agency_name || '-'}</td><td>{n.company_name || '-'}</td><td>{n.service_name || '-'}</td>
+            <td>{n.agency_name || t('vir.unassigned')}</td><td>{n.company_name || '-'}</td><td>{n.service_name || '-'}</td>
             <td>{Number(n.leads_count).toLocaleString()}</td>
             <td>{n.is_premium ? t('common.yes') : t('common.no')}</td>
           </tr>

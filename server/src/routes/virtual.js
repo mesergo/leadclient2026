@@ -13,7 +13,8 @@ router.get('/', asyncHandler(async (req, res) => {
   const { start, end, agency, company_id } = req.query;
   const params = [...s.params];
   let where = s.sql;
-  if (agency) { where += ' AND c.agency_id = ?'; params.push(agency); }
+  if (agency === 'none') { where += ' AND (p.company_id IS NULL OR c.agency_id IS NULL)'; }
+  else if (agency) { where += ' AND c.agency_id = ?'; params.push(agency); }
   if (company_id) { where += ' AND p.company_id = ?'; params.push(company_id); }
   const rows = await query(
     `SELECT p.id, p.company_id, p.service_id, p.ivr_provider, p.phone_number, p.number_to_display,
