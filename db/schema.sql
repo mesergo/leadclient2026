@@ -174,6 +174,8 @@ CREATE TABLE IF NOT EXISTS users (
   temporary_password_expiry DATETIME NULL,
   is_active             TINYINT(1) NOT NULL DEFAULT 1,
   suspended_at          DATETIME NULL,
+  suspended_until       DATETIME NULL,
+  restrictions          TEXT NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   legacy_id             BIGINT UNSIGNED NULL,
   CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,

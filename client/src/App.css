@@ -332,3 +332,11 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .cell-editable { display: inline-flex; align-items: center; gap: 6px; }
 .cell-edit-btn { background: none; border: none; cursor: pointer; color: var(--text-dim); padding: 2px; line-height: 0; }
 .cell-edit-btn:hover { color: var(--accent); }
+
+/* user edit page */
+.notif-block { display: flex; flex-direction: column; gap: 8px; }
+.notif-row { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; cursor: pointer; }
+.notif-row input { margin: 0; width: 16px; height: 16px; }
+.day-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-chip { padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: 14px; background: #fff; cursor: pointer; font-size: 13px; }
+.day-chip.on { background: #e0f4f6; border-color: var(--accent); color: #00636b; }

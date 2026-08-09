@@ -39,6 +39,27 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ users: rows, stats: stat[0] });
 }));
 
+// Full user detail for the edit page (profile / password / notifications / language / restrictions).
+router.get('/:id', asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'u.company_id');
+  const rows = await query(
+    `SELECT ${FIELDS}, u.language, u.notifications, u.email_notifications, u.phone_notifications,
+            u.restrictions, u.suspended_at, u.suspended_until, u.google_id,
+            c.name AS company_name, c.agency_id AS company_agency_id, a.name AS agency_name
+     FROM users u
+     LEFT JOIN companies c ON c.id = u.company_id
+     LEFT JOIN agencies a ON a.id = c.agency_id
+     WHERE u.id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const u = rows[0];
+  if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  const parse = (v) => { if (v == null) return null; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return null; } };
+  u.notifications = parse(u.notifications);
+  u.email_notifications = parse(u.email_notifications);
+  u.phone_notifications = parse(u.phone_notifications);
+  u.restrictions = parse(u.restrictions);
+  res.json({ user: u });
+}));
+
 router.post('/', asyncHandler(async (req, res) => {
   const { username, password, email, first_name, last_name, display_name, role, company_id, phone } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
@@ -56,9 +77,17 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT id FROM users WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
-  const editable = ['email', 'first_name', 'last_name', 'display_name', 'role', 'phone', 'is_active'];
+  const editable = ['username', 'email', 'first_name', 'last_name', 'display_name', 'role', 'phone', 'language', 'is_active', 'suspended_at', 'suspended_until'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
+  // JSON preference blobs — accept object or string.
+  for (const f of ['notifications', 'email_notifications', 'phone_notifications', 'restrictions']) {
+    if (req.body[f] !== undefined) {
+      const v = req.body[f];
+      sets.push(`${f} = ?`);
+      params.push(v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v)));
+    }
+  }
   // Reassign the user's company (and keep agency_id in sync with that company).
   if (req.body.company_id !== undefined) {
     const newCompany = req.body.company_id || null;
