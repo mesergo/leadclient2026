@@ -321,3 +321,10 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .report-matrix th, .report-matrix td { text-align: center; white-space: nowrap; }
 .report-matrix th:first-child, .report-matrix td:first-child { text-align: start; }
 .report-matrix .matrix-total td { border-top: 2px solid var(--border-strong); background: #f7f9fa; }
+
+/* users page */
+.cell-select { padding: 4px 6px; font-size: 13px; max-width: 190px; }
+.online-now { display: inline-flex; align-items: center; gap: 6px; color: #137333; font-weight: 600; white-space: nowrap; }
+.online-dot { width: 8px; height: 8px; border-radius: 50%; background: #34a853; display: inline-block; box-shadow: 0 0 0 3px rgba(52,168,83,.18); }
+.row-suspended { opacity: .55; }
+.switch-sm input { width: 16px; height: 16px; cursor: pointer; }
