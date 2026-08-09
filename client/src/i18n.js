@@ -68,6 +68,9 @@ const DICT = {
     'rep.subtitle': 'דוחות אודות פעילות החברה', 'rep.needCompany': 'בחר סוכנות וחברה כדי להציג דוח.', 'rep.total': 'סה"כ לידים', 'rep.leadsByChannel': 'לידים לפי ערוץ',
     'rep.devices': 'פילוח לפי מכשיר', 'rep.campaigns': 'קמפיינים', 'rep.platform': 'פלטפורמה', 'rep.campName': 'שם הקמפיין', 'rep.impressions': 'הופעות', 'rep.clicks': 'קליקים', 'rep.budget': 'תקציב',
     'rep.noData': 'אין נתונים', 'rep.statuses': 'סטטוסים', 'rep.grandTotal': 'סה"כ', 'rep.channel': 'ערוץ',
+    'usr.total': 'כל המשתמשים', 'usr.online': 'מחוברים כעת', 'usr.google': 'דרך Google', 'usr.neverLogged': 'לא התחברו מעולם', 'usr.onlineNow': 'מחובר כעת',
+    'usr.suspendedFilter': 'סטטוס', 'usr.activeOnly': 'פעילים', 'usr.suspendedOnly': 'מושעים', 'usr.active': 'פעיל', 'usr.actions': 'פעולות', 'usr.now': 'עכשיו',
+    'usr.ago.min': 'לפני {n} דק׳', 'usr.ago.hour': 'לפני {n} שע׳', 'usr.ago.day': 'לפני {n} ימים', 'usr.ago.month': 'לפני {n} חודשים', 'usr.ago.year': 'לפני {n} שנים',
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
@@ -136,6 +139,9 @@ const DICT = {
     'rep.subtitle': 'Company activity reports', 'rep.needCompany': 'Select an agency and company to view a report.', 'rep.total': 'Total leads', 'rep.leadsByChannel': 'Leads by channel',
     'rep.devices': 'By device', 'rep.campaigns': 'Campaigns', 'rep.platform': 'Platform', 'rep.campName': 'Campaign', 'rep.impressions': 'Impressions', 'rep.clicks': 'Clicks', 'rep.budget': 'Budget',
     'rep.noData': 'No data', 'rep.statuses': 'Statuses', 'rep.grandTotal': 'Total', 'rep.channel': 'Channel',
+    'usr.total': 'All users', 'usr.online': 'Online now', 'usr.google': 'Via Google', 'usr.neverLogged': 'Never logged in', 'usr.onlineNow': 'Online now',
+    'usr.suspendedFilter': 'Status', 'usr.activeOnly': 'Active', 'usr.suspendedOnly': 'Suspended', 'usr.active': 'Active', 'usr.actions': 'Actions', 'usr.now': 'just now',
+    'usr.ago.min': '{n} min ago', 'usr.ago.hour': '{n} h ago', 'usr.ago.day': '{n} d ago', 'usr.ago.month': '{n} mo ago', 'usr.ago.year': '{n} y ago',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
