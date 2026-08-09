@@ -45,8 +45,8 @@ export default function LeadCard({ id, onClose }) {
     const same = f === 'lead_phone' ? a.replace(/\D/g, '') === b.replace(/\D/g, '') : a === b;
     if (!same) upd({ [f]: a });
   };
-  const editInput = (f, w = 200) => (
-    <input value={edit[f]} onChange={(e) => setEdit({ ...edit, [f]: e.target.value })}
+  const editInput = (f, w = 200, placeholder = '') => (
+    <input value={edit[f]} placeholder={placeholder} onChange={(e) => setEdit({ ...edit, [f]: e.target.value })}
       onBlur={() => saveField(f)} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
       style={{ width: w, padding: '4px 8px' }} />
   );
@@ -87,7 +87,7 @@ export default function LeadCard({ id, onClose }) {
           {row(t('lead.name'), editInput('lead_name', 220))}
           {row(t('common.company'), `${l.company_name} / ${l.agency_name || '-'}`)}
           {row(t('lead.channel'), l.service_name || '-')}
-          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_phone', 170)}{edit.lead_phone && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
+          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
           {row(t('common.email'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_email', 200)}{edit.lead_email && <a href={`mailto:${edit.lead_email}`} className="chip-link email">Email</a>}</span>)}
           {row(t('lead.received'), l.created_at)}
           {row(t('lead.status'), (
