@@ -96,6 +96,8 @@ export const api = {
   setLanguageActive: (slug, is_active, token) => request(`/api/language/${slug}`, { method: 'PATCH', body: { is_active }, token }),
   languageStrings: (slug, namespace, token) => request(`/api/language/${slug}/strings${qs({ namespace })}`, { token }),
   saveLanguageStrings: (slug, strings, token) => request(`/api/language/${slug}/strings`, { method: 'PUT', body: { strings }, token }),
+  profile: (token) => request('/api/profile', { token }),
   updateProfile: (body, token) => request('/api/profile', { method: 'PATCH', body, token }),
   updatePassword: (body, token) => request('/api/profile/password', { method: 'PATCH', body, token }),
+  updateProfileNotifications: (body, token) => request('/api/profile/notifications', { method: 'PATCH', body, token }),
 };
