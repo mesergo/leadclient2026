@@ -52,6 +52,7 @@ export const api = {
   updateService: (id, body, token) => request(`/api/services/${id}`, { method: 'PATCH', body, token }),
   deleteService: (id, token) => request(`/api/services/${id}`, { method: 'DELETE', token }),
   users: (token, f) => request(`/api/users${qs(f)}`, { token }),
+  userById: (id, token) => request(`/api/users/${id}`, { token }),
   createUser: (body, token) => request('/api/users', { method: 'POST', body, token }),
   updateUser: (id, body, token) => request(`/api/users/${id}`, { method: 'PATCH', body, token }),
 

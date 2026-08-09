@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
@@ -16,6 +16,7 @@ export default function UsersPage() {
   const { token, user } = useAuth();
   const { t, lang } = useLang();
   const [sp] = useSearchParams();
+  const nav = useNavigate();
   const isSuper = user?.role === 'super_admin';
   const isAgency = user?.role === 'agency_admin';
   const canReassign = isSuper || isAgency;
@@ -108,7 +109,8 @@ export default function UsersPage() {
         </tr></thead>
         <tbody>{rows.map((u) => (
           <tr key={u.id} className={u.is_active ? '' : 'row-suspended'}>
-            <td>{u.display_name}</td><td>{u.username}</td><td>{u.email || '-'}</td>
+            <td><button className="link-name" onClick={() => nav(`/users/${u.id}/edit`)}>{u.display_name || u.username}</button></td>
+            <td>{u.username}</td><td>{u.email || '-'}</td>
             <td>{u.agency_name || '-'}</td>
             <td>
               {canReassign && editCompanyId === u.id ? (
