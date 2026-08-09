@@ -17,6 +17,7 @@ export default function ContactDetailPage() {
   const [leads, setLeads] = useState([]);
   const [form, setForm] = useState({});
   const [selected, setSelected] = useState(null);
+  const [showInfo, setShowInfo] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
@@ -25,9 +26,21 @@ export default function ContactDetailPage() {
     setForm({
       first_name: d.contact.first_name || '', last_name: d.contact.last_name || '',
       phone: d.contact.phone || '', phone2: d.contact.phone2 || '',
-      email: d.contact.email || '', info: d.contact.info || '', status: d.contact.status || '',
+      email: d.contact.email || '', status: d.contact.status || '',
     });
   }).catch((e) => setError(e.message));
+
+  // "מידע נוסף" is legacy metadata (often JSON) — read-only, shown as key/value.
+  const infoRows = (() => {
+    const raw = contact?.info;
+    if (raw == null || raw === '') return null;
+    let obj = raw;
+    if (typeof raw === 'string') { try { obj = JSON.parse(raw); } catch { return [['', raw]]; } }
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return Object.entries(obj).filter(([, v]) => v != null && v !== '' && typeof v !== 'object').map(([k, v]) => [k, String(v)]);
+    }
+    return [['', String(raw)]];
+  })();
   useEffect(() => { load(); }, [id, token]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -64,11 +77,26 @@ export default function ContactDetailPage() {
             {fld(t('common.phone'), 'phone', 'tel')}
             {fld(t('con.phone2'), 'phone2', 'tel')}
             {fld(t('common.email'), 'email', 'email')}
-            <div className="form-field"><label>{t('con.info')}</label><div className="form-field-control">
-              <textarea rows={3} value={form.info || ''} onChange={(e) => set('info', e.target.value)} /></div></div>
           </div>
           <div className="form-actions"><button className="btn btn-primary">{t('con.save')}</button></div>
         </form>
+
+        {infoRows && (
+          <div className="panel info-panel">
+            <button type="button" className="info-toggle" onClick={() => setShowInfo((v) => !v)}>
+              {showInfo ? '▾' : '▸'} {t('con.info')}
+            </button>
+            {showInfo && (
+              <dl className="info-dl">
+                {infoRows.map(([k, v], i) => (
+                  <div className="info-dl-row" key={i}>
+                    {k && <dt>{k}</dt>}<dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
 
         {/* submitted leads */}
         <div className="panel">
