@@ -65,6 +65,9 @@ const DICT = {
     'es.afterPhonePh': 'מספר טלפון', 'es.audioUpload': 'העלאת קובץ שמע', 'es.audioCurrent': 'קובץ נוכחי', 'es.audioAfterSave': 'ניתן להעלות קובץ שמע לאחר יצירת הערוץ',
     'rc.numberPh': 'מספר טלפון', 'rc.addNumber': 'הוסף מספר הפניה', 'rc.advanced': 'הגדרות נוספות',
     'rc.type': 'סוג הפניה', 'rc.sequential': 'מוביל נגרר (מחייג לפי הסדר)', 'rc.parallel': 'במקביל (מצלצל לכולם יחד)', 'rc.ring': 'משך צלצול (שניות)',
+    'rep.subtitle': 'דוחות אודות פעילות החברה', 'rep.needCompany': 'בחר סוכנות וחברה כדי להציג דוח.', 'rep.total': 'סה"כ לידים', 'rep.leadsByChannel': 'לידים לפי ערוץ',
+    'rep.devices': 'פילוח לפי מכשיר', 'rep.campaigns': 'קמפיינים', 'rep.platform': 'פלטפורמה', 'rep.campName': 'שם הקמפיין', 'rep.impressions': 'הופעות', 'rep.clicks': 'קליקים', 'rep.budget': 'תקציב',
+    'rep.noData': 'אין נתונים', 'rep.statuses': 'סטטוסים', 'rep.grandTotal': 'סה"כ', 'rep.channel': 'ערוץ',
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
@@ -130,6 +133,9 @@ const DICT = {
     'es.afterPhonePh': 'Phone number', 'es.audioUpload': 'Upload audio file', 'es.audioCurrent': 'Current file', 'es.audioAfterSave': 'You can upload an audio file after creating the channel',
     'rc.numberPh': 'Phone number', 'rc.addNumber': 'Add redirect number', 'rc.advanced': 'Additional settings',
     'rc.type': 'Redirect type', 'rc.sequential': 'Waterfall (dial in order)', 'rc.parallel': 'Parallel (ring all at once)', 'rc.ring': 'Ring duration (sec)',
+    'rep.subtitle': 'Company activity reports', 'rep.needCompany': 'Select an agency and company to view a report.', 'rep.total': 'Total leads', 'rep.leadsByChannel': 'Leads by channel',
+    'rep.devices': 'By device', 'rep.campaigns': 'Campaigns', 'rep.platform': 'Platform', 'rep.campName': 'Campaign', 'rep.impressions': 'Impressions', 'rep.clicks': 'Clicks', 'rep.budget': 'Budget',
+    'rep.noData': 'No data', 'rep.statuses': 'Statuses', 'rep.grandTotal': 'Total', 'rep.channel': 'Channel',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
