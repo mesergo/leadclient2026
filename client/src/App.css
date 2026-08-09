@@ -360,3 +360,8 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .impersonation-bar strong { font-weight: 700; }
 .impersonation-bar button { background: #fff; color: #b26a00; border: none; border-radius: 6px; padding: 5px 12px; font: inherit; font-weight: 600; cursor: pointer; }
 .impersonation-bar button:hover { background: #fff3e0; }
+
+/* contact detail */
+.contact-layout { display: grid; grid-template-columns: 380px 1fr; gap: 1rem; align-items: start; }
+.contact-layout .form-panel { max-width: none; margin-bottom: 0; }
+@media (max-width: 860px) { .contact-layout { grid-template-columns: 1fr; } }

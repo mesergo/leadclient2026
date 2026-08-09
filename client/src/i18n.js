@@ -46,6 +46,8 @@ const DICT = {
     'leadd.content': 'תוכן', 'leadd.type': 'סוג',
     // contacts
     'con.searchPh': 'חיפוש שם/טלפון/אימייל', 'con.fullName': 'שם מלא', 'con.created': 'תאריך יצירה', 'con.none': 'אין אנשי קשר.',
+    'con.add': 'הוסף איש קשר', 'con.firstName': 'שם פרטי', 'con.lastName': 'שם משפחה', 'con.phone2': 'טלפון נוסף', 'con.info': 'מידע נוסף', 'con.status': 'סטטוס',
+    'con.details': 'פרטי איש קשר', 'con.leads': 'לידים שנקלטו', 'con.noLeads': 'אין לידים לאיש קשר זה', 'con.back': 'חזרה', 'con.save': 'שמירה', 'con.saved': 'נשמר בהצלחה', 'con.create': 'צור',
     // users
     'usr.searchPh': 'חיפוש שם/אימייל', 'usr.username': 'שם משתמש', 'usr.role': 'תפקיד', 'usr.lastSeen': 'נראה לאחרונה', 'usr.none': 'אין משתמשים.',
     // import
@@ -132,6 +134,8 @@ const DICT = {
     'leadd.title': 'Lead', 'leadd.rating': 'Rating', 'leadd.convos': 'Conversations & notes', 'leadd.addNote': 'Add a note...',
     'leadd.content': 'Content', 'leadd.type': 'Type',
     'con.searchPh': 'Search name/phone/email', 'con.fullName': 'Full name', 'con.created': 'Created', 'con.none': 'No contacts.',
+    'con.add': 'Add contact', 'con.firstName': 'First name', 'con.lastName': 'Last name', 'con.phone2': 'Second phone', 'con.info': 'Notes', 'con.status': 'Status',
+    'con.details': 'Contact details', 'con.leads': 'Submitted leads', 'con.noLeads': 'No leads for this contact', 'con.back': 'Back', 'con.save': 'Save', 'con.saved': 'Saved', 'con.create': 'Create',
     'usr.searchPh': 'Search name/email', 'usr.username': 'Username', 'usr.role': 'Role', 'usr.lastSeen': 'Last seen', 'usr.none': 'No users.',
     'imp.pickCompany': 'Select company', 'imp.single': 'Add a single lead', 'imp.imported': 'Imported', 'imp.excel': 'Import from file (Excel / CSV)', 'imp.paste': 'Paste from table', 'imp.manual': 'Add manually', 'imp.selectAgency': 'Select agency', 'imp.selectCompany': 'Select company', 'imp.selectChannel': 'Select channel (optional)', 'imp.chooseFile': 'Choose file', 'imp.pastePh': 'Paste rows here (name, phone, email) — a column per field', 'imp.parse': 'Parse', 'imp.preview': 'Preview', 'imp.mapCol': 'Column type', 'imp.colIgnore': 'Ignore', 'imp.colName': 'Name', 'imp.colPhone': 'Phone', 'imp.colEmail': 'Email', 'imp.doImport': 'Import', 'imp.rowsFound': 'rows found', 'imp.needCompany': 'Select a company first', 'imp.needPhoneCol': 'Mark a phone column',
     'vir.number': 'Virtual number', 'vir.target': 'Target', 'vir.provider': 'IVR provider', 'vir.premium': 'Premium', 'vir.none': 'No numbers.', 'vir.leads': 'Leads', 'vir.editChannel': 'Click to edit channel', 'vir.unassigned': 'Unassigned',

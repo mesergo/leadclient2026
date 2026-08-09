@@ -79,6 +79,8 @@ export const api = {
 
   contacts: (token, f) => request(`/api/contacts${qs(f)}`, { token }),
   contact: (id, token) => request(`/api/contacts/${id}`, { token }),
+  createContact: (body, token) => request('/api/contacts', { method: 'POST', body, token }),
+  updateContact: (id, body, token) => request(`/api/contacts/${id}`, { method: 'PATCH', body, token }),
   reminders: (token) => request('/api/reminders', { token }),
   templates: (token, agencyId) => request(`/api/templates${qs({ agency_id: agencyId })}`, { token }),
   createTemplate: (body, token) => request('/api/templates', { method: 'POST', body, token }),
