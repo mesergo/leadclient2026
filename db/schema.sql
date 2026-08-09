@@ -546,4 +546,16 @@ CREATE TABLE IF NOT EXISTS company_files (
   CONSTRAINT fk_cfiles_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
   INDEX idx_cfiles_company (company_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- live-DB delta sync settings (temporary trial tool)
+CREATE TABLE IF NOT EXISTS live_sync (
+  id            TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+  host          VARCHAR(255) NULL,
+  port          INT NULL,
+  db_user       VARCHAR(100) NULL,
+  db_pass       VARCHAR(255) NULL,
+  db_name       VARCHAR(100) NULL,
+  markers       TEXT NULL,
+  last_sync_at  DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;
