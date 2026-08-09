@@ -63,6 +63,9 @@ export default function LeadCard({ id, onClose }) {
       load();
     } catch (e) { setError(e.message); }
   }
+  const addExistingTag = async (tagId) => {
+    try { await api.addLeadTag(id, tagId, token); load(); } catch (e) { setError(e.message); }
+  };
   const removeTag = (tagId) => api.removeLeadTag(id, tagId, token).then(load).catch((e) => setError(e.message));
   async function addTreatment(e) { e.preventDefault(); try { await api.addTreatment(id, treat, token); setTreat({ action_type: 'promised', content: '' }); load(); } catch (e) { setError(e.message); } }
   async function sendMsg(e) { e.preventDefault(); if (!msg.content.trim()) return; try { await api.sendLeadMessage(id, msg, token); setMsg({ ...msg, content: '' }); load(); } catch (e) { setError(e.message); } }
@@ -117,9 +120,16 @@ export default function LeadCard({ id, onClose }) {
                   </span>
                 );
               })}
+              {/* pick an existing tag — adds immediately, repeatable */}
+              <select className="tag-picker" value="" onChange={(e) => { if (e.target.value) addExistingTag(e.target.value); e.target.value = ''; }}>
+                <option value="">+ {t('lc.addTag')}</option>
+                {companyTags
+                  .filter((ct) => !(data.tags || []).some((lt) => String(lt.id) === String(ct.id)))
+                  .map((tg) => <option key={tg.id} value={tg.id}>{displayTag(tg.label)}</option>)}
+              </select>
+              {/* or create a new tag */}
               <form onSubmit={addTag} style={{ display: 'inline-flex' }}>
-                <input list="ctags" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder={t('lc.addTag')} style={{ width: 140, padding: '4px 8px' }} />
-                <datalist id="ctags">{companyTags.map((tg) => <option key={tg.id} value={displayTag(tg.label)} />)}</datalist>
+                <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder={t('lc.newTag')} style={{ width: 120, padding: '4px 8px' }} />
               </form>
             </div>
           ))}
