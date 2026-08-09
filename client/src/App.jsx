@@ -18,6 +18,7 @@ import CompanyMessagesPage from './pages/CompanyMessagesPage';
 import LeadsPage from './pages/LeadsPage';
 import LeadDetailPage from './pages/LeadDetailPage';
 import ContactsPage from './pages/ContactsPage';
+import ContactDetailPage from './pages/ContactDetailPage';
 import UsersPage from './pages/UsersPage';
 import UserEditPage from './pages/UserEditPage';
 import ImportPage from './pages/ImportPage';
@@ -65,6 +66,7 @@ function Routing() {
         <Route path="/virtual" element={<VirtualPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/contacts/:id" element={<ContactDetailPage />} />
         <Route path="/users" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><UsersPage /></Role>} />
         <Route path="/users/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><UserEditPage /></Role>} />
         <Route path="/billing" element={<Role roles={['super_admin', 'agency_admin']}><BillingPage /></Role>} />
