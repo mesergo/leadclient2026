@@ -382,3 +382,6 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .lang-picker { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); cursor: pointer; }
 .lang-picker select { width: auto; border: none; background: none; color: var(--accent); font: inherit; padding: 2px 4px; cursor: pointer; }
 .lang-picker select:focus { outline: none; }
+
+.day-quick { display: flex; gap: 6px; margin-bottom: 8px; }
+.day-quick .day-chip { background: #eef1f4; font-weight: 600; }

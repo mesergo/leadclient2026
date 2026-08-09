@@ -9,7 +9,7 @@ const DAYS = { he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי�
 
 export default function ProfilePage() {
   const { token } = useAuth();
-  const { t, lang, setLang } = useLang();
+  const { t, lang, setLang, langs } = useLang();
 
   const [u, setU] = useState(null);
   const [tab, setTab] = useState('profile');
@@ -51,7 +51,7 @@ export default function ProfilePage() {
     catch (er) { setError(er.message); }
   };
   const saveLanguage = async () => {
-    try { await api.updateProfile({ language: form.language }, token); setLang(form.language === 'he' ? 'he' : 'en'); ok(); }
+    try { await api.updateProfile({ language: form.language }, token); setLang(form.language); ok(); }
     catch (er) { setError(er.message); }
   };
 
@@ -70,6 +70,10 @@ export default function ProfilePage() {
     ))}
     {state.daily_leads && (
       <div className="form-field"><label>{t('ue.days')}</label><div className="form-field-control">
+        <div className="day-quick">
+          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5] })}>{t('ue.weekdays')}</button>
+          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5, 6] })}>{t('ue.allDays')}</button>
+        </div>
         <div className="day-chips">{days.map((d, i) => {
           const on = (state.days || []).includes(i);
           return <button type="button" key={i} className={'day-chip' + (on ? ' on' : '')}
@@ -126,7 +130,7 @@ export default function ProfilePage() {
           {tab === 'lang' && (
             <div className="form-field"><label>{t('ue.language')}</label><div className="form-field-control">
               <select value={form.language} onChange={(e) => set('language', e.target.value)}>
-                <option value="he">עברית</option><option value="en">English</option>
+                {langs.map((l) => <option key={l.slug} value={l.slug}>{l.language}</option>)}
               </select></div></div>
           )}
         </div>

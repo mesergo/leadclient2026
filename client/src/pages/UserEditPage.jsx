@@ -94,6 +94,10 @@ export default function UserEditPage() {
     ))}
     {state.daily_leads && (
       <div className="form-field"><label>{t('ue.days')}</label><div className="form-field-control">
+        <div className="day-quick">
+          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5] })}>{t('ue.weekdays')}</button>
+          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5, 6] })}>{t('ue.allDays')}</button>
+        </div>
         <div className="day-chips">{days.map((d, i) => {
           const on = (state.days || []).includes(i);
           return <button type="button" key={i} className={'day-chip' + (on ? ' on' : '')}
