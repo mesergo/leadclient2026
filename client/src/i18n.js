@@ -102,6 +102,12 @@ const DICT = {
     'dev.embed': 'הטמעת LeadClient', 'dev.pick': 'בחר ערוץ לחיבור:', 'dev.pickPh': 'בחר ערוץ...',
     'dev.code': 'קוד הטמעה:', 'dev.errCodes': 'קודי שגיאה', 'dev.errCode': 'קוד', 'dev.errDesc': 'תיאור',
     'dev.err.noChannel': 'לא התקבל קוד ערוץ תקין', 'dev.err.noPhone': 'חסר מספר טלפון בפנייה',
+    'dev.subtitle': 'חיבור דפי אינטרנט אל LeadClient', 'dev.start': 'מתחילים',
+    'dev.jquery': 'על מנת לשלוח מידע אל המערכת, יש להטמיע תחילה את ספריית jQuery בעמוד. רוב אתרי WordPress כוללים אותה כברירת מחדל.',
+    'dev.headCode': 'הוסף את הקוד בתוך תגית </head> באתר:', 'dev.wixCode': 'באתר Wix: כלים → מעקב וניתוח → כלי חדש → מותאם אישית, והדבק:',
+    'dev.manualCode': 'לקביעת הערוץ ידנית (לא לפי ref/חברה):', 'dev.advanced': 'שליחה ידנית — למשתמשים מתקדמים',
+    'dev.advancedNote': 'לשליחת מידע למערכת בעת שליחת טופס, השתמש בקוד הבא:', 'dev.htmlCode': 'קוד HTML:', 'dev.jsCode': 'קוד JavaScript:',
+    'dev.copy': 'העתק', 'dev.copied': 'הועתק!',
   },
   en: {
     brand: 'LeadClient',
@@ -185,6 +191,12 @@ const DICT = {
     'dev.embed': 'Embed LeadClient', 'dev.pick': 'Select a channel to connect:', 'dev.pickPh': 'Select channel...',
     'dev.code': 'Embed code:', 'dev.errCodes': 'Error codes', 'dev.errCode': 'Code', 'dev.errDesc': 'Description',
     'dev.err.noChannel': 'No valid channel code received', 'dev.err.noPhone': 'Missing phone number in the request',
+    'dev.subtitle': 'Connect web pages to LeadClient', 'dev.start': 'Getting started',
+    'dev.jquery': 'To send data to the system, first embed the jQuery library in your page. Most WordPress sites include it by default.',
+    'dev.headCode': 'Place this code in your site\'s </head> section:', 'dev.wixCode': 'On Wix: Tools → Tracking & Analytics → New tool → Custom, and paste:',
+    'dev.manualCode': 'To set the channel manually (not by ref/company):', 'dev.advanced': 'Manual send — advanced users',
+    'dev.advancedNote': 'To send data on form submit, use the following code:', 'dev.htmlCode': 'HTML code:', 'dev.jsCode': 'JavaScript code:',
+    'dev.copy': 'Copy', 'dev.copied': 'Copied!',
   },
 };
 
