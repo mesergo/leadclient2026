@@ -403,3 +403,5 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 
 .pkg-card .pkg-actions { position: absolute; top: 8px; inset-inline-end: 8px; display: flex; gap: 4px; }
 .pkg-card .pkg-actions .cell-edit-btn { color: var(--text-dim); }
+
+.qty-row { display: flex; align-items: center; gap: 12px; }

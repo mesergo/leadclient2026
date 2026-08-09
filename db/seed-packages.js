@@ -12,13 +12,13 @@ const PACKAGES = [
   },
   {
     name: 'חבילת לעסק', subtitle: 'מתאים לעסק קטן', price: 99, original_price: 149, setup_fee: 0, is_popular: 0,
-    users: 5, companies: 1, phones: 1, leads: 0, additional_minute_price: 0.20, additional_phone_price: 19,
+    users: 5, companies: 1, phones: 1, leads: -1, additional_minute_price: 0.20, additional_phone_price: 19,
     features: ['5 משתמשים', 'לידים ללא הגבלה', 'התראות בזמן אמת', 'קו טלפון אחד', 'הקלטת שיחות', 'חיבור webhook', 'ללא התחייבות'],
     sort_order: 2,
   },
   {
     name: 'חבילת ג׳מבו', subtitle: 'מתאים לעסק גדול / סוכנות קטנה', price: 249, original_price: 319, setup_fee: 0, is_popular: 1,
-    users: 0, companies: 4, phones: 5, leads: 0, additional_minute_price: 0.20, additional_phone_price: 19,
+    users: -1, companies: 4, phones: 5, leads: -1, additional_minute_price: 0.20, additional_phone_price: 19,
     features: ['עד 4 חברות', '5 קווי טלפון', 'הקלטת שיחות', 'לידים ללא הגבלה', 'התראות בזמן אמת', 'חיבור webhook', 'ללא התחייבות'],
     sort_order: 3,
   },

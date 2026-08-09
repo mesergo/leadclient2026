@@ -143,11 +143,24 @@ export default function BillingPage() {
                   <button className="icon-btn" onClick={() => setEditPkg(null)}>×</button></div>
                 <div className="form-panel-body">
                   {[['name', t('common.name')], ['subtitle', 'תת-כותרת'], ['price', t('bil.price')], ['original_price', 'מחיר מקורי'],
-                    ['setup_fee', t('bil.setupFee')], ['users', t('bil.users')], ['companies', t('common.company')], ['phones', t('bil.phones')],
-                    ['leads', t('bil.leadsCol')], ['additional_minute_price', t('bil.pMinute')], ['additional_phone_price', t('bil.pRegularPhone')]].map(([k, lbl]) => (
+                    ['setup_fee', t('bil.setupFee')], ['additional_minute_price', t('bil.pMinute')], ['additional_phone_price', t('bil.pRegularPhone')]].map(([k, lbl]) => (
                     <div className="form-field" key={k}><label>{lbl}</label><div className="form-field-control">
                       <input value={editPkg[k] ?? ''} onChange={(e) => setEditPkg({ ...editPkg, [k]: e.target.value })} /></div></div>
                   ))}
+                  {/* quantity fields with an "unlimited" (-1) option */}
+                  {[['users', t('bil.users')], ['companies', t('common.company')], ['phones', t('bil.phones')], ['leads', t('bil.leadsCol')]].map(([k, lbl]) => {
+                    const unlimited = Number(editPkg[k]) === -1;
+                    return (
+                      <div className="form-field" key={k}><label>{lbl}</label><div className="form-field-control">
+                        <div className="qty-row">
+                          <input type="number" disabled={unlimited} value={unlimited ? '' : (editPkg[k] ?? '')}
+                            onChange={(e) => setEditPkg({ ...editPkg, [k]: e.target.value })} style={{ maxWidth: 120 }} />
+                          <label className="notif-row" style={{ margin: 0 }}>
+                            <input type="checkbox" checked={unlimited} onChange={(e) => setEditPkg({ ...editPkg, [k]: e.target.checked ? -1 : '' })} /> {t('bil.unlimited')}
+                          </label>
+                        </div></div></div>
+                    );
+                  })}
                   <label className="notif-row"><input type="checkbox" checked={!!editPkg.is_popular} onChange={(e) => setEditPkg({ ...editPkg, is_popular: e.target.checked ? 1 : 0 })} /> {t('bil.popular')}</label>
                   <div className="form-field"><label>{t('bil.features')}</label><div className="form-field-control">
                     <textarea rows={7} value={editPkg.featuresText} onChange={(e) => setEditPkg({ ...editPkg, featuresText: e.target.value })} /></div></div>
