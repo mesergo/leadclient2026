@@ -1,8 +1,14 @@
 const express = require('express');
 const { query } = require('../db/pool');
 const { asyncHandler } = require('../utils/http');
+const notify = require('../services/notify');
 
 const router = express.Router();
+
+// notify a company's users about a newly-arrived lead (fire-and-forget)
+function announceNewLead(companyId, leadId, name, phone) {
+  notify.notifyCompany({ companyId, event: 'new_lead', title: 'ליד חדש', body: `${name || 'ללא שם'} · ${phone}`, leadId }).catch(() => {});
+}
 
 // public lead intake by service hash (embed widget). No auth.
 router.post('/leads/service/:hash', asyncHandler(async (req, res) => {
@@ -10,8 +16,9 @@ router.post('/leads/service/:hash', asyncHandler(async (req, res) => {
   if (!svc[0]) return res.status(404).json({ error: 'no_channel_id' });
   const { name, phone, email } = req.body || {};
   if (!phone) return res.status(400).json({ error: 'missing_phone' });
-  await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+  const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
     [svc[0].company_id, svc[0].id, name || null, phone, email || null, 'widget']);
+  announceNewLead(svc[0].company_id, r.insertId, name, phone);
   res.status(201).json({ ok: true });
 }));
 
@@ -23,8 +30,9 @@ router.post('/leads/company/:token', asyncHandler(async (req, res) => {
   if (!svc[0]) return res.status(404).json({ error: 'no_channel_id' });
   const { name, phone, email } = req.body || {};
   if (!phone) return res.status(400).json({ error: 'missing_phone' });
-  await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+  const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
     [co[0].id, svc[0].id, name || null, phone, email || null, 'widget']);
+  announceNewLead(co[0].id, r.insertId, name, phone);
   res.status(201).json({ ok: true });
 }));
 

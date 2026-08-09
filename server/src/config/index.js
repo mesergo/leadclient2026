@@ -15,4 +15,9 @@ module.exports = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   uploadDir: process.env.UPLOAD_DIR || require('path').resolve(__dirname, '../../public/uploads'),
+  vapid: {
+    publicKey: process.env.VAPID_PUBLIC_KEY || '',
+    privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    subject: process.env.VAPID_SUBJECT || 'mailto:admin@leadclient.net',
+  },
 };
