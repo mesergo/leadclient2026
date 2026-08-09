@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api, API_ORIGIN } from '../api';
 import { Star, X } from '../icons';
-import { isAutoTag, displayTag, extractRecordingUrl } from '../tags';
+import { isAutoTag, displayTag, extractRecordingUrl, maskSuppliers } from '../tags';
 import { formatIL, waNumber } from '../phone';
 
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
@@ -13,17 +13,20 @@ const CHANNELS = ['sms', 'whatsapp', 'email'];
 // Decode + pretty-print so it's readable.
 function prettyRaw(s) {
   if (s == null) return '';
-  if (typeof s === 'object') return JSON.stringify(s, null, 2);
-  let v = String(s);
-  for (let i = 0; i < 3; i++) {
-    try {
-      const o = JSON.parse(v);
-      if (o && typeof o === 'object') return JSON.stringify(o, null, 2);
-      if (typeof o === 'string') { v = o; continue; }
-      return String(o);
-    } catch { break; }
-  }
-  return v.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  const out = (() => {
+    if (typeof s === 'object') return JSON.stringify(s, null, 2);
+    let v = String(s);
+    for (let i = 0; i < 3; i++) {
+      try {
+        const o = JSON.parse(v);
+        if (o && typeof o === 'object') return JSON.stringify(o, null, 2);
+        if (typeof o === 'string') { v = o; continue; }
+        return String(o);
+      } catch { break; }
+    }
+    return v.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  })();
+  return maskSuppliers(out); // hide our telephony providers from the customer
 }
 const isPhoneLead = (l) => /phone|call|טלפון|שיח/i.test(((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')));
 
