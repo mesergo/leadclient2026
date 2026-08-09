@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import * as Icons from '../icons';
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -19,21 +20,26 @@ export default function BillingPage() {
   const [prices, setPrices] = useState(null);
   const [packages, setPackages] = useState([]);
   const [priceForm, setPriceForm] = useState({});
+  const [editPkg, setEditPkg] = useState(null); // package being edited/created
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
   const decodeSign = (s) => String(s ?? '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
 
+  // heavy usage aggregation (only the rows)
   const load = (f = flt) => api.billing(token, { month: f.month, agency: f.agency || undefined, company_id: f.company_id || undefined })
-    .then((d) => {
-      setRows(d.rows); setPrices(d.prices); setPackages(d.packages || []);
-      if (d.prices) setPriceForm({
-        currency_sign: decodeSign(d.prices.currency_sign) || '₪',
-        virtual_phone_minute: d.prices.virtual_phone_minute ?? '', lead_price: d.prices.lead_price ?? '',
-        premium_virtual_phone: d.prices.premium_virtual_phone ?? '', regular_virtual_phone: d.prices.regular_virtual_phone ?? '',
-        sms_price: d.prices.sms_price ?? '', tax_percent: d.prices.tax_percent ?? '',
-      });
-    }).catch((e) => setError(e.message));
+    .then((d) => setRows(d.rows)).catch((e) => setError(e.message));
+
+  // fast prices + packages
+  const loadPrices = () => api.billingPrices(token).then((d) => {
+    setPrices(d.prices); setPackages(d.packages || []);
+    if (d.prices) setPriceForm({
+      currency_sign: decodeSign(d.prices.currency_sign) || '₪',
+      virtual_phone_minute: d.prices.virtual_phone_minute ?? '', lead_price: d.prices.lead_price ?? '',
+      premium_virtual_phone: d.prices.premium_virtual_phone ?? '', regular_virtual_phone: d.prices.regular_virtual_phone ?? '',
+      sms_price: d.prices.sms_price ?? '', tax_percent: d.prices.tax_percent ?? '',
+    });
+  }).catch((e) => setError(e.message));
 
   const savePrices = async () => {
     setMsg(''); setError('');
@@ -42,9 +48,25 @@ export default function BillingPage() {
   };
   const setP = (k, v) => setPriceForm((f) => ({ ...f, [k]: v }));
 
+  // package editor
+  const blankPkg = () => ({ name: '', subtitle: '', price: '', original_price: '', setup_fee: 0, is_popular: 0, users: '', companies: '', phones: '', leads: '', additional_minute_price: '', additional_phone_price: '', featuresText: '' });
+  const openNewPkg = () => setEditPkg(blankPkg());
+  const openEditPkg = (p) => setEditPkg({ ...p, featuresText: (p.features || []).join('\n') });
+  const savePkg = async () => {
+    const body = { ...editPkg, features: (editPkg.featuresText || '').split('\n').map((s) => s.trim()).filter(Boolean) };
+    delete body.featuresText; delete body.features_raw;
+    try {
+      if (editPkg.id) await api.updatePackage(editPkg.id, body, token);
+      else await api.createPackage(body, token);
+      setEditPkg(null); loadPrices();
+    } catch (e) { setError(e.message); }
+  };
+  const delPkg = async (id) => { try { await api.deletePackage(id, token); loadPrices(); } catch (e) { setError(e.message); } };
+
   useEffect(() => {
     if (isSuper) api.agencies(token).then((d) => setAgencies(d.agencies)).catch(() => {});
     if (isSuper || isAgency) api.companies(token).then((d) => setCompanies(d.companies)).catch(() => {});
+    loadPrices();
     load();
   }, [token]);
 
@@ -87,11 +109,18 @@ export default function BillingPage() {
             <div className="form-actions"><button className="btn btn-primary">{t('common.save')}</button></div>
           </form>
 
-          <h2 style={{ marginTop: '1.5rem' }}>{t('bil.packagesOverride')}</h2>
+          <div className="page-header" style={{ marginTop: '1.5rem' }}>
+            <h2>{t('bil.packagesOverride')}</h2>
+            <button className="btn btn-primary" onClick={openNewPkg}>+ {t('bil.addPackage')}</button>
+          </div>
           <div className="pkg-grid">
             {packages.map((p) => (
               <div key={p.id} className={'pkg-card' + (p.is_popular ? ' popular' : '')}>
                 {p.is_popular ? <div className="pkg-badge">{t('bil.popular')}</div> : null}
+                <div className="pkg-actions">
+                  <button className="cell-edit-btn" title={t('co.edit')} onClick={() => openEditPkg(p)}><Icons.Pencil size={14} /></button>
+                  <button className="cell-edit-btn" title="×" onClick={() => { if (window.confirm(t('bil.delPackage'))) delPkg(p.id); }}><Icons.Trash size={14} /></button>
+                </div>
                 <h3 className="pkg-name">{p.name}</h3>
                 <div className="pkg-subtitle">{p.subtitle}</div>
                 <div className="pkg-price">
@@ -106,6 +135,27 @@ export default function BillingPage() {
               </div>
             ))}
           </div>
+
+          {editPkg && (
+            <div className="lead-modal-overlay" onClick={() => setEditPkg(null)}>
+              <div className="lead-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+                <div className="lead-card-head"><h2>{editPkg.id ? t('bil.editPackage') : t('bil.newPackage')}</h2>
+                  <button className="icon-btn" onClick={() => setEditPkg(null)}>×</button></div>
+                <div className="form-panel-body">
+                  {[['name', t('common.name')], ['subtitle', 'תת-כותרת'], ['price', t('bil.price')], ['original_price', 'מחיר מקורי'],
+                    ['setup_fee', t('bil.setupFee')], ['users', t('bil.users')], ['companies', t('common.company')], ['phones', t('bil.phones')],
+                    ['leads', t('bil.leadsCol')], ['additional_minute_price', t('bil.pMinute')], ['additional_phone_price', t('bil.pRegularPhone')]].map(([k, lbl]) => (
+                    <div className="form-field" key={k}><label>{lbl}</label><div className="form-field-control">
+                      <input value={editPkg[k] ?? ''} onChange={(e) => setEditPkg({ ...editPkg, [k]: e.target.value })} /></div></div>
+                  ))}
+                  <label className="notif-row"><input type="checkbox" checked={!!editPkg.is_popular} onChange={(e) => setEditPkg({ ...editPkg, is_popular: e.target.checked ? 1 : 0 })} /> {t('bil.popular')}</label>
+                  <div className="form-field"><label>{t('bil.features')}</label><div className="form-field-control">
+                    <textarea rows={7} value={editPkg.featuresText} onChange={(e) => setEditPkg({ ...editPkg, featuresText: e.target.value })} /></div></div>
+                </div>
+                <div className="form-actions"><button className="btn btn-primary" onClick={savePkg}>{t('common.save')}</button></div>
+              </div>
+            </div>
+          )}
           {packages.length === 0 && <p className="muted">{t('common.none')}</p>}
         </div>
       )}

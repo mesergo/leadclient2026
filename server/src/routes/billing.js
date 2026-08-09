@@ -73,6 +73,45 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ month, rows, prices, packages });
 }));
 
+// Fast fetch of prices + packages only (no heavy usage aggregation).
+router.get('/prices', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const prices = (await query('SELECT * FROM billing_defaults ORDER BY id LIMIT 1'))[0] || null;
+  const packages = await query(
+    `SELECT id, name, subtitle, price, original_price, setup_fee, is_popular, users, companies, phones,
+            call_minutes, leads, additional_minute_price, additional_phone_price, additional_lead_price, features, sort_order
+     FROM payment_packages ORDER BY sort_order, price`).catch(() => []);
+  for (const p of packages) { try { p.features = p.features ? JSON.parse(p.features) : []; } catch { p.features = []; } }
+  res.json({ prices, packages });
+}));
+
+const PKG_FIELDS = ['name', 'subtitle', 'price', 'original_price', 'setup_fee', 'is_popular', 'users', 'companies',
+  'phones', 'call_minutes', 'leads', 'additional_minute_price', 'additional_phone_price', 'additional_lead_price', 'sort_order'];
+const pkgVal = (b, f) => (f === 'is_popular' ? (b[f] ? 1 : 0) : (b[f] ?? null));
+
+router.post('/packages', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const b = req.body || {};
+  const nextId = String((await query('SELECT COALESCE(MAX(CAST(id AS UNSIGNED)), 0) + 1 AS n FROM payment_packages'))[0].n);
+  const feats = JSON.stringify(Array.isArray(b.features) ? b.features : []);
+  await query(
+    `INSERT INTO payment_packages (id, ${PKG_FIELDS.join(', ')}, features) VALUES (?, ${PKG_FIELDS.map(() => '?').join(', ')}, ?)`,
+    [nextId, ...PKG_FIELDS.map((f) => pkgVal(b, f)), feats]);
+  res.status(201).json({ id: nextId });
+}));
+
+router.patch('/packages/:id', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const b = req.body || {};
+  const sets = [], params = [];
+  for (const f of PKG_FIELDS) if (b[f] !== undefined) { sets.push(`${f} = ?`); params.push(pkgVal(b, f)); }
+  if (b.features !== undefined) { sets.push('features = ?'); params.push(JSON.stringify(Array.isArray(b.features) ? b.features : [])); }
+  if (sets.length) { params.push(req.params.id); await query(`UPDATE payment_packages SET ${sets.join(', ')} WHERE id = ?`, params); }
+  res.json({ ok: true });
+}));
+
+router.delete('/packages/:id', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  await query('DELETE FROM payment_packages WHERE id = ?', [req.params.id]);
+  res.json({ ok: true });
+}));
+
 // Price settings (super admin only).
 router.patch('/prices', requireRole('super_admin'), asyncHandler(async (req, res) => {
   const fields = ['currency_sign', 'agency_price', 'company_price', 'user_price', 'sms_price',
