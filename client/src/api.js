@@ -93,6 +93,7 @@ export const api = {
   dashboardActions: (token, filters) => request(`/api/dashboard/actions${qs(filters)}`, { token }),
   reports: (token, f) => request(`/api/reports${qs(f)}`, { token }),
   billing: (token, f) => request(`/api/billing${qs(f)}`, { token }),
+  updateBillingPrices: (body, token) => request('/api/billing/prices', { method: 'PATCH', body, token }),
   virtual: (token, filters) => request(`/api/virtual${qs(filters)}`, { token }),
   notifications: (token) => request('/api/notifications', { token }),
   languages: (token) => request('/api/language', { token }),

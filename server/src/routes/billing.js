@@ -64,8 +64,23 @@ router.get('/', asyncHandler(async (req, res) => {
     for (const [id, x] of map) { const n = nm.get(String(id)); x.company_name = n?.name || '—'; x.agency_name = n?.agency_name || '—'; }
   }
   const rows = [...map.values()].sort((a, b) => b.leads - a.leads);
-  const prices = (await query('SELECT * FROM billing_defaults LIMIT 1'))[0] || null;
-  res.json({ month, rows, prices });
+  const prices = (await query('SELECT * FROM billing_defaults ORDER BY id LIMIT 1'))[0] || null;
+  const packages = await query('SELECT id, price, users, phones, call_minutes, leads FROM payment_packages ORDER BY price ASC').catch(() => []);
+  res.json({ month, rows, prices, packages });
+}));
+
+// Price settings (super admin only).
+router.patch('/prices', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const fields = ['currency_sign', 'agency_price', 'company_price', 'user_price', 'sms_price',
+    'premium_virtual_phone', 'regular_virtual_phone', 'virtual_phone_minute', 'lead_price', 'tax_percent'];
+  const sets = [], params = [];
+  for (const f of fields) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
+  if (!sets.length) return res.json({ ok: true });
+  const cur = (await query('SELECT id FROM billing_defaults ORDER BY id LIMIT 1'))[0];
+  if (cur) { params.push(cur.id); await query(`UPDATE billing_defaults SET ${sets.join(', ')} WHERE id = ?`, params); }
+  else await query(`INSERT INTO billing_defaults (${fields.filter((f) => req.body[f] !== undefined).join(', ')}) VALUES (${sets.map(() => '?').join(', ')})`, params);
+  const prices = (await query('SELECT * FROM billing_defaults ORDER BY id LIMIT 1'))[0] || null;
+  res.json({ ok: true, prices });
 }));
 
 module.exports = router;
