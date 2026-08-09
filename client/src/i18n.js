@@ -81,6 +81,7 @@ const DICT = {
     'ue.language': 'שפת ממשק', 'ue.loginHours': 'הגבלת שעות התחברות', 'ue.from': 'משעה', 'ue.to': 'עד שעה', 'ue.loginSource': 'הגבלת מקור התחברות (IP)', 'ue.allowedIps': 'כתובות IP מורשות (מופרדות בפסיק)',
     'lng.title': 'עריכת תרגומים', 'lng.subtitle': 'עריכת קבצי תרגום', 'lng.language': 'שפה', 'lng.options': 'אפשרויות', 'lng.active': 'פעיל?', 'lng.edit': 'עריכה', 'lng.progress': 'תורגם',
     'lng.file': 'קובץ תרגום', 'lng.files': 'קבצים', 'lng.key': 'מפתח', 'lng.value': 'ערך', 'lng.save': 'שמירה', 'lng.saved': 'התרגומים נשמרו', 'lng.back': 'חזרה', 'lng.selectFile': 'בחר קובץ לעריכה מימין', 'lng.searchKey': 'חיפוש מפתח...',
+    'pr.title': 'פרופיל', 'pr.subtitle': 'עריכת פרופיל אישי', 'ue.currentPassword': 'סיסמה נוכחית',
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
@@ -162,6 +163,7 @@ const DICT = {
     'ue.language': 'Interface language', 'ue.loginHours': 'Restrict login hours', 'ue.from': 'From', 'ue.to': 'To', 'ue.loginSource': 'Restrict login source (IP)', 'ue.allowedIps': 'Allowed IPs (comma-separated)',
     'lng.title': 'Translations', 'lng.subtitle': 'Edit translation files', 'lng.language': 'Language', 'lng.options': 'Options', 'lng.active': 'Active?', 'lng.edit': 'Edit', 'lng.progress': 'Translated',
     'lng.file': 'Translation file', 'lng.files': 'Files', 'lng.key': 'Key', 'lng.value': 'Value', 'lng.save': 'Save', 'lng.saved': 'Translations saved', 'lng.back': 'Back', 'lng.selectFile': 'Select a file to edit', 'lng.searchKey': 'Search key...',
+    'pr.title': 'Profile', 'pr.subtitle': 'Edit your profile', 'ue.currentPassword': 'Current password',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
