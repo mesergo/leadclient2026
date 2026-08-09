@@ -328,3 +328,7 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #34a853; display: inline-block; box-shadow: 0 0 0 3px rgba(52,168,83,.18); }
 .row-suspended { opacity: .55; }
 .switch-sm input { width: 16px; height: 16px; cursor: pointer; }
+
+.cell-editable { display: inline-flex; align-items: center; gap: 6px; }
+.cell-edit-btn { background: none; border: none; cursor: pointer; color: var(--text-dim); padding: 2px; line-height: 0; }
+.cell-edit-btn:hover { color: var(--accent); }

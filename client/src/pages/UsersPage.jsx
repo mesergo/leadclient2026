@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import * as Icons from '../icons';
 import { timeAgo, isRecent } from '../timeago';
 
 const ROLES = ['super_admin', 'agency_admin', 'company_admin', 'company_user', 'translator'];
@@ -24,6 +25,8 @@ export default function UsersPage() {
   const [agencies, setAgencies] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [flt, setFlt] = useState({ agency: '', company_id: sp.get('company') || '', suspended: '', q: '' });
+  const [editCompanyId, setEditCompanyId] = useState(null); // user id whose company is being edited
+  const [editRoleId, setEditRoleId] = useState(null);
   const [error, setError] = useState('');
 
   const load = (f = flt) => api.users(token, {
@@ -108,21 +111,33 @@ export default function UsersPage() {
             <td>{u.display_name}</td><td>{u.username}</td><td>{u.email || '-'}</td>
             <td>{u.agency_name || '-'}</td>
             <td>
-              {canReassign ? (
-                <select className="cell-select" value={u.company_id || ''} onChange={(e) => patch(u.id, { company_id: e.target.value || null })}>
+              {canReassign && editCompanyId === u.id ? (
+                <select className="cell-select" autoFocus value={u.company_id || ''}
+                  onChange={(e) => { patch(u.id, { company_id: e.target.value || null }); setEditCompanyId(null); }}
+                  onBlur={() => setEditCompanyId(null)}>
                   <option value="">—</option>
-                  {(isSuper && u.company_agency_id ? companies.filter((c) => String(c.agency_id) === String(u.company_agency_id)) : companies).map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-              ) : (u.company_name || '-')}
+              ) : (
+                <span className="cell-editable">
+                  {u.company_name || '-'}
+                  {canReassign && <button className="cell-edit-btn" title={t('co.edit')} onClick={() => setEditCompanyId(u.id)}><Icons.Pencil size={12} /></button>}
+                </span>
+              )}
             </td>
             <td>
-              {isSuper ? (
-                <select className="cell-select" value={u.role} onChange={(e) => patch(u.id, { role: e.target.value })}>
+              {isSuper && editRoleId === u.id ? (
+                <select className="cell-select" autoFocus value={u.role}
+                  onChange={(e) => { patch(u.id, { role: e.target.value }); setEditRoleId(null); }}
+                  onBlur={() => setEditRoleId(null)}>
                   {ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
                 </select>
-              ) : roleLabel(u.role)}
+              ) : (
+                <span className="cell-editable">
+                  {roleLabel(u.role)}
+                  {isSuper && <button className="cell-edit-btn" title={t('co.edit')} onClick={() => setEditRoleId(u.id)}><Icons.Pencil size={12} /></button>}
+                </span>
+              )}
             </td>
             <td>{lastSeen(u)}</td>
             <td>
