@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import MultiSelect from '../components/MultiSelect';
+import RedirectConfig, { toRedirect, emptyRedirect } from '../components/RedirectConfig';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
@@ -37,6 +38,7 @@ export default function EditServicePage() {
   const [hoursOn, setHoursOn] = useState(false);
   const [hours, setHours] = useState(Array(168).fill(false));
   const [afterMode, setAfterMode] = useState('none');
+  const [closeConfig, setCloseConfig] = useState(emptyRedirect());
   const [audioUrl, setAudioUrl] = useState('');
   const [audioBusy, setAudioBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -56,7 +58,7 @@ export default function EditServicePage() {
         close_hours_phone: s.close_hours_phone || '',
         is_active: s.is_active,
       });
-      setPhones((d.phones || []).map((p) => ({ ...p })));
+      setPhones((d.phones || []).map((p) => ({ ...p, config: toRedirect(p.redirect_config, p.redirect_to_number) })));
       setUsers(d.users || []);
       setAssigned((s.distribute_leads || []).map(String));
       setSmsOn(!!(s.returning_sms_from || s.returning_sms_text));
@@ -64,7 +66,8 @@ export default function EditServicePage() {
       setHoursOn(h.some(Boolean));
       setHours(h);
       setAudioUrl(s.close_hours_audio_url || '');
-      setAfterMode(s.close_hours_audio_url ? 'audio' : (s.close_hours_phone ? 'phone' : 'none'));
+      setAfterMode(s.close_hours_audio_url ? 'audio' : ((s.close_hours_config || s.close_hours_phone) ? 'phone' : 'none'));
+      setCloseConfig(toRedirect(s.close_hours_config, s.close_hours_phone));
     }).catch((e) => setError(e.message));
   }, [id, token]);
 
@@ -105,10 +108,11 @@ export default function EditServicePage() {
       distribute_leads: assigned,
       service_ref: form.service_ref, export_webhook_url: form.export_webhook_url,
       open_hours: hoursOn ? serializeHours(hours) : '',
-      close_hours_phone: hoursOn && afterMode === 'phone' ? form.close_hours_phone : null,
+      close_hours_phone: hoursOn && afterMode === 'phone' ? (closeConfig.numbers.filter(Boolean)[0] || null) : null,
+      close_hours_config: hoursOn && afterMode === 'phone' ? closeConfig : null,
       close_hours_audio_url: hoursOn && afterMode === 'audio' ? (audioUrl || null) : null,
       is_active: form.is_active ? 1 : 0,
-      phones: type === 'phone' ? phones.map((p) => ({ id: p.id, redirect_to_number: p.redirect_to_number })) : undefined,
+      phones: type === 'phone' ? phones.map((p) => ({ id: p.id, redirect_config: p.config })) : undefined,
     };
     try { await api.updateService(id, body, token); setMsg(t('es.saved')); }
     catch (err) { setError(err.message); }
@@ -174,7 +178,7 @@ export default function EditServicePage() {
 
             {phones.map((p, i) => (
               <div className="form-field" key={'r' + p.id}><label>{t('es.redirect')}</label><div className="form-field-control">
-                <input value={p.redirect_to_number || ''} onChange={(e) => setPhones((arr) => arr.map((x, xi) => (xi === i ? { ...x, redirect_to_number: e.target.value } : x)))} />
+                <RedirectConfig value={p.config} onChange={(cfg) => setPhones((arr) => arr.map((x, xi) => (xi === i ? { ...x, config: cfg } : x)))} />
               </div></div>
             ))}
           </>)}
@@ -240,7 +244,7 @@ export default function EditServicePage() {
                   <label><input type="radio" name="afterMode" checked={afterMode === 'audio'} onChange={() => setAfterMode('audio')} /> {t('es.afterAudio')}</label>
                 </div>
                 {afterMode === 'phone' && (
-                  <input className="after-hours-phone" value={form.close_hours_phone} onChange={(e) => set('close_hours_phone', e.target.value)} placeholder={t('es.afterPhonePh')} />
+                  <RedirectConfig value={closeConfig} onChange={setCloseConfig} />
                 )}
                 {afterMode === 'audio' && (
                   <div className="after-hours-audio">

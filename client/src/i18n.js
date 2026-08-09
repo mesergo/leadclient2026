@@ -63,6 +63,8 @@ const DICT = {
     'es.addTitle': 'הוספת ערוץ', 'es.addSave': 'הוספת ערוץ', 'es.numberNone': 'ללא', 'es.selectPlan': 'בחר מסלול', 'es.nameRequired': 'שם ערוץ נדרש', 'es.search': 'חיפוש...',
     'es.afterHours': 'לאחר שעות הפתיחה', 'es.afterNone': 'ללא', 'es.afterPhone': 'הפניה למספר טלפון אחר', 'es.afterAudio': 'השמעת קובץ שמע',
     'es.afterPhonePh': 'מספר טלפון', 'es.audioUpload': 'העלאת קובץ שמע', 'es.audioCurrent': 'קובץ נוכחי', 'es.audioAfterSave': 'ניתן להעלות קובץ שמע לאחר יצירת הערוץ',
+    'rc.numberPh': 'מספר טלפון', 'rc.addNumber': 'הוסף מספר הפניה', 'rc.advanced': 'הגדרות נוספות',
+    'rc.type': 'סוג הפניה', 'rc.sequential': 'מוביל נגרר (מחייג לפי הסדר)', 'rc.parallel': 'במקביל (מצלצל לכולם יחד)', 'rc.ring': 'משך צלצול (שניות)',
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
@@ -126,6 +128,8 @@ const DICT = {
     'es.addTitle': 'Add channel', 'es.addSave': 'Add channel', 'es.numberNone': 'None', 'es.selectPlan': 'Choose plan', 'es.nameRequired': 'Channel name is required', 'es.search': 'Search...',
     'es.afterHours': 'After opening hours', 'es.afterNone': 'None', 'es.afterPhone': 'Redirect to another phone number', 'es.afterAudio': 'Play an audio file',
     'es.afterPhonePh': 'Phone number', 'es.audioUpload': 'Upload audio file', 'es.audioCurrent': 'Current file', 'es.audioAfterSave': 'You can upload an audio file after creating the channel',
+    'rc.numberPh': 'Phone number', 'rc.addNumber': 'Add redirect number', 'rc.advanced': 'Additional settings',
+    'rc.type': 'Redirect type', 'rc.sequential': 'Waterfall (dial in order)', 'rc.parallel': 'Parallel (ring all at once)', 'rc.ring': 'Ring duration (sec)',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
