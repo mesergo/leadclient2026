@@ -71,7 +71,7 @@ export default function BillingPage() {
   }, [token]);
 
   const agencyCompanies = useMemo(
-    () => (flt.agency ? companies.filter((c) => String(c.agency_id) === String(flt.agency)) : companies),
+    () => (flt.agency ? companies.filter((c) => String(c.agency_id) === String(flt.agency)) : (isSuper ? [] : companies)),
     [companies, flt.agency]
   );
   const num = (n) => Number(n || 0).toLocaleString();

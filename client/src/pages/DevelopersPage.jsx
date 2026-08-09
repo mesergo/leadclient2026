@@ -33,7 +33,7 @@ export default function DevelopersPage() {
     api.companies(token).then((d) => setCompanies(d.companies)).catch(() => {});
   }, [token]);
   const agencyCompanies = useMemo(
-    () => (sel.agency ? companies.filter((c) => String(c.agency_id) === String(sel.agency)) : companies),
+    () => (sel.agency ? companies.filter((c) => String(c.agency_id) === String(sel.agency)) : (isSuper ? [] : companies)),
     [companies, sel.agency]
   );
   const activeCompany = isSuper || isAgency ? sel.company_id : user?.company_id;

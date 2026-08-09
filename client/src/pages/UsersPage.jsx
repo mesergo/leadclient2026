@@ -42,7 +42,7 @@ export default function UsersPage() {
   }, [token]);
 
   const agencyCompanies = useMemo(
-    () => (flt.agency ? companies.filter((c) => String(c.agency_id) === String(flt.agency)) : companies),
+    () => (flt.agency ? companies.filter((c) => String(c.agency_id) === String(flt.agency)) : (isSuper ? [] : companies)),
     [companies, flt.agency]
   );
   const roleLabel = (r) => (ROLE_LABELS[lang] || ROLE_LABELS.he)[r] || r;

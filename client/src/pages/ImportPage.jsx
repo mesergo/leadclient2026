@@ -34,7 +34,7 @@ export default function ImportPage() {
     api.companies(token).then((d) => setCompanies(d.companies)).catch(() => {});
   }, [token]);
   const agencyCompanies = useMemo(
-    () => (sel.agency ? companies.filter((c) => String(c.agency_id) === String(sel.agency)) : companies),
+    () => (sel.agency ? companies.filter((c) => String(c.agency_id) === String(sel.agency)) : (isSuper ? [] : companies)),
     [companies, sel.agency]
   );
   useEffect(() => {

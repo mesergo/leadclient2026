@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   // companies filtered by chosen agency
   const agencyCompanies = useMemo(
-    () => (filters.agency ? companies.filter((c) => String(c.agency_id) === String(filters.agency)) : companies),
+    () => (filters.agency ? companies.filter((c) => String(c.agency_id) === String(filters.agency)) : (isSuper ? [] : companies)),
     [companies, filters.agency]
   );
 
