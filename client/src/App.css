@@ -405,3 +405,9 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .pkg-card .pkg-actions .cell-edit-btn { color: var(--text-dim); }
 
 .qty-row { display: flex; align-items: center; gap: 12px; }
+
+/* developers code blocks */
+.code-block { position: relative; margin: 6px 0 4px; }
+.code-block pre { background: #1e2530; color: #e6edf3; border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; direction: ltr; text-align: left; margin: 0; }
+.code-copy { position: absolute; top: 8px; inset-inline-end: 8px; background: rgba(255,255,255,.12); color: #fff; border: none; border-radius: 5px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.code-copy:hover { background: rgba(255,255,255,.22); }
