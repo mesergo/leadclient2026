@@ -377,3 +377,8 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .info-dl-row dd { margin: 0; word-break: break-word; }
 
 .tag-picker { width: auto; padding: 3px 6px; font-size: 12px; max-width: 160px; }
+
+/* header language picker */
+.lang-picker { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); cursor: pointer; }
+.lang-picker select { width: auto; border: none; background: none; color: var(--accent); font: inherit; padding: 2px 4px; cursor: pointer; }
+.lang-picker select:focus { outline: none; }

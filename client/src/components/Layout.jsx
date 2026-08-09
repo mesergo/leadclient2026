@@ -30,12 +30,11 @@ const CRUMB_KEY = {
 
 export default function Layout() {
   const { user, logout, impersonatorName, stopImpersonation } = useAuth();
-  const { t, lang, setLang } = useLang();
+  const { t, lang, setLang, langs } = useLang();
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   const ck = CRUMB_KEY['/' + loc.pathname.split('/')[1]] || CRUMB_KEY[loc.pathname];
   const items = NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
-  const nextLang = LANGS.find((l) => l.code !== lang) || LANGS[0];
 
   return (
     <div className="app-shell">
@@ -59,9 +58,12 @@ export default function Layout() {
           <button className="hamburger" onClick={() => setOpen((v) => !v)} aria-label="menu"><Icons.Menu /></button>
           <div className="header-user"><Icons.User size={18} /> {t('header.welcome')}, {user?.name || ''}</div>
           <div className="header-actions">
-            <a href="#" title={nextLang.label} onClick={(e) => { e.preventDefault(); setLang(nextLang.code); }}>
-              <Icons.Globe size={16} /> {nextLang.label}
-            </a>
+            <label className="lang-picker" title={t('nav.language')}>
+              <Icons.Globe size={16} />
+              <select value={lang} onChange={(e) => setLang(e.target.value)}>
+                {langs.map((l) => <option key={l.slug} value={l.slug}>{l.language}</option>)}
+              </select>
+            </label>
             <a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>{t('header.logout')}</a>
           </div>
         </header>
