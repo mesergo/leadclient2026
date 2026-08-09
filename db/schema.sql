@@ -390,7 +390,15 @@ CREATE TABLE IF NOT EXISTS payment_packages (
   unlimited_minutes_price FLOAT NULL,
   leads                 INT NULL,
   additional_lead_price FLOAT NULL,
-  unlimited_leads_price FLOAT NULL
+  unlimited_leads_price FLOAT NULL,
+  name                  VARCHAR(100) NULL,
+  subtitle              VARCHAR(150) NULL,
+  original_price        FLOAT NULL,
+  setup_fee             FLOAT NULL DEFAULT 0,
+  is_popular            TINYINT(1) NULL DEFAULT 0,
+  companies             INT NULL,
+  features              TEXT NULL,
+  sort_order            INT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS plans (

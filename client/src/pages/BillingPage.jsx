@@ -87,16 +87,26 @@ export default function BillingPage() {
             <div className="form-actions"><button className="btn btn-primary">{t('common.save')}</button></div>
           </form>
 
-          <div className="panel">
-            <h3>{t('bil.packagesOverride')}</h3>
-            <div className="table-wrap"><table className="data-table">
-              <thead><tr><th>{t('bil.price')}</th><th>{t('bil.users')}</th><th>{t('bil.phones')}</th><th>{t('bil.pkgMinutes')}</th><th>{t('bil.pkgLeads')}</th></tr></thead>
-              <tbody>{packages.map((p) => (
-                <tr key={p.id}><td>{num(p.price)}{priceForm.currency_sign}</td><td>{num(p.users)}</td><td>{num(p.phones)}</td><td>{num(p.call_minutes)}</td><td>{num(p.leads)}</td></tr>
-              ))}</tbody>
-            </table></div>
-            {packages.length === 0 && <p className="muted">{t('common.none')}</p>}
+          <h2 style={{ marginTop: '1.5rem' }}>{t('bil.packagesOverride')}</h2>
+          <div className="pkg-grid">
+            {packages.map((p) => (
+              <div key={p.id} className={'pkg-card' + (p.is_popular ? ' popular' : '')}>
+                {p.is_popular ? <div className="pkg-badge">{t('bil.popular')}</div> : null}
+                <h3 className="pkg-name">{p.name}</h3>
+                <div className="pkg-subtitle">{p.subtitle}</div>
+                <div className="pkg-price">
+                  {p.original_price ? <span className="pkg-orig">{num(p.original_price)}{priceForm.currency_sign}</span> : null}
+                  <span className="pkg-amount">{num(p.price)}{priceForm.currency_sign}</span>
+                  <span className="pkg-per">{t('bil.perMonth')}</span>
+                </div>
+                <div className="pkg-setup">{t('bil.setupFee')}: {num(p.setup_fee || 0)}{priceForm.currency_sign} ({t('bil.oneTime')})</div>
+                <ul className="pkg-features">
+                  {(p.features || []).map((f, i) => <li key={i}>✓ {f}</li>)}
+                </ul>
+              </div>
+            ))}
           </div>
+          {packages.length === 0 && <p className="muted">{t('common.none')}</p>}
         </div>
       )}
 
