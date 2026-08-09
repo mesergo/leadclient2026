@@ -20,6 +20,7 @@ const NAV = [
   { to: '/language', key: 'nav.language', Icon: Icons.Globe, roles: ['super_admin'] },
   { to: '/profile', key: 'nav.profile', Icon: Icons.User },
   { to: '/developers', key: 'nav.developers', Icon: Icons.Code },
+  { to: '/import-live', key: 'nav.importLive', Icon: Icons.Upload, roles: ['super_admin'] },
 ];
 const CRUMB_KEY = {
   '/': 'nav.dashboard', '/agencies': 'nav.agencies', '/companies': 'nav.companies', '/leads': 'nav.leads',
