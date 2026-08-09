@@ -414,6 +414,7 @@ CREATE TABLE IF NOT EXISTS billing_defaults (
   premium_virtual_phone FLOAT NULL,
   regular_virtual_phone FLOAT NULL,
   virtual_phone_minute  FLOAT NULL,
+  lead_price            FLOAT NULL,
   tax_percent           FLOAT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

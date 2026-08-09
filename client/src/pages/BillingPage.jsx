@@ -15,10 +15,32 @@ export default function BillingPage() {
   const [companies, setCompanies] = useState([]);
   const [flt, setFlt] = useState({ month: thisMonth(), agency: '', company_id: '' });
   const [rows, setRows] = useState([]);
+  const [tab, setTab] = useState('usage');
+  const [prices, setPrices] = useState(null);
+  const [packages, setPackages] = useState([]);
+  const [priceForm, setPriceForm] = useState({});
+  const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
+  const decodeSign = (s) => String(s ?? '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+
   const load = (f = flt) => api.billing(token, { month: f.month, agency: f.agency || undefined, company_id: f.company_id || undefined })
-    .then((d) => setRows(d.rows)).catch((e) => setError(e.message));
+    .then((d) => {
+      setRows(d.rows); setPrices(d.prices); setPackages(d.packages || []);
+      if (d.prices) setPriceForm({
+        currency_sign: decodeSign(d.prices.currency_sign) || '₪',
+        virtual_phone_minute: d.prices.virtual_phone_minute ?? '', lead_price: d.prices.lead_price ?? '',
+        premium_virtual_phone: d.prices.premium_virtual_phone ?? '', regular_virtual_phone: d.prices.regular_virtual_phone ?? '',
+        sms_price: d.prices.sms_price ?? '', tax_percent: d.prices.tax_percent ?? '',
+      });
+    }).catch((e) => setError(e.message));
+
+  const savePrices = async () => {
+    setMsg(''); setError('');
+    try { const d = await api.updateBillingPrices(priceForm, token); setPrices(d.prices); setMsg(t('bil.pricesSaved')); }
+    catch (e) { setError(e.message); }
+  };
+  const setP = (k, v) => setPriceForm((f) => ({ ...f, [k]: v }));
 
   useEffect(() => {
     if (isSuper) api.agencies(token).then((d) => setAgencies(d.agencies)).catch(() => {});
@@ -40,8 +62,45 @@ export default function BillingPage() {
     <div>
       <div className="page-header"><h1>{t('nav.billing')}</h1></div>
       <p className="muted" style={{ marginTop: -8 }}>{t('bil.subtitle')}</p>
+      {msg && <p className="success-note">{msg}</p>}
       {error && <p className="error">{error}</p>}
 
+      {isSuper && (
+        <div className="tabs">
+          <button className={'tab' + (tab === 'usage' ? ' active' : '')} onClick={() => setTab('usage')}>{t('bil.tabUsage')}</button>
+          <button className={'tab' + (tab === 'prices' ? ' active' : '')} onClick={() => setTab('prices')}>{t('bil.tabPrices')}</button>
+        </div>
+      )}
+
+      {isSuper && tab === 'prices' && (
+        <div className="billing-prices">
+          <form className="form-panel" onSubmit={(e) => { e.preventDefault(); savePrices(); }}>
+            <div className="form-panel-body">
+              <div className="form-field"><label>{t('bil.pMinute')}</label><div className="form-field-control"><input type="number" step="0.01" value={priceForm.virtual_phone_minute} onChange={(e) => setP('virtual_phone_minute', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pLead')}</label><div className="form-field-control"><input type="number" step="0.01" value={priceForm.lead_price} onChange={(e) => setP('lead_price', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pPremiumPhone')}</label><div className="form-field-control"><input type="number" step="0.01" value={priceForm.premium_virtual_phone} onChange={(e) => setP('premium_virtual_phone', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pRegularPhone')}</label><div className="form-field-control"><input type="number" step="0.01" value={priceForm.regular_virtual_phone} onChange={(e) => setP('regular_virtual_phone', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pSms')}</label><div className="form-field-control"><input type="number" step="0.01" value={priceForm.sms_price} onChange={(e) => setP('sms_price', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pTax')}</label><div className="form-field-control"><input type="number" step="0.1" value={priceForm.tax_percent} onChange={(e) => setP('tax_percent', e.target.value)} /></div></div>
+              <div className="form-field"><label>{t('bil.pCurrency')}</label><div className="form-field-control"><input value={priceForm.currency_sign} onChange={(e) => setP('currency_sign', e.target.value)} style={{ maxWidth: 80 }} /></div></div>
+            </div>
+            <div className="form-actions"><button className="btn btn-primary">{t('common.save')}</button></div>
+          </form>
+
+          <div className="panel">
+            <h3>{t('bil.packagesOverride')}</h3>
+            <div className="table-wrap"><table className="data-table">
+              <thead><tr><th>{t('bil.price')}</th><th>{t('bil.users')}</th><th>{t('bil.phones')}</th><th>{t('bil.pkgMinutes')}</th><th>{t('bil.pkgLeads')}</th></tr></thead>
+              <tbody>{packages.map((p) => (
+                <tr key={p.id}><td>{num(p.price)}{priceForm.currency_sign}</td><td>{num(p.users)}</td><td>{num(p.phones)}</td><td>{num(p.call_minutes)}</td><td>{num(p.leads)}</td></tr>
+              ))}</tbody>
+            </table></div>
+            {packages.length === 0 && <p className="muted">{t('common.none')}</p>}
+          </div>
+        </div>
+      )}
+
+      {(!isSuper || tab === 'usage') && (<>
       <div className="panel dash-filter">
         <div className="filter-row">
           <label className="filter-item"><span>{t('bil.month')}</span>
@@ -100,6 +159,7 @@ export default function BillingPage() {
         </tbody>
       </table></div>
       {rows.length === 0 && <p className="muted">{t('bil.none')}</p>}
+      </>)}
     </div>
   );
 }
