@@ -51,7 +51,7 @@ const DICT = {
     // import
     'imp.pickCompany': 'בחר חברה', 'imp.single': 'הוספת ליד בודד', 'imp.imported': 'יובאו', 'imp.excel': 'ייבוא מקובץ (Excel / CSV)', 'imp.paste': 'הדבקה מטבלה', 'imp.manual': 'הוספה ידנית', 'imp.selectAgency': 'בחר סוכנות', 'imp.selectCompany': 'בחר חברה', 'imp.selectChannel': 'בחר ערוץ (רשות)', 'imp.chooseFile': 'בחר קובץ', 'imp.pastePh': 'הדבק כאן שורות (שם, טלפון, אימייל) — טור לכל שדה', 'imp.parse': 'עבד', 'imp.preview': 'תצוגה מקדימה', 'imp.mapCol': 'סוג עמודה', 'imp.colIgnore': 'התעלם', 'imp.colName': 'שם', 'imp.colPhone': 'טלפון', 'imp.colEmail': 'אימייל', 'imp.doImport': 'ייבא', 'imp.rowsFound': 'שורות נמצאו', 'imp.needCompany': 'בחר חברה תחילה', 'imp.needPhoneCol': 'יש לסמן עמודת טלפון',
     // virtual
-    'vir.number': 'מספר וירטואלי', 'vir.target': 'יעד', 'vir.provider': 'ספק IVR', 'vir.premium': 'פרימיום', 'vir.none': 'אין מספרים.', 'vir.leads': 'לידים', 'vir.editChannel': 'לחץ לעריכת הערוץ',
+    'vir.number': 'מספר וירטואלי', 'vir.target': 'יעד', 'vir.provider': 'ספק IVR', 'vir.premium': 'פרימיום', 'vir.none': 'אין מספרים.', 'vir.leads': 'לידים', 'vir.editChannel': 'לחץ לעריכת הערוץ', 'vir.unassigned': 'ללא שיוך',
     'es.title': 'עריכת ערוץ', 'es.name': 'שם הערוץ', 'es.code': 'קוד ערוץ', 'es.description': 'תיאור הערוץ', 'es.type': 'סוג הערוץ',
     'es.typeWebsite': 'אתר אינטרנט', 'es.typePhone': 'טלפון וירטואלי', 'es.typeWhatsapp': 'וואטסאפ',
     'es.lineType': 'סוג קו', 'es.virtualNumber': 'מספר טלפון וירטואלי', 'es.redirect': 'הפניית טלפון וירטואלי', 'es.siteUrl': 'כתובת אתר אינטרנט ייעודית',
@@ -116,7 +116,7 @@ const DICT = {
     'con.searchPh': 'Search name/phone/email', 'con.fullName': 'Full name', 'con.created': 'Created', 'con.none': 'No contacts.',
     'usr.searchPh': 'Search name/email', 'usr.username': 'Username', 'usr.role': 'Role', 'usr.lastSeen': 'Last seen', 'usr.none': 'No users.',
     'imp.pickCompany': 'Select company', 'imp.single': 'Add a single lead', 'imp.imported': 'Imported', 'imp.excel': 'Import from file (Excel / CSV)', 'imp.paste': 'Paste from table', 'imp.manual': 'Add manually', 'imp.selectAgency': 'Select agency', 'imp.selectCompany': 'Select company', 'imp.selectChannel': 'Select channel (optional)', 'imp.chooseFile': 'Choose file', 'imp.pastePh': 'Paste rows here (name, phone, email) — a column per field', 'imp.parse': 'Parse', 'imp.preview': 'Preview', 'imp.mapCol': 'Column type', 'imp.colIgnore': 'Ignore', 'imp.colName': 'Name', 'imp.colPhone': 'Phone', 'imp.colEmail': 'Email', 'imp.doImport': 'Import', 'imp.rowsFound': 'rows found', 'imp.needCompany': 'Select a company first', 'imp.needPhoneCol': 'Mark a phone column',
-    'vir.number': 'Virtual number', 'vir.target': 'Target', 'vir.provider': 'IVR provider', 'vir.premium': 'Premium', 'vir.none': 'No numbers.', 'vir.leads': 'Leads', 'vir.editChannel': 'Click to edit channel',
+    'vir.number': 'Virtual number', 'vir.target': 'Target', 'vir.provider': 'IVR provider', 'vir.premium': 'Premium', 'vir.none': 'No numbers.', 'vir.leads': 'Leads', 'vir.editChannel': 'Click to edit channel', 'vir.unassigned': 'Unassigned',
     'es.title': 'Edit channel', 'es.name': 'Channel name', 'es.code': 'Channel code', 'es.description': 'Channel description', 'es.type': 'Channel type',
     'es.typeWebsite': 'Website', 'es.typePhone': 'Virtual phone', 'es.typeWhatsapp': 'WhatsApp',
     'es.lineType': 'Line type', 'es.virtualNumber': 'Virtual phone number', 'es.redirect': 'Call redirect', 'es.siteUrl': 'Dedicated website URL',
