@@ -93,6 +93,9 @@ export const api = {
   virtual: (token, filters) => request(`/api/virtual${qs(filters)}`, { token }),
   notifications: (token) => request('/api/notifications', { token }),
   languages: (token) => request('/api/language', { token }),
+  setLanguageActive: (slug, is_active, token) => request(`/api/language/${slug}`, { method: 'PATCH', body: { is_active }, token }),
+  languageStrings: (slug, namespace, token) => request(`/api/language/${slug}/strings${qs({ namespace })}`, { token }),
+  saveLanguageStrings: (slug, strings, token) => request(`/api/language/${slug}/strings`, { method: 'PUT', body: { strings }, token }),
   updateProfile: (body, token) => request('/api/profile', { method: 'PATCH', body, token }),
   updatePassword: (body, token) => request('/api/profile/password', { method: 'PATCH', body, token }),
 };

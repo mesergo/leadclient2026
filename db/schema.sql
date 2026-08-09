@@ -517,9 +517,11 @@ CREATE TABLE IF NOT EXISTS translation_strings (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   lang_slug             VARCHAR(5) NOT NULL,
   string_key            VARCHAR(255) NOT NULL,
+  namespace             VARCHAR(60) NULL,
   string_value          TEXT NULL,
   CONSTRAINT fk_trans_lang FOREIGN KEY (lang_slug) REFERENCES languages(slug) ON DELETE CASCADE,
-  UNIQUE KEY uq_trans (lang_slug, string_key)
+  UNIQUE KEY uq_trans (lang_slug, string_key),
+  INDEX idx_trans_ns (lang_slug, namespace)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
