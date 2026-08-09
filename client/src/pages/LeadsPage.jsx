@@ -6,6 +6,7 @@ import { api } from '../api';
 import * as Icons from '../icons';
 import LeadCard from '../components/LeadCard';
 import { displayTag, isAutoTag } from '../tags';
+import { formatIL } from '../phone';
 
 // map a lead's source to an icon
 function typeIcon(l) {
@@ -132,7 +133,7 @@ export default function LeadsPage() {
             <tr key={l.id}>
               <td><TI size={16} /></td>
               <td><button className="link-name" onClick={() => setSelected(l.id)}>{l.lead_name || t('lead.na')}</button></td>
-              <td>{l.lead_phone}</td><td>{l.lead_email || '--'}</td>
+              <td>{formatIL(l.lead_phone) || '--'}</td><td>{l.lead_email || '--'}</td>
               <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>
               <td><span className={'presence ' + (/(available|online)/i.test(l.agent_status || '') ? 'on' : 'off')} /> {l.agent_name || t('lead.general')}</td>
               <td>{l.created_at}</td>
