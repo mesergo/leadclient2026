@@ -25,14 +25,14 @@ export default function UsersPage() {
   const [stats, setStats] = useState(null);
   const [agencies, setAgencies] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [flt, setFlt] = useState({ agency: '', company_id: sp.get('company') || '', suspended: '', q: '' });
+  const [flt, setFlt] = useState({ agency: '', company_id: sp.get('company') || '', role: '', suspended: '', q: '' });
   const [editCompanyId, setEditCompanyId] = useState(null); // user id whose company is being edited
   const [editRoleId, setEditRoleId] = useState(null);
   const [error, setError] = useState('');
 
   const load = (f = flt) => api.users(token, {
     agency: f.agency || undefined, company_id: f.company_id || undefined,
-    suspended: f.suspended || undefined, q: f.q || undefined,
+    role: f.role || undefined, suspended: f.suspended || undefined, q: f.q || undefined,
   }).then((d) => { setRows(d.users); setStats(d.stats); }).catch((e) => setError(e.message));
 
   useEffect(() => {
@@ -91,6 +91,12 @@ export default function UsersPage() {
               </select>
             </label>
           )}
+          <label className="filter-item"><span>{t('usr.role')}</span>
+            <select value={flt.role} onChange={(e) => setF({ role: e.target.value })}>
+              <option value="">{t('common.all')}</option>
+              {ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+            </select>
+          </label>
           <label className="filter-item"><span>{t('usr.suspendedFilter')}</span>
             <select value={flt.suspended} onChange={(e) => setF({ suspended: e.target.value })}>
               <option value="">{t('common.all')}</option>

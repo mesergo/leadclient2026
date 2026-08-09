@@ -18,6 +18,7 @@ router.get('/', asyncHandler(async (req, res) => {
   // agency is derived from the user's company (users.agency_id is often blank).
   if (req.query.agency) { extra += ' AND c.agency_id = ?'; params.push(req.query.agency); }
   if (req.query.company_id) { extra += ' AND u.company_id = ?'; params.push(req.query.company_id); }
+  if (req.query.role) { extra += ' AND u.role = ?'; params.push(req.query.role); }
   if (req.query.suspended === 'active') extra += ' AND u.is_active = 1';
   if (req.query.suspended === 'suspended') extra += ' AND u.is_active = 0';
   if (req.query.q) { extra += ' AND (u.display_name LIKE ? OR u.email LIKE ? OR u.username LIKE ?)'; params.push('%' + req.query.q + '%', '%' + req.query.q + '%', '%' + req.query.q + '%'); }
