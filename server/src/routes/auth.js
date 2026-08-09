@@ -20,6 +20,11 @@ router.post('/login', async (req, res, next) => {
     }
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'פרטי התחברות שגויים' });
+    // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
+    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+      const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
+      if (c[0]) user.agency_id = c[0].agency_id;
+    }
     const token = issueToken(user);
     res.json({
       token,
