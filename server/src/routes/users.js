@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
+const { issueToken } = require('../services/authService');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('super_admin', 'agency_admin', 'company_admin'));
@@ -102,6 +103,23 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   if (sets.length) { params.push(req.params.id); await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params); }
   const rows = await query(`SELECT ${FIELDS} FROM users u WHERE u.id = ?`, [req.params.id]);
   res.json({ user: rows[0] });
+}));
+
+// "Login as" — issue a token for another (accessible) user so an admin can see
+// their view/permissions. The token carries impersonated_by for audit.
+router.post('/:id/impersonate', asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'company_id');
+  const rows = await query(
+    `SELECT id, username, display_name, role, company_id, agency_id FROM users WHERE id = ? AND (${s.sql})`,
+    [req.params.id, ...s.params]);
+  const target = rows[0];
+  if (!target) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  if (String(target.id) === String(req.user.id)) return res.status(400).json({ error: 'לא ניתן להתחבר כעצמך' });
+  const token = issueToken(target, { impersonated_by: req.user.id, impersonator_name: req.user.name });
+  res.json({
+    token,
+    user: { id: target.id, name: target.display_name || target.username, role: target.role, company_id: target.company_id, agency_id: target.agency_id },
+  });
 }));
 
 module.exports = router;

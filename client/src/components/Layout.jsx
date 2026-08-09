@@ -29,7 +29,7 @@ const CRUMB_KEY = {
 };
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, impersonatorName, stopImpersonation } = useAuth();
   const { t, lang, setLang } = useLang();
   const [open, setOpen] = useState(false);
   const loc = useLocation();
@@ -49,6 +49,12 @@ export default function Layout() {
         </nav>
       </aside>
       <div className="main">
+        {impersonatorName != null && (
+          <div className="impersonation-bar">
+            <span><Icons.User size={15} /> {t('imp.bar')} <strong>{user?.name || ''}</strong></span>
+            <button onClick={() => { stopImpersonation(); }}>{t('imp.return')}</button>
+          </div>
+        )}
         <header className="header">
           <button className="hamburger" onClick={() => setOpen((v) => !v)} aria-label="menu"><Icons.Menu /></button>
           <div className="header-user"><Icons.User size={18} /> {t('header.welcome')}, {user?.name || ''}</div>

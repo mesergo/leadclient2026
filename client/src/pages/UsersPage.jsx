@@ -13,7 +13,7 @@ const ROLE_LABELS = {
 };
 
 export default function UsersPage() {
-  const { token, user } = useAuth();
+  const { token, user, startImpersonation } = useAuth();
   const { t, lang } = useLang();
   const [sp] = useSearchParams();
   const nav = useNavigate();
@@ -47,6 +47,10 @@ export default function UsersPage() {
   );
   const roleLabel = (r) => (ROLE_LABELS[lang] || ROLE_LABELS.he)[r] || r;
   const patch = async (id, body) => { try { await api.updateUser(id, body, token); load(); } catch (e) { setError(e.message); } };
+  const impersonate = async (u) => {
+    try { const d = await api.impersonate(u.id, token); startImpersonation(d.token, d.user, user?.name || user?.display_name || 'admin'); nav('/'); }
+    catch (e) { setError(e.message); }
+  };
   const num = (n) => Number(n || 0).toLocaleString();
   const setF = (patchF) => { const f = { ...flt, ...patchF }; setFlt(f); load(f); };
 
@@ -105,7 +109,7 @@ export default function UsersPage() {
         <thead><tr>
           <th>{t('common.name')}</th><th>{t('usr.username')}</th><th>{t('common.email')}</th>
           <th>{t('common.agency')}</th><th>{t('common.company')}</th><th>{t('usr.role')}</th>
-          <th>{t('usr.lastSeen')}</th><th>{t('usr.active')}</th>
+          <th>{t('usr.lastSeen')}</th><th>{t('usr.active')}</th><th>{t('usr.actions')}</th>
         </tr></thead>
         <tbody>{rows.map((u) => (
           <tr key={u.id} className={u.is_active ? '' : 'row-suspended'}>
@@ -146,6 +150,9 @@ export default function UsersPage() {
               <label className="switch-sm">
                 <input type="checkbox" checked={!!u.is_active} onChange={(e) => patch(u.id, { is_active: e.target.checked ? 1 : 0 })} />
               </label>
+            </td>
+            <td>
+              <button className="link-action" title={t('usr.loginAs')} onClick={() => impersonate(u)}><Icons.User size={13} /> {t('usr.loginAs')}</button>
             </td>
           </tr>
         ))}</tbody>
