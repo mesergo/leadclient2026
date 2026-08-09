@@ -89,6 +89,7 @@ const DICT = {
     // reports
     'rep.byStatus': 'לידים לפי סטטוס', 'rep.byChannel': 'לידים לפי ערוץ', 'rep.channel': 'ערוץ',
     // billing
+    'bil.subtitle': 'ניהול סיכומי חשבון לפי שימוש', 'bil.month': 'חודש', 'bil.numbers': 'מספרים', 'bil.premium': 'פרימיום', 'bil.calls': 'שיחות', 'bil.minutes': 'דקות', 'bil.sms': 'SMS', 'bil.leadsCol': 'לידים', 'bil.none': 'אין נתונים לחודש זה.',
     'bil.packages': 'חבילות', 'bil.package': 'חבילה', 'bil.price': 'מחיר', 'bil.users': 'משתמשים', 'bil.phones': 'טלפונים',
     'bil.leads': 'לידים', 'bil.invoices': 'חשבוניות', 'bil.type': 'סוג', 'bil.month': 'חודש',
     // language
@@ -173,6 +174,7 @@ const DICT = {
     'lng.file': 'Translation file', 'lng.files': 'Files', 'lng.key': 'Key', 'lng.value': 'Value', 'lng.save': 'Save', 'lng.saved': 'Translations saved', 'lng.back': 'Back', 'lng.selectFile': 'Select a file to edit', 'lng.searchKey': 'Search key...',
     'pr.title': 'Profile', 'pr.subtitle': 'Edit your profile', 'ue.currentPassword': 'Current password',
     'rep.byStatus': 'Leads by status', 'rep.byChannel': 'Leads by channel', 'rep.channel': 'Channel',
+    'bil.subtitle': 'Account summaries by usage', 'bil.month': 'Month', 'bil.numbers': 'Numbers', 'bil.premium': 'Premium', 'bil.calls': 'Calls', 'bil.minutes': 'Minutes', 'bil.sms': 'SMS', 'bil.leadsCol': 'Leads', 'bil.none': 'No data for this month.',
     'bil.packages': 'Packages', 'bil.package': 'Package', 'bil.price': 'Price', 'bil.users': 'Users', 'bil.phones': 'Phones',
     'bil.leads': 'Leads', 'bil.invoices': 'Invoices', 'bil.type': 'Type', 'bil.month': 'Month',
     'lng.language': 'Language', 'lng.english': 'English', 'lng.dir': 'Direction', 'lng.active': 'Active',
