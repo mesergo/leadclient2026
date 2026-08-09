@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('lc_token'));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [impersonatorName, setImpersonatorName] = useState(() => localStorage.getItem('lc_admin_name'));
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
@@ -20,8 +21,26 @@ export function AuthProvider({ children }) {
     setToken(d.token);
     setUser(d.user);
   };
-  const logout = () => { localStorage.removeItem('lc_token'); setToken(null); setUser(null); };
-  const setImpersonatedSession = (t, u) => { localStorage.setItem('lc_token', t); setToken(t); setUser(u); };
+  const logout = () => {
+    localStorage.removeItem('lc_token'); localStorage.removeItem('lc_admin_token'); localStorage.removeItem('lc_admin_name');
+    setImpersonatorName(null); setToken(null); setUser(null);
+  };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, logout, setImpersonatedSession }}>{children}</AuthContext.Provider>;
+  // Start impersonating: stash the current (admin) token, switch to the target's token.
+  const startImpersonation = (newToken, newUser, adminName) => {
+    if (token) localStorage.setItem('lc_admin_token', token);
+    localStorage.setItem('lc_admin_name', adminName || '');
+    setImpersonatorName(adminName || '');
+    localStorage.setItem('lc_token', newToken);
+    setToken(newToken); setUser(newUser);
+  };
+  // Return to the original admin session.
+  const stopImpersonation = () => {
+    const admin = localStorage.getItem('lc_admin_token');
+    localStorage.removeItem('lc_admin_token'); localStorage.removeItem('lc_admin_name');
+    setImpersonatorName(null);
+    if (admin) { localStorage.setItem('lc_token', admin); setToken(admin); setUser(null); }
+  };
+
+  return <AuthContext.Provider value={{ token, user, loading, login, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

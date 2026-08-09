@@ -53,6 +53,7 @@ export const api = {
   deleteService: (id, token) => request(`/api/services/${id}`, { method: 'DELETE', token }),
   users: (token, f) => request(`/api/users${qs(f)}`, { token }),
   userById: (id, token) => request(`/api/users/${id}`, { token }),
+  impersonate: (id, token) => request(`/api/users/${id}/impersonate`, { method: 'POST', token }),
   createUser: (body, token) => request('/api/users', { method: 'POST', body, token }),
   updateUser: (id, body, token) => request(`/api/users/${id}`, { method: 'PATCH', body, token }),
 
