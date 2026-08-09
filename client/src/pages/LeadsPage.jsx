@@ -46,7 +46,7 @@ export default function LeadsPage() {
   }, [token]);
 
   const agencyCompanies = useMemo(
-    () => (f.agency ? companies.filter((c) => String(c.agency_id) === String(f.agency)) : companies),
+    () => (f.agency ? companies.filter((c) => String(c.agency_id) === String(f.agency)) : (user?.role === 'super_admin' ? [] : companies)),
     [companies, f.agency]
   );
   useEffect(() => {
