@@ -3,6 +3,7 @@ const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const integrations = require('../services/integrations');
+const notify = require('../services/notify');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -81,22 +82,32 @@ router.post('/', asyncHandler(async (req, res) => {
   const r = await query(
     'INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, status_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
     [company_id, service_id || null, lead_name || null, lead_phone, lead_email || null, status_id || null]);
+  notify.notifyCompany({ companyId: company_id, event: 'new_lead', title: 'ליד חדש', body: `${lead_name || 'ללא שם'} · ${lead_phone}`, leadId: r.insertId, excludeUserId: req.user.id }).catch(() => {});
   res.status(201).json({ lead: { id: r.insertId } });
 }));
 
 async function ownLead(req) {
   const s = companyScope(req.user, 'company_id');
-  const owned = await query(`SELECT id, company_id, lead_phone, lead_email FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const owned = await query(`SELECT id, company_id, lead_name, lead_phone, lead_email FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   return owned[0] || null;
 }
 
 // ---- update (status / assign agent / rating / convert) ----
 router.patch('/:id', asyncHandler(async (req, res) => {
-  if (!(await ownLead(req))) return res.status(404).json({ error: 'ליד לא נמצא' });
+  const lead = await ownLead(req);
+  if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
   const editable = ['status_id', 'current_agent_id', 'lead_rating', 'lead_name', 'lead_phone', 'lead_email', 'is_converted', 'lead_info'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
   if (sets.length) { sets.push('updated_at = NOW()'); params.push(req.params.id); await query(`UPDATE leads SET ${sets.join(', ')} WHERE id = ?`, params); }
+
+  // notify on a status change, but only for statuses flagged for_notification
+  if (req.body.status_id !== undefined && req.body.status_id) {
+    const st = await query('SELECT name, for_notification FROM statuses WHERE id = ?', [req.body.status_id]);
+    if (st[0] && st[0].for_notification) {
+      notify.notifyCompany({ companyId: lead.company_id, event: 'status_change', title: 'שינוי סטטוס', body: `${lead.lead_name || lead.lead_phone} → ${st[0].name}`, leadId: lead.id, excludeUserId: req.user.id }).catch(() => {});
+    }
+  }
   res.json({ ok: true });
 }));
 

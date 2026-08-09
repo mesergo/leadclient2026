@@ -29,6 +29,9 @@ if (fs.existsSync(clientDist)) {
 app.use(errorHandler);
 
 if (require.main === module) {
-  app.listen(config.port, () => console.log(`LeadClient on http://localhost:${config.port} (${config.env})`));
+  app.listen(config.port, () => {
+    console.log(`LeadClient on http://localhost:${config.port} (${config.env})`);
+    require('./services/reminderPoller').start();
+  });
 }
 module.exports = app;

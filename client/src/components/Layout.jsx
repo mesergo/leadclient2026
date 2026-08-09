@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { LANGS } from '../i18n';
 import * as Icons from '../icons';
+import NotificationBell from './NotificationBell';
 import logo from '../assets/logo.png';
 
 const NAV = [
@@ -61,6 +62,7 @@ export default function Layout() {
             <Icons.User size={18} /> {t('header.welcome')}, <strong>{user?.name || user?.display_name || user?.username || ''}</strong>
           </NavLink>
           <div className="header-actions">
+            <NotificationBell />
             <label className="lang-picker" title={t('nav.language')}>
               <Icons.Globe size={16} />
               <select value={lang} onChange={(e) => setLang(e.target.value)}>

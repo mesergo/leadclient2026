@@ -351,6 +351,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   lead_name             VARCHAR(100) NULL,
   reminder_at           DATETIME NOT NULL,
   comment               TEXT NULL,
+  notified              TINYINT(1) NOT NULL DEFAULT 0,
   CONSTRAINT fk_reminder_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
   INDEX idx_reminder_user_date (user_id, reminder_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -511,6 +512,19 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_notif_user (user_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- browser Web Push subscriptions (one row per browser/device per user)
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  user_id               BIGINT UNSIGNED NOT NULL,
+  endpoint              VARCHAR(500) NOT NULL,
+  p256dh                VARCHAR(255) NOT NULL,
+  auth                  VARCHAR(255) NOT NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_push_endpoint (endpoint(255)),
+  INDEX idx_push_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS languages (

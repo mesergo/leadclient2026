@@ -2,37 +2,38 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import { browserPushStatus, enableBrowserPush, disableBrowserPush } from '../push';
 
-const NOTIF_KEYS = ['new_lead', 'lead_conversation', 'lead_conversion', 'new_report', 'daily_leads'];
-const CAMEL = { new_lead: 'newLead', lead_conversation: 'leadConversation', lead_conversion: 'leadConversion', new_report: 'newReport', daily_leads: 'dailyLeads' };
-const DAYS = { he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'], en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] };
+// notification matrix: which events, on which channels
+const N_EVENTS = ['new_lead', 'status_change', 'reminder_due', 'lead_message'];
+const N_CHANS = ['app', 'browser', 'sms'];
 
 export default function ProfilePage() {
   const { token } = useAuth();
-  const { t, lang, setLang, langs } = useLang();
+  const { t, setLang, langs } = useLang();
 
   const [u, setU] = useState(null);
   const [tab, setTab] = useState('profile');
   const [form, setForm] = useState({});
   const [pw, setPw] = useState({ current_password: '', new_password: '', confirm: '' });
   const [notif, setNotif] = useState({});
-  const [emailN, setEmailN] = useState({});
-  const [smsN, setSmsN] = useState({});
+  const [pushState, setPushState] = useState('off');
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
   const load = () => api.profile(token).then(({ user }) => {
     setU(user);
     setForm({ username: user.username || '', first_name: user.first_name || '', last_name: user.last_name || '', display_name: user.display_name || '', language: user.language || 'he', email: user.email || '', phone: user.phone || '' });
-    setNotif(user.notifications || {});
-    setEmailN(user.email_notifications || { email: user.email || '' });
-    setSmsN(user.phone_notifications || { phone: user.phone || '' });
+    setNotif(user.notifications && typeof user.notifications === 'object' ? user.notifications : {});
   }).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [token]);
+  useEffect(() => { browserPushStatus().then(setPushState).catch(() => {}); }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const days = DAYS[lang] || DAYS.he;
-  const ok = () => { setMsg(t('ue.saved')); setError(''); };
+  const ok = (m) => { setMsg(m || t('ue.saved')); setError(''); };
+
+  const cell = (ev, ch) => !!(notif[ev] && notif[ev][ch]);
+  const toggle = (ev, ch) => setNotif((p) => ({ ...p, [ev]: { ...(p[ev] || { app: true }), [ch]: !cell(ev, ch) } }));
 
   const saveProfile = async (e) => {
     e.preventDefault();
@@ -47,13 +48,17 @@ export default function ProfilePage() {
     catch (er) { setError(er.message); }
   };
   const saveNotif = async () => {
-    try { await api.updateProfileNotifications({ notifications: notif, email_notifications: emailN, phone_notifications: smsN }, token); ok(); }
+    try { await api.updateProfileNotifications({ notifications: notif, email_notifications: {}, phone_notifications: {} }, token); ok(t('notif.saved')); }
     catch (er) { setError(er.message); }
   };
   const saveLanguage = async () => {
     try { await api.updateProfile({ language: form.language }, token); setLang(form.language); ok(); }
     catch (er) { setError(er.message); }
   };
+
+  const enablePush = async () => { try { await enableBrowserPush(token); setPushState('on'); ok(t('notif.browserOn')); } catch (er) { setError(er.message); } };
+  const disablePush = async () => { try { await disableBrowserPush(token); setPushState('off'); ok(); } catch (er) { setError(er.message); } };
+  const sendTest = async () => { try { await api.notifyTest(token); ok(t('notif.saved')); } catch (er) { setError(er.message); } };
 
   if (error && !u) return <p className="error">{error}</p>;
   if (!u) return <p className="muted">{t('common.loading')}</p>;
@@ -62,26 +67,6 @@ export default function ProfilePage() {
     <div className="form-field"><label>{label}</label><div className="form-field-control">
       <input type={type} value={form[k] || ''} onChange={(e) => set(k, e.target.value)} /></div></div>
   );
-  const notifBlock = (state, setState) => (<>
-    {NOTIF_KEYS.map((k) => (
-      <label key={k} className="notif-row">
-        <input type="checkbox" checked={!!state[k]} onChange={(e) => setState({ ...state, [k]: e.target.checked })} /> {t('ue.' + CAMEL[k])}
-      </label>
-    ))}
-    {state.daily_leads && (
-      <div className="form-field"><label>{t('ue.days')}</label><div className="form-field-control">
-        <div className="day-quick">
-          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5] })}>{t('ue.weekdays')}</button>
-          <button type="button" className="day-chip" onClick={() => setState({ ...state, days: [0, 1, 2, 3, 4, 5, 6] })}>{t('ue.allDays')}</button>
-        </div>
-        <div className="day-chips">{days.map((d, i) => {
-          const on = (state.days || []).includes(i);
-          return <button type="button" key={i} className={'day-chip' + (on ? ' on' : '')}
-            onClick={() => setState({ ...state, days: on ? state.days.filter((x) => x !== i) : [...(state.days || []), i] })}>{d}</button>;
-        })}</div>
-      </div></div>
-    )}
-  </>);
 
   return (
     <div>
@@ -91,7 +76,7 @@ export default function ProfilePage() {
       {error && <p className="error">{error}</p>}
 
       <div className="tabs">
-        {[['profile', 'ue.tabProfile'], ['password', 'ue.tabPassword'], ['notif', 'ue.tabNotif'], ['email', 'ue.tabEmail'], ['sms', 'ue.tabSms'], ['lang', 'ue.tabLang']]
+        {[['profile', 'ue.tabProfile'], ['password', 'ue.tabPassword'], ['notif', 'notif.prefs'], ['lang', 'ue.tabLang']]
           .map(([k, lbl]) => <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}>{t(lbl)}</button>)}
       </div>
 
@@ -113,18 +98,32 @@ export default function ProfilePage() {
               <input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></div></div>
           </>)}
 
-          {tab === 'notif' && <div className="notif-block">{notifBlock(notif, setNotif)}</div>}
-
-          {tab === 'email' && (<>
-            <div className="form-field"><label>{t('common.email')}</label><div className="form-field-control">
-              <input type="email" value={emailN.email || ''} onChange={(e) => setEmailN({ ...emailN, email: e.target.value })} /></div></div>
-            <div className="notif-block">{notifBlock(emailN, setEmailN)}</div>
-          </>)}
-
-          {tab === 'sms' && (<>
-            <div className="form-field"><label>{t('ue.smsPhone')}</label><div className="form-field-control">
-              <input type="tel" value={smsN.phone || ''} onChange={(e) => setSmsN({ ...smsN, phone: e.target.value })} /></div></div>
-            <div className="notif-block">{notifBlock(smsN, setSmsN)}</div>
+          {tab === 'notif' && (<>
+            <div className="push-cta">
+              {pushState === 'on' && (<><span className="pill pill-on">{t('notif.browserOn')}</span>
+                <button type="button" className="btn btn-secondary" onClick={disablePush}>{t('notif.disableBrowser')}</button></>)}
+              {pushState === 'off' && <button type="button" className="btn btn-primary" onClick={enablePush}>{t('notif.enableBrowser')}</button>}
+              {pushState === 'denied' && <span className="muted">{t('notif.browserDenied')}</span>}
+              {pushState === 'unsupported' && <span className="muted">{t('notif.browserUnsupported')}</span>}
+              <button type="button" className="btn btn-secondary" onClick={sendTest}>{t('notif.test')}</button>
+            </div>
+            <div className="table-wrap">
+              <table className="data-table notif-matrix">
+                <thead><tr><th>{t('notif.event')}</th>{N_CHANS.map((ch) => <th key={ch}>{t('notif.chan.' + ch)}</th>)}</tr></thead>
+                <tbody>
+                  {N_EVENTS.map((ev) => (
+                    <tr key={ev}>
+                      <td>{t('notif.ev.' + ev)}</td>
+                      {N_CHANS.map((ch) => (
+                        <td key={ch} style={{ textAlign: 'center' }}>
+                          <input type="checkbox" checked={cell(ev, ch)} onChange={() => toggle(ev, ch)} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>)}
 
           {tab === 'lang' && (
@@ -137,7 +136,7 @@ export default function ProfilePage() {
         <div className="form-actions">
           {tab === 'profile' && <button className="btn btn-primary" onClick={saveProfile}>{t('ue.save')}</button>}
           {tab === 'password' && <button className="btn btn-primary" onClick={savePassword}>{t('ue.save')}</button>}
-          {(tab === 'notif' || tab === 'email' || tab === 'sms') && <button className="btn btn-primary" onClick={saveNotif}>{t('ue.save')}</button>}
+          {tab === 'notif' && <button className="btn btn-primary" onClick={saveNotif}>{t('ue.save')}</button>}
           {tab === 'lang' && <button className="btn btn-primary" onClick={saveLanguage}>{t('ue.save')}</button>}
         </div>
       </form>
