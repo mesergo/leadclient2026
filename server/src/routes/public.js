@@ -159,10 +159,15 @@ async function processCall(num, req, res, logId) {
       return reply(true, 'duplicate');
     }
   }
+  // default status = the company's "new" status (static first, then lowest sort order)
+  const st = await query(
+    `SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1`,
+    [num.company_id]);
+  const statusId = st[0] ? st[0].id : null;
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, lead_phone, lead_info, lead_through, recording_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'call', ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, caller, duration ? `[שיחה] משך: ${duration}` : null, recording || null]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'call', ?, NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recording || null]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');
@@ -177,7 +182,8 @@ router.all('/call', asyncHandler(async (req, res) => {
   if (!key) { await updateLog(logId, { result: 'missing_dialed_number' }); return res.status(400).json({ error: 'missing_dialed_number' }); }
   const rows = await query(
     `SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers
-     WHERE REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?) ORDER BY id DESC LIMIT 1`, [key]);
+     WHERE REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?)
+     ORDER BY (redirect_to_number IS NOT NULL AND redirect_to_number <> '') DESC, id DESC LIMIT 1`, [key]);
   return processCall(rows[0], req, res, logId);
 }));
 
