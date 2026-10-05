@@ -2,9 +2,14 @@ const express = require('express');
 const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
+const fs = require('fs');
+const path = require('path');
 const integrations = require('../services/integrations');
 const notify = require('../services/notify');
 const config = require('../config');
+// recordings are stored in a private dir inside the persistent volume (dot-prefixed
+// so express.static does NOT serve it publicly); only the authed proxy below reads it.
+const REC_DIR = path.join(config.uploadDir, '.recordings');
 
 const router = express.Router();
 // allow the recording <audio>/download link to authenticate via ?token=
@@ -17,13 +22,33 @@ router.get('/:id/recording', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const rows = await query(`SELECT id, recording_url FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   const lead = rows[0];
-  if (!lead || !lead.recording_url || !/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
+  if (!lead || !lead.recording_url) return res.status(404).json({ error: 'no_recording' });
+
+  // already downloaded to our server -> serve the private local copy
+  if (lead.recording_url.startsWith('local:')) {
+    const fp = path.join(REC_DIR, path.basename(lead.recording_url.slice(6)));
+    if (fs.existsSync(fp)) return res.sendFile(fp);
+    return res.status(404).json({ error: 'file_missing' });
+  }
+  if (!/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
+
+  // first access: fetch from Maskyoo (Bearer + whitelisted IP), store locally, then serve
   try {
     const r = await fetch(lead.recording_url, { headers: config.maskyoo.token ? { Authorization: `Bearer ${config.maskyoo.token}` } : {} });
     if (!r.ok) return res.status(502).json({ error: `maskyoo_${r.status}` });
-    res.setHeader('Content-Type', r.headers.get('content-type') || 'audio/mpeg');
-    res.setHeader('Content-Disposition', `inline; filename="recording-${lead.id}.mp3"`);
-    res.send(Buffer.from(await r.arrayBuffer()));
+    const ct = r.headers.get('content-type') || 'audio/mpeg';
+    if (!/audio|octet-stream|mpeg|wav|mp4/i.test(ct)) return res.status(502).json({ error: 'not_audio', ct }); // e.g. got an auth page
+    const ext = /wav/i.test(ct) ? 'wav' : /mp4|m4a|aac/i.test(ct) ? 'm4a' : 'mp3';
+    const buf = Buffer.from(await r.arrayBuffer());
+    try {
+      fs.mkdirSync(REC_DIR, { recursive: true });
+      const fname = `lead-${lead.id}.${ext}`;
+      fs.writeFileSync(path.join(REC_DIR, fname), buf);
+      await query('UPDATE leads SET recording_url = ? WHERE id = ?', [`local:${fname}`, lead.id]);
+    } catch (e) { /* if saving fails, still serve what we fetched */ }
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Content-Disposition', `inline; filename="recording-${lead.id}.${ext}"`);
+    res.send(buf);
   } catch (e) { res.status(502).json({ error: 'fetch_failed' }); }
 }));
 
