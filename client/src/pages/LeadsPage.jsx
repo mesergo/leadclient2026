@@ -8,6 +8,23 @@ import LeadCard from '../components/LeadCard';
 import { displayTag, isAutoTag } from '../tags';
 import { formatIL } from '../phone';
 
+const isCallLead = (l) => /phone|call|טלפון|שיח/.test(((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')).toLowerCase());
+
+// For a phone-call lead, the call outcome drives the phone-icon color:
+//   green  = answered & ended (has recording)   red = missed/not answered   orange = active (ringing)
+// A stale "active" (no end ever arrived) is treated as missed after an hour.
+function callState(l) {
+  let s = l.call_status;
+  if (s === 'active') {
+    const age = Date.now() - new Date((l.created_at || '').replace(' ', 'T')).getTime();
+    if (age > 60 * 60 * 1000) s = 'missed';
+  }
+  if (s === 'answered' || (!s && l.recording_url)) return { color: '#16a34a', key: 'lead.callAnswered' };
+  if (s === 'missed') return { color: '#dc2626', key: 'lead.callMissed' };
+  if (s === 'active') return { color: '#f59e0b', key: 'lead.callActive' };
+  return null; // unknown (legacy call lead) -> default phone color
+}
+
 // map a lead's source to an icon
 function typeIcon(l) {
   const s = ((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')).toLowerCase();
@@ -129,9 +146,10 @@ export default function LeadsPage() {
         </tr></thead>
         <tbody>{sorted.map((l) => {
           const TI = typeIcon(l);
+          const cs = isCallLead(l) ? callState(l) : null;
           return (
             <tr key={l.id}>
-              <td><TI size={16} /></td>
+              <td><TI size={16} style={cs ? { color: cs.color } : undefined} title={cs ? t(cs.key) : undefined} /></td>
               <td><button className="link-name" onClick={() => setSelected(l.id)}>{l.lead_name || t('lead.na')}</button></td>
               <td>{formatIL(l.lead_phone, t('lead.unknownPhone'))}</td><td>{l.lead_email || '--'}</td>
               <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>

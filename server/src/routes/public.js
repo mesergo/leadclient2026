@@ -120,6 +120,11 @@ async function processCall(num, req, res, logId) {
   const status = String(pick(req, 'CALLSTATUS', 'callstatus', 'status', 'event', 'type') || '').toLowerCase();
   // Maskyoo end event is CALLSTATUS=ANSWER (answered, with CALLDURATION); also hangup-like words
   const isEnd = duration != null || /end|hangup|finish|complete|done|answer|noanswer|busy/.test(status);
+  // call outcome: answered (picked up: duration>0 / ANSWER / has recording) vs missed (ended, never answered).
+  // note: Maskyoo's no-answer status is "NOANSWER", which contains "answer" — exclude it explicitly.
+  const answered = !!recStore || (duration != null && Number(duration) > 0)
+    || (status.includes('answer') && !status.includes('noanswer')) || status.includes('connected');
+  const callStatus = isEnd ? (answered ? 'answered' : 'missed') : 'active';
 
   // Maskyoo reads the destination to route the call to from the START of the response
   // body (destination number), followed by JSON (as the legacy system returned).
@@ -134,20 +139,22 @@ async function processCall(num, req, res, logId) {
   if (isEnd) {
     // call end — pair with the recent call lead (wide window to cover call length)
     const recent = await query(
-      `SELECT id, recording_url FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
+      `SELECT id, recording_url, call_status FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
          AND created_at >= (NOW() - INTERVAL 6 HOUR) ORDER BY id DESC LIMIT 1`,
       [num.company_id, caller]);
     if (recent[0]) {
-      if (recent[0].recording_url) { // a prior end already processed this call -> retry
+      // a prior end already finalized this call (answered/missed, or recording set) -> retry
+      if (recent[0].recording_url || recent[0].call_status === 'answered' || recent[0].call_status === 'missed') {
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'duplicate' });
         return reply(true, 'duplicate');
       }
       const routedLocal = routedTo ? String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0') : '';
-      const info = `\n[שיחה הסתיימה] משך: ${duration || '?'} שנ׳${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
+      const label = answered ? 'שיחה הסתיימה' : 'שיחה לא נענתה';
+      const info = `\n[${label}] משך: ${duration || '?'} שנ׳${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
-           recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,
-        [info, recStore, recent[0].id]);
+           recording_url = COALESCE(?, recording_url), call_status = ?, updated_at = NOW() WHERE id = ?`,
+        [info, recStore, callStatus, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       return reply(true, 'lead updated');
     }
@@ -168,9 +175,9 @@ async function processCall(num, req, res, logId) {
     [num.company_id]);
   const statusId = st[0] ? st[0].id : null;
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'call', ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'call', ?, ?, NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');
