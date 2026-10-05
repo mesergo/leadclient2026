@@ -85,6 +85,7 @@ router.get('/', asyncHandler(async (req, res) => {
   if (q) { extra += ' AND (l.lead_name LIKE ? OR l.lead_phone LIKE ? OR l.lead_email LIKE ?)'; params.push('%' + q + '%', '%' + q + '%', '%' + q + '%'); }
   const rows = await query(
     `SELECT l.id, l.lead_name, l.lead_phone, l.lead_email, l.lead_rating, l.lead_through, l.company_id, l.service_id, l.status_id,
+            l.call_status, l.recording_url,
             l.current_agent_id, l.is_converted, l.created_at, l.last_interaction_at, l.last_interaction_type,
             c.name AS company_name, a.name AS agency_name, sv.name AS service_name, sv.service_type,
             st.text AS status_text, st.color AS status_color,
@@ -167,9 +168,9 @@ router.patch('/:id', asyncHandler(async (req, res) => {
 
   // notify on a status change, but only for statuses flagged for_notification
   if (req.body.status_id !== undefined && req.body.status_id) {
-    const st = await query('SELECT name, for_notification FROM statuses WHERE id = ?', [req.body.status_id]);
+    const st = await query('SELECT text, for_notification FROM lead_statuses WHERE id = ?', [req.body.status_id]);
     if (st[0] && st[0].for_notification) {
-      notify.notifyCompany({ companyId: lead.company_id, event: 'status_change', title: 'שינוי סטטוס', body: `${lead.lead_name || lead.lead_phone} → ${st[0].name}`, leadId: lead.id, excludeUserId: req.user.id }).catch(() => {});
+      notify.notifyCompany({ companyId: lead.company_id, event: 'status_change', title: 'שינוי סטטוס', body: `${lead.lead_name || lead.lead_phone} → ${st[0].text}`, leadId: lead.id, excludeUserId: req.user.id }).catch(() => {});
     }
   }
   res.json({ ok: true });
