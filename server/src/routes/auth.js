@@ -25,7 +25,10 @@ async function findUserByPhone(phone) {
 function sessionPayload(user) {
   return {
     token: issueToken(user),
-    user: { id: user.id, name: user.display_name || user.username, role: user.role, company_id: user.company_id, agency_id: user.agency_id },
+    user: {
+      id: user.id, name: user.display_name || user.username, role: user.role,
+      company_id: user.company_id, agency_id: user.agency_id, phone_verified_at: user.phone_verified_at || null,
+    },
   };
 }
 
@@ -34,7 +37,7 @@ router.post('/login', async (req, res, next) => {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
     const rows = await query(
-      'SELECT id, username, display_name, role, company_id, agency_id, password_hash, is_active FROM users WHERE username = ? LIMIT 1',
+      'SELECT id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone_verified_at FROM users WHERE username = ? LIMIT 1',
       [username]
     );
     const user = rows[0];
@@ -48,11 +51,7 @@ router.post('/login', async (req, res, next) => {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
-    const token = issueToken(user);
-    res.json({
-      token,
-      user: { id: user.id, name: user.display_name || user.username, role: user.role, company_id: user.company_id, agency_id: user.agency_id },
-    });
+    res.json(sessionPayload(user));
   } catch (e) {
     next(e);
   }
