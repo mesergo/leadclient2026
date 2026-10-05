@@ -34,6 +34,9 @@ export const api = {
   login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
   me: (token) => request('/api/auth/me', { token }),
   googleLogin: (credential) => request('/api/auth/google', { method: 'POST', body: { credential } }),
+  // public trial registration under an agency token
+  registerInfo: (token) => request(`/api/auth/register/${token}`),
+  register: (token, body) => request(`/api/auth/register/${token}`, { method: 'POST', body }),
   // phone OTP login
   phoneRequest: (phone) => request('/api/auth/phone/request', { method: 'POST', body: { phone } }),
   phoneVerify: (phone, code) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code } }),

@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
@@ -58,6 +59,48 @@ router.post('/login', async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+// --- Public self-registration (trial account under an agency) ---------------
+// The agency is identified by its public_token in the URL. Creates a company
+// (trial, no virtual number) + a company_admin user, then signs them in. No
+// packages/payment. Phone gets verified at first entry via the usual gate.
+router.get('/register/:token', async (req, res, next) => {
+  try {
+    const ag = await query('SELECT name FROM agencies WHERE public_token = ? AND is_active = 1 LIMIT 1', [req.params.token]);
+    if (!ag[0]) return res.status(404).json({ error: 'קישור הרשמה לא תקין' });
+    res.json({ agency: { name: ag[0].name } });
+  } catch (e) { next(e); }
+});
+
+router.post('/register/:token', async (req, res, next) => {
+  try {
+    const ag = await query('SELECT id, name FROM agencies WHERE public_token = ? AND is_active = 1 LIMIT 1', [req.params.token]);
+    if (!ag[0]) return res.status(404).json({ error: 'קישור הרשמה לא תקין' });
+    const { company_name, full_name, email, phone, password } = req.body || {};
+    if (!company_name || !full_name || !email || !phone || !password) return res.status(400).json({ error: 'חסרים שדות חובה' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'הסיסמה חייבת לפחות 6 תווים' });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
+    const exists = await query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', [email, email]);
+    if (exists[0]) return res.status(409).json({ error: 'כבר קיים משתמש עם אימייל זה' });
+
+    const comp = await query(
+      'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
+      [String(company_name).trim(), ag[0].id, crypto.randomUUID()]);
+    await query(
+      `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES
+       (?, 'חדש', '#4f46e5', 1, 1, 0), (?, 'טופל', '#16a34a', 2, 0, 1), (?, 'בוטל', '#dc2626', 3, 0, 1)`,
+      [comp.insertId, comp.insertId, comp.insertId]);
+    const hash = await bcrypt.hash(password, 10);
+    const u = await query(
+      `INSERT INTO users (company_id, agency_id, role, username, email, display_name, phone, password_hash, language, is_active, created_at)
+       VALUES (?, ?, 'company_admin', ?, ?, ?, ?, ?, 'he', 1, NOW())`,
+      [comp.insertId, ag[0].id, email, email, String(full_name).trim(), messergo.toE164(phone), hash]);
+    res.status(201).json(sessionPayload({
+      id: u.insertId, username: email, display_name: full_name, role: 'company_admin',
+      company_id: comp.insertId, agency_id: ag[0].id, phone_verified_at: null,
+    }));
+  } catch (e) { next(e); }
 });
 
 // --- Google sign-in --------------------------------------------------------
