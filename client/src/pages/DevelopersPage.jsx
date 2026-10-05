@@ -42,6 +42,17 @@ export default function DevelopersPage() {
     else setServices([]);
   }, [activeCompany, token]);
 
+  // MesserGO OTP diagnostic (super_admin)
+  const [otpPhone, setOtpPhone] = useState('');
+  const [otpOut, setOtpOut] = useState(null);
+  const [otpBusy, setOtpBusy] = useState(false);
+  async function runOtpTest() {
+    setOtpBusy(true); setOtpOut(null);
+    try { setOtpOut(await api.messergoOtpTest(token, otpPhone)); }
+    catch (e) { setOtpOut({ error: e.message }); }
+    finally { setOtpBusy(false); }
+  }
+
   const svc = services.find((s) => String(s.id) === String(sel.service_id));
   const code = svc?.public_hash || '<קוד הערוץ שלך>';
   const O = API_ORIGIN;
@@ -105,6 +116,28 @@ export default function DevelopersPage() {
         <h3 style={{ marginTop: 16 }}>{t('dev.jsCode')}</h3>
         <CodeBlock code={jsCode} />
       </div>
+
+      {isSuper && (
+        <div className="panel">
+          <h2>{t('dev.otpTest')}</h2>
+          <p className="muted">{t('dev.otpTestHint')}</p>
+          <div className="filter-row" style={{ alignItems: 'flex-end' }}>
+            <label className="filter-item"><span>{t('login.phone')}</span>
+              <input type="tel" placeholder="05XXXXXXXX" value={otpPhone} onChange={(e) => setOtpPhone(e.target.value)} /></label>
+            <button className="btn btn-primary" onClick={runOtpTest} disabled={otpBusy || !otpPhone}>{otpBusy ? t('login.sending') : t('dev.otpSend')}</button>
+          </div>
+          {otpOut && (
+            <div style={{ marginTop: 12 }}>
+              {otpOut.result && (
+                <p style={{ fontWeight: 600, color: otpOut.result.ok ? '#16a34a' : '#dc2626' }}>
+                  {otpOut.result.ok ? `✓ StatusId=${otpOut.result.statusId ?? 'mock'}` : `✗ ${otpOut.result.error || 'שליחה נכשלה'}`}
+                </p>
+              )}
+              <pre className="code-block" style={{ whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto' }}>{JSON.stringify(otpOut, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="panel">
         <h2>{t('dev.errCodes')}</h2>
