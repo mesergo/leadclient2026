@@ -21,4 +21,24 @@ async function call(service, params = {}, method = 'GET') {
   return { httpStatus: r.status, ...json };
 }
 
-module.exports = { call };
+const intl = (n) => { const d = String(n || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('972')) return d; if (d.startsWith('0')) return '972' + d.slice(1); return '972' + d; };
+
+// Push our routing to a Maskyoo number: set call_destination_phone (and keep
+// callback_url pointing at us). Reads current settings and re-sends them all so
+// nothing is wiped (update_maskyoo replaces the whole record). Best-effort.
+async function syncRouting(maskyooNumber, destPhone) {
+  if (!config.maskyoo.token) return { ok: false, error: 'no_token' };
+  const num = intl(maskyooNumber), dest = intl(destPhone);
+  if (!num || !dest) return { ok: false, error: 'bad_args' };
+  const g = await call('get_maskyoo', { maskyoo: num });
+  if (g.status?.code !== 200 || !g.result || !g.result[0]) return { ok: false, error: 'get_failed', g };
+  const cur = g.result[0];
+  const p = {};
+  for (const [k, v] of Object.entries(cur)) { if (k === 'create_time') continue; p[k] = v == null ? '' : String(v); }
+  p.call_destination_phone = dest;
+  if (config.appUrl) p.callback_url = `${config.appUrl}/api/public/call`;
+  const u = await call('update_maskyoo', p, 'POST');
+  return { ok: u.status?.code === 200, u };
+}
+
+module.exports = { call, syncRouting, intl };

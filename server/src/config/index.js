@@ -21,7 +21,8 @@ module.exports = {
     subject: process.env.VAPID_SUBJECT || 'mailto:admin@leadclient.net',
   },
   maskyoo: {
-    token: process.env.MASKYOO_TOKEN || '',               // Bearer token for recording download
+    token: process.env.MASKYOO_TOKEN || '',               // Bearer token for the Maskyoo API
     apiUrl: process.env.MASKYOO_API_URL || 'https://www.maskyoo.com/leadclient/api/',
   },
+  appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL, for the Maskyoo callback_url
 };
