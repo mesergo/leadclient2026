@@ -113,6 +113,9 @@ async function processCall(num, req, res, logId) {
   const caller = pick(req, 'CLI', 'cli', 'caller', 'from', 'phone', 'ani');
   const duration = pick(req, 'CALLDURATION', 'DURATION', 'duration', 'seconds', 'billsec');
   const recording = pick(req, 'download', 'RECORDING', 'recording', 'recording_url');
+  const uuid = pick(req, 'UUID', 'uuid');
+  // prefer the call UUID (fetched later via get_record_by_call_uuid) over the download URL
+  const recStore = uuid ? 'maskyoo-uuid:' + uuid : (recording || null);
   const routedTo = pick(req, 'DEST', 'dest');
   const status = String(pick(req, 'CALLSTATUS', 'callstatus', 'status', 'event', 'type') || '').toLowerCase();
   // Maskyoo end event is CALLSTATUS=ANSWER (answered, with CALLDURATION); also hangup-like words
@@ -144,7 +147,7 @@ async function processCall(num, req, res, logId) {
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
            recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,
-        [info, recording || null, recent[0].id]);
+        [info, recStore, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       return reply(true, 'lead updated');
     }
@@ -167,7 +170,7 @@ async function processCall(num, req, res, logId) {
   const r = await query(
     `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'call', ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recording || null]);
+    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');
