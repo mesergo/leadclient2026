@@ -8,7 +8,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json ./server/
 COPY client/package.json ./client/
-RUN npm ci
+# --include=dev forces devDependencies even when NODE_ENV=production is injected
+# at build time (Vite and other build tools live in devDependencies).
+RUN npm ci --include=dev
 # copy source and build the client (-> client/dist)
 COPY . .
 RUN npm run build
