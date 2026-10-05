@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone                 VARCHAR(30) NULL,
   password_hash         VARCHAR(255) NULL,
   google_id             VARCHAR(255) NULL,
+  phone_verified_at     DATETIME NULL,
   language              VARCHAR(5) NULL DEFAULT 'he',
   notifications         JSON NULL,
   email_notifications   JSON NULL,
@@ -207,6 +208,19 @@ CREATE TABLE IF NOT EXISTS user_restrictions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------- 4. Statuses & Tags ----------
+
+CREATE TABLE IF NOT EXISTS otp_codes (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  phone                 VARCHAR(20) NOT NULL,
+  code_hash             CHAR(64) NOT NULL,
+  purpose               VARCHAR(20) NOT NULL,
+  attempts              INT NOT NULL DEFAULT 0,
+  consumed              TINYINT(1) NOT NULL DEFAULT 0,
+  expires_at            DATETIME NOT NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_otp_lookup (phone, purpose, consumed),
+  INDEX idx_otp_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lead_statuses (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,

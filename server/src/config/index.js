@@ -24,5 +24,22 @@ module.exports = {
     token: process.env.MASKYOO_TOKEN || '',               // Bearer token for the Maskyoo API
     apiUrl: process.env.MASKYOO_API_URL || 'https://www.maskyoo.com/leadclient/api/',
   },
+  // MesserGO OTP / SMS (dedicated OTP endpoint: SMS with voice failover). No creds => mock.
+  messergo: {
+    user: process.env.MESSERGO_USER || '',
+    smsToken: process.env.MESSERGO_SMS_TOKEN || '',        // Basic auth: base64(user:token)
+    sender: process.env.MESSERGO_SENDER || 'LeadClient',   // approved sender name/number
+    voiceCallerId: process.env.MESSERGO_VOICE_CALLER_ID || 'PRIVATE',
+    otpUrl: process.env.MESSERGO_OTP_URL || 'https://cloud.mesergo.co.il/api/v2/Otp/Message/Send',
+  },
+  otp: {
+    ttlMinutes: Number(process.env.OTP_TTL_MINUTES || 5),
+    length: 6,
+    maxAttempts: Number(process.env.OTP_MAX_ATTEMPTS || 5),
+    resendSeconds: Number(process.env.OTP_RESEND_SECONDS || 30),  // min gap between sends
+  },
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || '',          // for verifying Google id_token (aud)
+  },
   appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL, for the Maskyoo callback_url
 };

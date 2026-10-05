@@ -33,6 +33,12 @@ export const API_ORIGIN = API_URL;
 export const api = {
   login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
   me: (token) => request('/api/auth/me', { token }),
+  // phone OTP login
+  phoneRequest: (phone) => request('/api/auth/phone/request', { method: 'POST', body: { phone } }),
+  phoneVerify: (phone, code) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code } }),
+  // verify the logged-in user's own phone
+  phoneVerifyRequest: (token, phone) => request('/api/auth/phone/verify-request', { method: 'POST', body: { phone }, token }),
+  phoneVerifyConfirm: (token, code) => request('/api/auth/phone/verify-confirm', { method: 'POST', body: { code }, token }),
 
   agencies: (token, filters) => request(`/api/agencies${qs(typeof filters === 'string' ? { q: filters } : filters)}`, { token }),
   createAgency: (name, token) => request('/api/agencies', { method: 'POST', body: { name }, token }),
