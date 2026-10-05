@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import GoogleButton from '../components/GoogleButton';
 import logo from '../assets/logo.png';
 
 export default function LoginPage() {
-  const { login, loginWithPhone } = useAuth();
+  const { login, loginWithPhone, loginWithGoogle } = useAuth();
   const { t } = useLang();
   const nav = useNavigate();
   const [mode, setMode] = useState('password'); // 'password' | 'phone'
@@ -45,6 +46,12 @@ export default function LoginPage() {
     try { await loginWithPhone(phone, code); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
+  }
+
+  async function onGoogle(credential) {
+    setError('');
+    try { await loginWithGoogle(credential); nav('/'); }
+    catch (err) { setError(err.message); }
   }
 
   return (
@@ -90,6 +97,10 @@ export default function LoginPage() {
               onClick={() => { setSent(false); setCode(''); setHint(''); setError(''); }}>{t('login.changePhone')}</button>
           </form>
         )}
+
+        <div className="google-slot" style={{ marginTop: 18 }}>
+          <GoogleButton onCredential={onGoogle} onError={() => setError(t('login.googleError'))} />
+        </div>
       </div>
     </div>
   );

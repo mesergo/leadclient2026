@@ -33,6 +33,7 @@ export const API_ORIGIN = API_URL;
 export const api = {
   login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
   me: (token) => request('/api/auth/me', { token }),
+  googleLogin: (credential) => request('/api/auth/google', { method: 'POST', body: { credential } }),
   // phone OTP login
   phoneRequest: (phone) => request('/api/auth/phone/request', { method: 'POST', body: { phone } }),
   phoneVerify: (phone, code) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code } }),
