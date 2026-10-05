@@ -111,10 +111,12 @@ function toIsraeliMsisdn(n) {
 async function processCall(num, req, res, logId) {
   // Maskyoo params: CLI = caller, CALLSTATUS = STARTED/ENDED, DURATION, plus generic aliases.
   const caller = pick(req, 'CLI', 'cli', 'caller', 'from', 'phone', 'ani');
-  const duration = pick(req, 'DURATION', 'duration', 'seconds', 'billsec');
-  const recording = pick(req, 'RECORDING', 'recording', 'recording_url');
+  const duration = pick(req, 'CALLDURATION', 'DURATION', 'duration', 'seconds', 'billsec');
+  const recording = pick(req, 'download', 'RECORDING', 'recording', 'recording_url');
+  const routedTo = pick(req, 'DEST', 'dest');
   const status = String(pick(req, 'CALLSTATUS', 'callstatus', 'status', 'event', 'type') || '').toLowerCase();
-  const isEnd = duration != null || /end|hangup|finish|complete|done/.test(status);
+  // Maskyoo end event is CALLSTATUS=ANSWER (answered, with CALLDURATION); also hangup-like words
+  const isEnd = duration != null || /end|hangup|finish|complete|done|answer|noanswer|busy/.test(status);
 
   // Maskyoo reads the destination to route the call to from the START of the response
   // body (destination number), followed by JSON (as the legacy system returned).
@@ -127,14 +129,19 @@ async function processCall(num, req, res, logId) {
   if (isEnd) {
     // call end — pair with the recent call lead (wide window to cover call length)
     const recent = await query(
-      `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
+      `SELECT id, recording_url FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
          AND created_at >= (NOW() - INTERVAL 6 HOUR) ORDER BY id DESC LIMIT 1`,
       [num.company_id, caller]);
     if (recent[0]) {
+      if (recent[0].recording_url) { // a prior end already processed this call -> retry
+        await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'duplicate' });
+        return reply(true, 'duplicate');
+      }
+      const info = `\n[שיחה הסתיימה] משך: ${duration || '?'} שנ׳${routedTo ? ` · נותב ל-${routedTo}` : ''}`;
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
            recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,
-        [duration ? `\n[שיחה] משך: ${duration}` : '', recording || null, recent[0].id]);
+        [info, recording || null, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       return reply(true, 'lead updated');
     }
