@@ -22,12 +22,13 @@ const NAV = [
   { to: '/profile', key: 'nav.profile', Icon: Icons.User },
   { to: '/developers', key: 'nav.developers', Icon: Icons.Code },
   { to: '/import-live', key: 'nav.importLive', Icon: Icons.Upload, roles: ['super_admin'] },
+  { to: '/webhook-log', key: 'nav.webhookLog', Icon: Icons.Code, roles: ['super_admin', 'agency_admin', 'company_admin'] },
 ];
 const CRUMB_KEY = {
   '/': 'nav.dashboard', '/agencies': 'nav.agencies', '/companies': 'nav.companies', '/leads': 'nav.leads',
   '/import': 'nav.import', '/virtual': 'nav.virtual', '/reports': 'nav.reports', '/contacts': 'nav.contacts',
   '/users': 'nav.users', '/billing': 'nav.billing', '/language': 'nav.language', '/profile': 'nav.profile',
-  '/developers': 'nav.developers',
+  '/developers': 'nav.developers', '/webhook-log': 'nav.webhookLog',
 };
 
 export default function Layout() {
