@@ -7,7 +7,10 @@ import MultiSelect from '../components/MultiSelect';
 import RedirectConfig, { emptyRedirect } from '../components/RedirectConfig';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
+const LINE_TYPES = [{ v: 'mobile', k: 'es.mobile' }, { v: 'landline', k: 'es.landline' }];
+// Israeli mobile = starts with 05 (after normalizing 972/leading 0); everything else is landline.
+const isMobileNumber = (n) => String(n.phone_number || '').replace(/\D/g, '').replace(/^972/, '0').startsWith('05');
+const matchesLineType = (n, lt) => !lt || (lt === 'mobile' ? isMobileNumber(n) : !isMobileNumber(n));
 const DAYS = {
   he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
   en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -125,15 +128,15 @@ export default function AddServicePage() {
 
           {type === 'phone' && (<>
             <div className="form-field"><label>{t('es.lineType')}</label><div className="form-field-control">
-              <select value={form.line_type} onChange={(e) => set('line_type', e.target.value)}>
+              <select value={form.line_type} onChange={(e) => { set('line_type', e.target.value); set('phone_number_id', ''); }}>
                 <option value="">{t('es.selectPlan')}</option>
-                {LINE_TYPES.map((l) => <option key={l} value={l}>{l}</option>)}
+                {LINE_TYPES.map((l) => <option key={l.v} value={l.v}>{t(l.k)}</option>)}
               </select></div></div>
 
             <div className="form-field"><label>{t('es.virtualNumber')}</label><div className="form-field-control">
               <select value={form.phone_number_id} onChange={(e) => set('phone_number_id', e.target.value)}>
                 <option value="">{t('es.numberNone')}</option>
-                {numbers.map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
+                {numbers.filter((n) => matchesLineType(n, form.line_type)).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
               </select></div></div>
 
             {form.phone_number_id && (
