@@ -94,7 +94,8 @@ export default function VirtualPage() {
     try { await api.deleteVirtual(n.id, token); load(preset); } catch (e) { setError(e.message); }
   };
   const copy = (txt) => { try { navigator.clipboard.writeText(txt); setMsg(t('vir.copied')); } catch { /* */ } };
-  const hookUrl = (id) => `${ORIGIN}/api/public/call/${id}`;
+  // one fixed URL for ALL numbers — Maskyoo sends the dialed number, we match it
+  const hookUrl = () => `${ORIGIN}/api/public/call`;
 
   const addCompanies = isSuper || isAgency ? companies : [];
 
@@ -142,8 +143,8 @@ export default function VirtualPage() {
           <p className="muted">{t('vir.webhooksHint')}</p>
           <div className="form-field"><label>{t('vir.callUrl')}</label>
             <div className="form-field-control" style={{ display: 'flex', gap: 8 }}>
-              <input readOnly value={hookUrl(webhookFor.id)} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12 }} />
-              <button className="btn btn-secondary" onClick={() => copy(hookUrl(webhookFor.id))}>{t('vir.copy')}</button>
+              <input readOnly value={hookUrl()} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12 }} />
+              <button className="btn btn-secondary" onClick={() => copy(hookUrl())}>{t('vir.copy')}</button>
             </div></div>
         </div>
       )}
