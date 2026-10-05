@@ -9,6 +9,17 @@ router.use(requireAuth);
 const who = (u) => ({ userId: u.id, userName: u.name || u.display_name || u.username || '' });
 // store numbers in a uniform international format (972XXXXXXXXX)
 const toIntl = (n) => { const d = String(n || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('972')) return d; if (d.startsWith('0')) return '972' + d.slice(1); return '972' + d; };
+// derive a readable local display (0XX-XXXXXXX) from the international number
+function toLocalDisplay(intl) {
+  const d = String(intl || '').replace(/\D/g, '');
+  if (!d) return '';
+  const local = d.startsWith('972') ? '0' + d.slice(3) : (d.startsWith('0') ? d : '0' + d);
+  const three = /^0(5\d|7\d)(\d{4,})$/.exec(local); // mobile 05x / VoIP 07x: 3-digit prefix
+  if (three) return `0${three[1]}-${three[2]}`;
+  const two = /^0(\d)(\d{5,})$/.exec(local);          // landline: 2-digit prefix
+  if (two) return `0${two[1]}-${two[2]}`;
+  return local;
+}
 
 // Virtual numbers = the pool. company_id NULL = available (offered for new channels).
 router.get('/', asyncHandler(async (req, res) => {
@@ -51,10 +62,11 @@ router.post('/', asyncHandler(async (req, res) => {
   const { company_id, phone_number, number_to_display, ivr_provider } = req.body || {};
   if (!phone_number) return res.status(400).json({ error: 'חסר מספר טלפון' });
   if (company_id && canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const intl = toIntl(phone_number);
   const r = await query(
     `INSERT INTO phone_numbers (company_id, ivr_provider, phone_number, number_to_display)
      VALUES (?, ?, ?, ?)`,
-    [company_id || null, ivr_provider || 'maskyoo', toIntl(phone_number), number_to_display || phone_number]);
+    [company_id || null, ivr_provider || 'maskyoo', intl, number_to_display || toLocalDisplay(intl)]);
   await logPhone(r.insertId, 'created', { ...who(req.user), toCompanyId: company_id || null, note: phone_number });
   if (company_id) await logPhone(r.insertId, 'assigned', { ...who(req.user), toCompanyId: company_id });
   res.status(201).json({ id: r.insertId });
@@ -66,7 +78,10 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   const cur = owned[0];
   if (!cur) return res.status(404).json({ error: 'מספר לא נמצא' });
   if (req.body.company_id && canAccessCompany(req.user, req.body.company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
-  if (req.body.phone_number !== undefined && req.body.phone_number) req.body.phone_number = toIntl(req.body.phone_number);
+  if (req.body.phone_number !== undefined && req.body.phone_number) {
+    req.body.phone_number = toIntl(req.body.phone_number);
+    if (!req.body.number_to_display) req.body.number_to_display = toLocalDisplay(req.body.phone_number); // auto display
+  }
   const f = ['company_id', 'service_id', 'phone_number', 'number_to_display', 'redirect_to_number', 'ivr_provider', 'is_premium', 'is_visible'];
   const sets = [], params = [];
   for (const k of f) if (req.body[k] !== undefined) { sets.push(`${k} = ?`); params.push(req.body[k] === '' ? null : req.body[k]); }

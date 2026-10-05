@@ -7,7 +7,7 @@ import { dateRange, DATE_PRESETS } from '../dates';
 
 const ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 const HOOK_URL = `${ORIGIN}/api/public/call`;
-const BLANK = { phone_number: '', number_to_display: '', ivr_provider: 'maskyoo' };
+const BLANK = { phone_number: '', ivr_provider: 'maskyoo' };
 const ACTIONS = { created: 'נוצר', assigned: 'שויך', transferred: 'הועבר', unassigned: 'שוחרר', updated: 'עודכן', deleted: 'נמחק' };
 
 export default function VirtualPage() {
@@ -71,12 +71,12 @@ export default function VirtualPage() {
   const copy = (txt) => { try { navigator.clipboard.writeText(txt); setMsg(t('vir.copied')); } catch { /* */ } };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const startEdit = (n) => { setEditId(n.id); setForm({ phone_number: n.phone_number || '', number_to_display: n.number_to_display || '', ivr_provider: n.ivr_provider || 'maskyoo' }); setAdding(true); setError(''); setMsg(''); };
+  const startEdit = (n) => { setEditId(n.id); setForm({ phone_number: n.number_to_display || n.phone_number || '', ivr_provider: n.ivr_provider || 'maskyoo' }); setAdding(true); setError(''); setMsg(''); };
   const cancelForm = () => { setAdding(false); setEditId(null); setForm({ ...BLANK }); };
   const saveNumber = async () => {
     setError(''); setMsg('');
     if (!form.phone_number) return setError(t('vir.needNumber'));
-    const body = { phone_number: form.phone_number, number_to_display: form.number_to_display || form.phone_number, ivr_provider: form.ivr_provider };
+    const body = { phone_number: form.phone_number, ivr_provider: form.ivr_provider };
     try {
       if (editId) { await api.updateVirtual(editId, body, token); setMsg(t('vir.saved')); }
       else { await api.createVirtual(body, token); setMsg(t('vir.added')); }
@@ -113,7 +113,6 @@ export default function VirtualPage() {
               <input value={form.phone_number} onChange={(e) => setF('phone_number', e.target.value)} placeholder="055-4566000" />
               {form.phone_number && <span className="muted" style={{ marginInlineStart: 8, fontSize: 13 }}>{lineType(form.phone_number)}</span>}
             </div></div>
-            <div className="form-field"><label>{t('vir.display')}</label><div className="form-field-control"><input value={form.number_to_display} onChange={(e) => setF('number_to_display', e.target.value)} /></div></div>
             <div className="form-field"><label>{t('vir.provider')}</label><div className="form-field-control">
               <select value={form.ivr_provider} onChange={(e) => setF('ivr_provider', e.target.value)}>
                 {['maskyoo', 'native', 'micropay', 'paycall'].map((p) => <option key={p} value={p}>{p}</option>)}
