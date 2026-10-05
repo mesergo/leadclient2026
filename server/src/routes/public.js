@@ -139,7 +139,8 @@ async function processCall(num, req, res, logId) {
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'duplicate' });
         return reply(true, 'duplicate');
       }
-      const info = `\n[שיחה הסתיימה] משך: ${duration || '?'} שנ׳${routedTo ? ` · נותב ל-${routedTo}` : ''}`;
+      const routedLocal = routedTo ? String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0') : '';
+      const info = `\n[שיחה הסתיימה] משך: ${duration || '?'} שנ׳${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
            recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,

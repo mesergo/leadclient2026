@@ -20,4 +20,8 @@ module.exports = {
     privateKey: process.env.VAPID_PRIVATE_KEY || '',
     subject: process.env.VAPID_SUBJECT || 'mailto:admin@leadclient.net',
   },
+  maskyoo: {
+    token: process.env.MASKYOO_TOKEN || '',               // Bearer token for recording download
+    apiUrl: process.env.MASKYOO_API_URL || 'https://www.maskyoo.com/leadclient/api/',
+  },
 };
