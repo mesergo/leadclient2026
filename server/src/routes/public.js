@@ -96,18 +96,33 @@ async function updateLog(id, x = {}) {
   } catch (e) { /* never break the webhook */ }
 }
 
+// Normalize an Israeli number to MSISDN (972XXXXXXXXX) — the format Maskyoo routes to.
+function toIsraeliMsisdn(n) {
+  const d = String(n || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('972')) return d;
+  if (d.startsWith('0')) return '972' + d.slice(1);
+  return '972' + d;
+}
+
 // Core: given the matched phone_number, process a call event.
 // Start (no duration) logs an incoming-call lead; end (duration/recording, or a
 // hangup-like status) attaches the details to that caller's recent lead.
 async function processCall(num, req, res, logId) {
-  if (!num) { await updateLog(logId, { result: 'no_match' }); return res.status(404).json({ error: 'number_not_found' }); }
-  if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return res.json({ ok: true, redirect_to: num.redirect_to_number || null }); }
-
-  const caller = pick(req, 'caller', 'from', 'phone', 'ani', 'source');
-  const duration = pick(req, 'duration', 'seconds');
-  const recording = pick(req, 'recording', 'recording_url');
-  const status = String(pick(req, 'status', 'event', 'type') || '').toLowerCase();
+  // Maskyoo params: CLI = caller, CALLSTATUS = STARTED/ENDED, DURATION, plus generic aliases.
+  const caller = pick(req, 'CLI', 'cli', 'caller', 'from', 'phone', 'ani');
+  const duration = pick(req, 'DURATION', 'duration', 'seconds', 'billsec');
+  const recording = pick(req, 'RECORDING', 'recording', 'recording_url');
+  const status = String(pick(req, 'CALLSTATUS', 'callstatus', 'status', 'event', 'type') || '').toLowerCase();
   const isEnd = duration != null || /end|hangup|finish|complete|done/.test(status);
+
+  // Maskyoo reads the destination to route the call to from the START of the response
+  // body (destination number), followed by JSON (as the legacy system returned).
+  const dest = num ? toIsraeliMsisdn(num.redirect_to_number) : '';
+  const reply = (ok, desc) => res.type('text/plain').send(dest + JSON.stringify({ success: ok, success_description: desc }));
+
+  if (!num) { await updateLog(logId, { result: 'no_match' }); return reply(false, 'no match'); }
+  if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return reply(true, 'number unassigned'); }
 
   if (isEnd) {
     const recent = await query(
@@ -120,7 +135,7 @@ async function processCall(num, req, res, logId) {
            recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,
         [duration ? `\n[שיחה] משך: ${duration}` : '', recording || null, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
-      return res.json({ ok: true, lead_id: recent[0].id, redirect_to: num.redirect_to_number || null });
+      return reply(true, 'lead updated');
     }
   }
   const r = await query(
@@ -129,14 +144,14 @@ async function processCall(num, req, res, logId) {
     [num.company_id, num.service_id || null, caller, duration ? `[שיחה] משך: ${duration}` : null, recording || null]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
-  res.json({ ok: true, lead_id: r.insertId, redirect_to: num.redirect_to_number || null });
+  reply(true, 'lead saved');
 }
 
 // One fixed URL for ALL numbers: Maskyoo sends the dialed number (DID); we match
 // it to our phone_number (by its last digits, format-agnostic).
 router.all('/call', asyncHandler(async (req, res) => {
   const logId = await logInbound(req, 'maskyoo-call', { result: 'received' }); // log raw first, always
-  const did = pick(req, 'did', 'number', 'to', 'called', 'virtual', 'dnis', 'dest', 'target');
+  const did = pick(req, 'DDI', 'ddi', 'did', 'number', 'to', 'called', 'virtual', 'dnis'); // Maskyoo: DDI = dialed number
   const key = String(did || '').replace(/\D/g, '').slice(-9);
   if (!key) { await updateLog(logId, { result: 'missing_dialed_number' }); return res.status(400).json({ error: 'missing_dialed_number' }); }
   const rows = await query(
