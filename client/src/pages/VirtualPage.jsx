@@ -94,7 +94,7 @@ export default function VirtualPage() {
     try { await api.deleteVirtual(n.id, token); load(preset); } catch (e) { setError(e.message); }
   };
   const copy = (txt) => { try { navigator.clipboard.writeText(txt); setMsg(t('vir.copied')); } catch { /* */ } };
-  const hookUrl = (id, ev) => `${ORIGIN}/api/public/call/${id}/${ev}`;
+  const hookUrl = (id) => `${ORIGIN}/api/public/call/${id}`;
 
   const addCompanies = isSuper || isAgency ? companies : [];
 
@@ -140,13 +140,11 @@ export default function VirtualPage() {
           <div className="page-header"><h3>{t('vir.webhooks')} — {webhookFor.phone_number}</h3>
             <button className="btn btn-secondary" onClick={() => setWebhookFor(null)}>{t('common.close')}</button></div>
           <p className="muted">{t('vir.webhooksHint')}</p>
-          {[['callStart', 'start'], ['callEnd', 'end']].map(([lbl, ev]) => (
-            <div className="form-field" key={ev}><label>{t('vir.' + lbl)}</label>
-              <div className="form-field-control" style={{ display: 'flex', gap: 8 }}>
-                <input readOnly value={hookUrl(webhookFor.id, ev)} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12 }} />
-                <button className="btn btn-secondary" onClick={() => copy(hookUrl(webhookFor.id, ev))}>{t('vir.copy')}</button>
-              </div></div>
-          ))}
+          <div className="form-field"><label>{t('vir.callUrl')}</label>
+            <div className="form-field-control" style={{ display: 'flex', gap: 8 }}>
+              <input readOnly value={hookUrl(webhookFor.id)} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12 }} />
+              <button className="btn btn-secondary" onClick={() => copy(hookUrl(webhookFor.id))}>{t('vir.copy')}</button>
+            </div></div>
         </div>
       )}
 
