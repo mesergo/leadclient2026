@@ -25,9 +25,14 @@ export default function VirtualPage() {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editId, setEditId] = useState(null);     // number being edited (null = adding new)
   const [form, setForm] = useState({ ...BLANK });
   const [logFor, setLogFor] = useState(null);   // number whose log is open
   const [logRows, setLogRows] = useState([]);
+
+  // auto-detect Israeli line type from the number (05 = mobile, else landline)
+  const isMobile = (p) => String(p || '').replace(/\D/g, '').replace(/^972/, '0').startsWith('05');
+  const lineType = (p) => (isMobile(p) ? t('es.mobile') : t('es.landline'));
 
   const load = (p, filters) => {
     const { start, end } = dateRange(p);
@@ -66,12 +71,16 @@ export default function VirtualPage() {
   const copy = (txt) => { try { navigator.clipboard.writeText(txt); setMsg(t('vir.copied')); } catch { /* */ } };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const startEdit = (n) => { setEditId(n.id); setForm({ phone_number: n.phone_number || '', number_to_display: n.number_to_display || '', ivr_provider: n.ivr_provider || 'maskyoo' }); setAdding(true); setError(''); setMsg(''); };
+  const cancelForm = () => { setAdding(false); setEditId(null); setForm({ ...BLANK }); };
   const saveNumber = async () => {
     setError(''); setMsg('');
     if (!form.phone_number) return setError(t('vir.needNumber'));
+    const body = { phone_number: form.phone_number, number_to_display: form.number_to_display || form.phone_number, ivr_provider: form.ivr_provider };
     try {
-      await api.createVirtual({ phone_number: form.phone_number, number_to_display: form.number_to_display || form.phone_number, ivr_provider: form.ivr_provider }, token);
-      setMsg(t('vir.added')); setAdding(false); setForm({ ...BLANK }); load(preset);
+      if (editId) { await api.updateVirtual(editId, body, token); setMsg(t('vir.saved')); }
+      else { await api.createVirtual(body, token); setMsg(t('vir.added')); }
+      cancelForm(); load(preset);
     } catch (e) { setError(e.message); }
   };
   const delNumber = async (n) => { if (!window.confirm(t('vir.confirmDelete'))) return; try { await api.deleteVirtual(n.id, token); load(preset); } catch (e) { setError(e.message); } };
@@ -84,7 +93,7 @@ export default function VirtualPage() {
     <div>
       <div className="page-header">
         <h1>{t('nav.virtual')}</h1>
-        <button className="btn btn-primary" onClick={() => { setAdding((v) => !v); setError(''); setMsg(''); }}>{adding ? t('common.cancel') : '+ ' + t('vir.addNumber')}</button>
+        <button className="btn btn-primary" onClick={() => (adding ? cancelForm() : (setAdding(true), setError(''), setMsg('')))}>{adding ? t('common.cancel') : '+ ' + t('vir.addNumber')}</button>
       </div>
       <p className="muted" style={{ marginTop: -8 }}>{t('vir.poolHint')}</p>
       {error && <p className="error">{error}</p>}
@@ -98,8 +107,12 @@ export default function VirtualPage() {
 
       {adding && (
         <div className="form-panel">
+          <div style={{ padding: '0.75rem 1rem 0' }}><strong>{editId ? t('vir.editTitle') : t('vir.addNumber')}</strong></div>
           <div className="form-panel-body">
-            <div className="form-field"><label>{t('vir.number')}</label><div className="form-field-control"><input value={form.phone_number} onChange={(e) => setF('phone_number', e.target.value)} placeholder="055-4566000" /></div></div>
+            <div className="form-field"><label>{t('vir.number')}</label><div className="form-field-control">
+              <input value={form.phone_number} onChange={(e) => setF('phone_number', e.target.value)} placeholder="055-4566000" />
+              {form.phone_number && <span className="muted" style={{ marginInlineStart: 8, fontSize: 13 }}>{lineType(form.phone_number)}</span>}
+            </div></div>
             <div className="form-field"><label>{t('vir.display')}</label><div className="form-field-control"><input value={form.number_to_display} onChange={(e) => setF('number_to_display', e.target.value)} /></div></div>
             <div className="form-field"><label>{t('vir.provider')}</label><div className="form-field-control">
               <select value={form.ivr_provider} onChange={(e) => setF('ivr_provider', e.target.value)}>
@@ -150,19 +163,21 @@ export default function VirtualPage() {
 
       <div className="table-wrap"><table className="data-table">
         <thead><tr>
-          {th('phone_number', t('vir.number'))}{th('ivr_provider', t('vir.provider'))}<th>{t('vir.status')}</th>
+          {th('phone_number', t('vir.number'))}<th>{t('es.lineType')}</th>{th('ivr_provider', t('vir.provider'))}<th>{t('vir.status')}</th>
           {th('company_name', t('common.company'))}{th('service_name', t('lead.channel'))}{th('redirect_to_number', t('vir.target'))}
           {th('leads_count', t('vir.leads'))}<th>{t('vir.actions')}</th>
         </tr></thead>
         <tbody>{sorted.map((n) => (
           <tr key={n.id}>
-            <td><strong>{n.phone_number}</strong></td><td>{n.ivr_provider}</td>
+            <td><strong>{n.number_to_display || n.phone_number}</strong></td>
+            <td>{lineType(n.phone_number)}</td><td>{n.ivr_provider}</td>
             <td>{n.available ? <span className="pill pill-on">{t('vir.available')}</span> : <span className="pill" style={{ background: 'rgba(0,131,143,0.12)', color: 'var(--accent)' }}>{t('vir.assigned')}</span>}</td>
             <td>{n.company_name || '-'}</td>
             <td>{n.service_id ? <button className="link-name" onClick={() => editChannel(n)}>{n.service_name || t('vir.editChannel')}</button> : '-'}</td>
             <td>{n.redirect_to_number || '-'}</td>
             <td>{Number(n.leads_count).toLocaleString()}</td>
             <td style={{ whiteSpace: 'nowrap' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => startEdit(n)}>{t('vir.edit')}</button>{' '}
               <button className="btn btn-secondary btn-sm" onClick={() => openLog(n)}>{t('vir.log')}</button>{' '}
               <button className="btn btn-danger btn-sm" onClick={() => delNumber(n)}>{t('vir.delete')}</button>
             </td>
