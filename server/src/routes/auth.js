@@ -3,8 +3,28 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { issueToken } = require('../services/authService');
+const otp = require('../services/otp');
+const messergo = require('../services/messergo');
 
 const router = express.Router();
+
+// Find an active user by phone (format-agnostic: match on the last 9 digits).
+async function findUserByPhone(phone) {
+  const key = messergo.digits(phone).slice(-9);
+  if (key.length < 9) return null;
+  const rows = await query(
+    `SELECT id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at
+       FROM users WHERE is_active = 1 AND phone IS NOT NULL
+         AND REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?) LIMIT 1`, [key]);
+  return rows[0] || null;
+}
+
+function sessionPayload(user) {
+  return {
+    token: issueToken(user),
+    user: { id: user.id, name: user.display_name || user.username, role: user.role, company_id: user.company_id, agency_id: user.agency_id },
+  };
+}
 
 router.post('/login', async (req, res, next) => {
   try {
@@ -35,10 +55,70 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+// --- Phone OTP login -------------------------------------------------------
+// Step 1: request a code. Only sent to a user whose phone is verified (prevents
+// enumeration & wasted SMS). Always returns {ok:true} so callers can't probe.
+router.post('/phone/request', async (req, res, next) => {
+  try {
+    const { phone } = req.body || {};
+    if (!phone) return res.status(400).json({ error: 'חסר מספר טלפון' });
+    const user = await findUserByPhone(phone);
+    if (!user || !user.phone_verified_at) return res.json({ ok: true }); // silent: no such verified user
+    const r = await otp.requestOtp({ phone, purpose: 'login' });
+    if (!r.ok && r.error === 'too_soon') return res.status(429).json({ error: 'נשלח קוד לאחרונה, נסה שוב בעוד רגע' });
+    return res.json({ ok: true, mocked: r.mocked, devCode: r.devCode });
+  } catch (e) { next(e); }
+});
+
+// Step 2: verify the code -> issue a session.
+router.post('/phone/verify', async (req, res, next) => {
+  try {
+    const { phone, code } = req.body || {};
+    if (!phone || !code) return res.status(400).json({ error: 'חסר מספר טלפון או קוד' });
+    const v = await otp.verifyOtp({ phone, code, purpose: 'login' });
+    if (!v.ok) return res.status(401).json({ error: 'קוד שגוי או שפג תוקפו' });
+    const user = await findUserByPhone(phone);
+    if (!user || !user.phone_verified_at) return res.status(401).json({ error: 'פרטי התחברות שגויים' });
+    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+      const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
+      if (c[0]) user.agency_id = c[0].agency_id;
+    }
+    res.json(sessionPayload(user));
+  } catch (e) { next(e); }
+});
+
+// --- Verify the logged-in user's own phone (enables phone login later) ------
+router.post('/phone/verify-request', requireAuth, async (req, res, next) => {
+  try {
+    const phone = (req.body && req.body.phone) || null;
+    if (phone) await query('UPDATE users SET phone = ? WHERE id = ?', [messergo.toE164(phone), req.user.id]);
+    const rows = await query('SELECT phone FROM users WHERE id = ?', [req.user.id]);
+    const target = rows[0] && rows[0].phone;
+    if (!target) return res.status(400).json({ error: 'אין מספר טלפון לאימות' });
+    const r = await otp.requestOtp({ phone: target, purpose: 'verify' });
+    if (!r.ok && r.error === 'too_soon') return res.status(429).json({ error: 'נשלח קוד לאחרונה, נסה שוב בעוד רגע' });
+    if (!r.ok) return res.status(502).json({ error: 'שליחת הקוד נכשלה' });
+    res.json({ ok: true, mocked: r.mocked, devCode: r.devCode });
+  } catch (e) { next(e); }
+});
+
+router.post('/phone/verify-confirm', requireAuth, async (req, res, next) => {
+  try {
+    const { code } = req.body || {};
+    const rows = await query('SELECT phone FROM users WHERE id = ?', [req.user.id]);
+    const target = rows[0] && rows[0].phone;
+    if (!target || !code) return res.status(400).json({ error: 'חסר קוד' });
+    const v = await otp.verifyOtp({ phone: target, code, purpose: 'verify' });
+    if (!v.ok) return res.status(401).json({ error: 'קוד שגוי או שפג תוקפו' });
+    await query('UPDATE users SET phone_verified_at = NOW() WHERE id = ?', [req.user.id]);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const rows = await query(
-      'SELECT id, username, display_name, first_name, last_name, email, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, display_name, first_name, last_name, email, phone, phone_verified_at, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });

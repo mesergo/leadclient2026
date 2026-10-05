@@ -14,6 +14,8 @@ async function ensureSchema() {
   try {
     // call lifecycle for phone leads: active -> answered | missed
     await ensureColumn('leads', 'call_status', "call_status VARCHAR(12) NULL");
+    // when a user's phone was verified via OTP (enables phone login)
+    await ensureColumn('users', 'phone_verified_at', "phone_verified_at DATETIME NULL");
   } catch (e) {
     console.error('ensureSchema:', e.message);
   }
