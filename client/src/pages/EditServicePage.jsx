@@ -7,7 +7,7 @@ import MultiSelect from '../components/MultiSelect';
 import RedirectConfig, { toRedirect, emptyRedirect } from '../components/RedirectConfig';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const LINE_TYPES = ['מספר נייח - קידומת 072', 'מספר נייד - קידומת 052'];
+const LINE_TYPES = [{ v: 'mobile', k: 'es.mobile' }, { v: 'landline', k: 'es.landline' }];
 const DAYS = {
   he: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
   en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -167,8 +167,8 @@ export default function EditServicePage() {
             <div className="form-field"><label>{t('es.lineType')}</label><div className="form-field-control">
               <select value={form.line_type} onChange={(e) => set('line_type', e.target.value)}>
                 <option value="">—</option>
-                {(form.line_type && !LINE_TYPES.includes(form.line_type)) && <option value={form.line_type}>{form.line_type}</option>}
-                {LINE_TYPES.map((l) => <option key={l} value={l}>{l}</option>)}
+                {(form.line_type && !LINE_TYPES.some((l) => l.v === form.line_type)) && <option value={form.line_type}>{form.line_type}</option>}
+                {LINE_TYPES.map((l) => <option key={l.v} value={l.v}>{t(l.k)}</option>)}
               </select></div></div>
 
             <div className="form-field"><label>{t('es.virtualNumber')}</label><div className="form-field-control">
