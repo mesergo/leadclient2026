@@ -36,11 +36,14 @@ router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
-    const rows = await query(
-      'SELECT id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone_verified_at FROM users WHERE username = ? LIMIT 1',
-      [username]
-    );
-    const user = rows[0];
+    const cols = 'id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone_verified_at';
+    let rows = await query(`SELECT ${cols} FROM users WHERE username = ? LIMIT 1`, [username]);
+    let user = rows[0];
+    // fall back to email — but only when it resolves to exactly one active, password user
+    if (!user && String(username).includes('@')) {
+      const byEmail = await query(`SELECT ${cols} FROM users WHERE email = ? AND is_active = 1 AND password_hash IS NOT NULL`, [username]);
+      if (byEmail.length === 1) user = byEmail[0];
+    }
     if (!user || !user.is_active || !user.password_hash) {
       return res.status(401).json({ error: 'פרטי התחברות שגויים' });
     }
