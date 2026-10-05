@@ -125,9 +125,10 @@ async function processCall(num, req, res, logId) {
   if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return reply(true, 'number unassigned'); }
 
   if (isEnd) {
+    // call end — pair with the recent call lead (wide window to cover call length)
     const recent = await query(
       `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
-         AND created_at >= (NOW() - INTERVAL 30 MINUTE) ORDER BY id DESC LIMIT 1`,
+         AND created_at >= (NOW() - INTERVAL 6 HOUR) ORDER BY id DESC LIMIT 1`,
       [num.company_id, caller]);
     if (recent[0]) {
       await query(
@@ -136,6 +137,16 @@ async function processCall(num, req, res, logId) {
         [duration ? `\n[שיחה] משך: ${duration}` : '', recording || null, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       return reply(true, 'lead updated');
+    }
+  } else {
+    // call start — Maskyoo fires this several times per call; de-dupe within 2 min
+    const dup = await query(
+      `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
+         AND created_at >= (NOW() - INTERVAL 2 MINUTE) ORDER BY id DESC LIMIT 1`,
+      [num.company_id, caller]);
+    if (dup[0]) {
+      await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: dup[0].id, result: 'duplicate' });
+      return reply(true, 'duplicate');
     }
   }
   const r = await query(
