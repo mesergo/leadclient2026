@@ -29,9 +29,12 @@ if (fs.existsSync(clientDist)) {
 app.use(errorHandler);
 
 if (require.main === module) {
-  app.listen(config.port, () => {
-    console.log(`LeadClient on http://localhost:${config.port} (${config.env})`);
-    require('./services/reminderPoller').start();
+  // make sure app-managed columns exist before we accept requests
+  require('./db/init').ensureSchema().finally(() => {
+    app.listen(config.port, () => {
+      console.log(`LeadClient on http://localhost:${config.port} (${config.env})`);
+      require('./services/reminderPoller').start();
+    });
   });
 }
 module.exports = app;
