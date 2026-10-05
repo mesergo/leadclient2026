@@ -16,6 +16,12 @@ export default function AgencyEditPage() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const regLink = a && a.public_token ? `${window.location.origin}/register/${a.public_token}` : '';
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(regLink); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ }
+  };
 
   const load = () =>
     api.agency(id, token).then((d) => {
@@ -74,6 +80,15 @@ export default function AgencyEditPage() {
           <div className="form-field"><label>{t('agedit.name')}</label>
             <div className="form-field-control"><input value={form.name || ''} onChange={(e) => set('name', e.target.value)} /></div>
           </div>
+
+          {regLink && (
+            <div className="form-field"><label>{t('agedit.regLink')}</label>
+              <div className="form-field-control" style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={regLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                <button type="button" className="btn btn-secondary" onClick={copyLink}>{copied ? t('agedit.copied') : t('agedit.copy')}</button>
+              </div>
+            </div>
+          )}
 
           <div className="form-field"><label>{t('agedit.logo')}</label>
             <div className="form-field-control" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
