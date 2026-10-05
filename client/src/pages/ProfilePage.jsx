@@ -38,7 +38,7 @@ export default function ProfilePage() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    try { await api.updateProfile({ username: form.username, first_name: form.first_name, last_name: form.last_name, display_name: form.display_name }, token); ok(); load(); }
+    try { await api.updateProfile({ username: form.username, email: form.email, first_name: form.first_name, last_name: form.last_name, display_name: form.display_name }, token); ok(); load(); }
     catch (er) { setError(er.message); }
   };
   const savePassword = async (e) => {
@@ -85,6 +85,7 @@ export default function ProfilePage() {
         <div className="form-panel-body">
           {tab === 'profile' && (<>
             {fld(t('ue.username'), 'username')}
+            {fld(t('ue.email'), 'email', 'email')}
             {fld(t('ue.firstName'), 'first_name')}
             {fld(t('ue.lastName'), 'last_name')}
             {fld(t('ue.displayName'), 'display_name')}
