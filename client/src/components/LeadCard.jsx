@@ -110,7 +110,7 @@ export default function LeadCard({ id, onClose }) {
           {row(t('lead.name'), editInput('lead_name', 220))}
           {row(t('common.company'), `${l.company_name} / ${l.agency_name || '-'}`)}
           {row(t('lead.channel'), l.service_name || '-')}
-          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
+          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{isPhoneLead(l) ? <strong style={{ padding: '4px 8px' }} title={t('lc.callerLocked')}>{edit.lead_phone || t('lead.unknownPhone')}</strong> : editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
           {row(t('common.email'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_email', 200)}{edit.lead_email && <a href={`mailto:${edit.lead_email}`} className="chip-link email">Email</a>}</span>)}
           {row(t('lead.received'), l.created_at)}
           {row(t('lead.status'), (
@@ -120,12 +120,14 @@ export default function LeadCard({ id, onClose }) {
           ))}
           {row(t('lc.rating'), <span style={{ color: '#f5a623', display: 'flex', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <span key={n} style={{ cursor: 'pointer' }} onClick={() => upd({ lead_rating: n })}><Star size={18} filled={n <= (l.lead_rating || 0)} /></span>)}</span>)}
           {(() => {
-            const rec = l.recording_url || extractRecordingUrl(l.lead_info) || extractRecordingUrl(l.referrer);
-            if (!isPhoneLead(l) && !rec) return null;
-            return row(t('lc.recording'), rec ? (
+            const hasRec = !!(l.recording_url || extractRecordingUrl(l.lead_info) || extractRecordingUrl(l.referrer));
+            if (!isPhoneLead(l) && !hasRec) return null;
+            // stream through our server (Maskyoo recordings need auth); token in query for the media request
+            const recSrc = `${API_ORIGIN}/api/leads/${l.id}/recording?token=${encodeURIComponent(token)}`;
+            return row(t('lc.recording'), hasRec ? (
               <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <audio controls preload="none" src={rec} style={{ height: 32 }} />
-                <a href={rec} target="_blank" rel="noreferrer" className="chip-link email">{t('lc.download')}</a>
+                <audio controls preload="none" src={recSrc} style={{ height: 32 }} />
+                <a href={recSrc} target="_blank" rel="noreferrer" className="chip-link email">{t('lc.download')}</a>
               </span>
             ) : <span className="muted">{t('lc.noRecording')}</span>);
           })()}

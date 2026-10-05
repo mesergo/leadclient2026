@@ -4,9 +4,28 @@ const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const integrations = require('../services/integrations');
 const notify = require('../services/notify');
+const config = require('../config');
 
 const router = express.Router();
+// allow the recording <audio>/download link to authenticate via ?token=
+router.use((req, res, next) => { if (!req.headers.authorization && req.query.token) req.headers.authorization = `Bearer ${req.query.token}`; next(); });
 router.use(requireAuth);
+
+// Stream a call recording through our server (Maskyoo download needs a Bearer
+// token + whitelisted IP; the browser cannot send those, so we proxy it).
+router.get('/:id/recording', asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'company_id');
+  const rows = await query(`SELECT id, recording_url FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const lead = rows[0];
+  if (!lead || !lead.recording_url || !/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
+  try {
+    const r = await fetch(lead.recording_url, { headers: config.maskyoo.token ? { Authorization: `Bearer ${config.maskyoo.token}` } : {} });
+    if (!r.ok) return res.status(502).json({ error: `maskyoo_${r.status}` });
+    res.setHeader('Content-Type', r.headers.get('content-type') || 'audio/mpeg');
+    res.setHeader('Content-Disposition', `inline; filename="recording-${lead.id}.mp3"`);
+    res.send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(502).json({ error: 'fetch_failed' }); }
+}));
 
 // ---- list ----
 router.get('/', asyncHandler(async (req, res) => {
@@ -88,7 +107,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
 async function ownLead(req) {
   const s = companyScope(req.user, 'company_id');
-  const owned = await query(`SELECT id, company_id, lead_name, lead_phone, lead_email FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const owned = await query(`SELECT id, company_id, lead_name, lead_phone, lead_email, lead_through FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   return owned[0] || null;
 }
 
@@ -96,6 +115,8 @@ async function ownLead(req) {
 router.patch('/:id', asyncHandler(async (req, res) => {
   const lead = await ownLead(req);
   if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
+  // the caller's number on an incoming-call lead is locked — never let it be changed/cleared
+  if (lead.lead_through === 'call') delete req.body.lead_phone;
   const editable = ['status_id', 'current_agent_id', 'lead_rating', 'lead_name', 'lead_phone', 'lead_email', 'is_converted', 'lead_info'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
