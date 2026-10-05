@@ -5,8 +5,11 @@ const { requireAuth } = require('../middleware/auth');
 const { issueToken } = require('../services/authService');
 const otp = require('../services/otp');
 const messergo = require('../services/messergo');
+const googleAuth = require('../services/googleAuth');
+const config = require('../config');
 
 const router = express.Router();
+const USER_COLS = 'id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at';
 
 // Find an active user by phone (format-agnostic: match on the last 9 digits).
 async function findUserByPhone(phone) {
@@ -53,6 +56,35 @@ router.post('/login', async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+// --- Google sign-in --------------------------------------------------------
+// Verify the Google credential, then sign in a matching EXISTING user (by
+// google_id, else by verified email — linking google_id on first use).
+// Public self-signup is a separate flow; unknown Google emails are rejected.
+router.post('/google', async (req, res, next) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'חסר אישור גוגל' });
+    if (!googleAuth.configured()) return res.status(503).json({ error: 'התחברות גוגל אינה מוגדרת בשרת' });
+    let p;
+    try { p = await googleAuth.verify(credential); } catch (e) { return res.status(401).json({ error: 'אימות גוגל נכשל' }); }
+    if (!p || !p.email || !p.email_verified) return res.status(401).json({ error: 'כתובת הגוגל אינה מאומתת' });
+
+    let rows = await query(`SELECT ${USER_COLS} FROM users WHERE google_id = ? AND is_active = 1 LIMIT 1`, [p.sub]);
+    let user = rows[0];
+    if (!user) {
+      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 1`, [p.email]);
+      user = rows[0];
+      if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]); // link on first use
+    }
+    if (!user) return res.status(404).json({ error: 'לא נמצא חשבון המשויך לכתובת גוגל זו' });
+    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+      const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
+      if (c[0]) user.agency_id = c[0].agency_id;
+    }
+    res.json(sessionPayload(user));
+  } catch (e) { next(e); }
 });
 
 // --- Phone OTP login -------------------------------------------------------
