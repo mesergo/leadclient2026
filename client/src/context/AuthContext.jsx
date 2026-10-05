@@ -34,6 +34,12 @@ export function AuthProvider({ children }) {
     setUser(d.user);
   };
   const refreshUser = async () => { const d = await api.me(token); setUser(d.user); return d.user; };
+  const registerAccount = async (regToken, body) => {
+    const d = await api.register(regToken, body);
+    localStorage.setItem('lc_token', d.token);
+    setToken(d.token);
+    setUser(d.user);
+  };
   const logout = () => {
     localStorage.removeItem('lc_token'); localStorage.removeItem('lc_admin_token'); localStorage.removeItem('lc_admin_name');
     setImpersonatorName(null); setToken(null); setUser(null);
@@ -55,5 +61,5 @@ export function AuthProvider({ children }) {
     if (admin) { localStorage.setItem('lc_token', admin); setToken(admin); setUser(null); }
   };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

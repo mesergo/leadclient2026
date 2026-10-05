@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LangProvider } from './context/LangContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import AgenciesPage from './pages/AgenciesPage';
 import AgencyEditPage from './pages/AgencyEditPage';
@@ -53,6 +54,7 @@ function Routing() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register/:token" element={<RegisterPage />} />
       <Route element={<Protected />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />
