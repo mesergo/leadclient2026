@@ -136,7 +136,16 @@ export default function AddServicePage() {
             <div className="form-field"><label>{t('es.virtualNumber')}</label><div className="form-field-control">
               <select value={form.phone_number_id} onChange={(e) => set('phone_number_id', e.target.value)}>
                 <option value="">{t('es.numberNone')}</option>
-                {numbers.filter((n) => matchesLineType(n, form.line_type)).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
+                {(!form.line_type || form.line_type === 'mobile') && (
+                  <optgroup label={t('es.mobile')}>
+                    {numbers.filter(isMobileNumber).slice(0, 5).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
+                  </optgroup>
+                )}
+                {(!form.line_type || form.line_type === 'landline') && (
+                  <optgroup label={t('es.landline')}>
+                    {numbers.filter((n) => !isMobileNumber(n)).slice(0, 5).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
+                  </optgroup>
+                )}
               </select></div></div>
 
             {form.phone_number_id && (

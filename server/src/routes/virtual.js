@@ -7,6 +7,8 @@ const { logPhone, companyChangeAction } = require('../services/phoneLog');
 const router = express.Router();
 router.use(requireAuth);
 const who = (u) => ({ userId: u.id, userName: u.name || u.display_name || u.username || '' });
+// store numbers in a uniform international format (972XXXXXXXXX)
+const toIntl = (n) => { const d = String(n || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('972')) return d; if (d.startsWith('0')) return '972' + d.slice(1); return '972' + d; };
 
 // Virtual numbers = the pool. company_id NULL = available (offered for new channels).
 router.get('/', asyncHandler(async (req, res) => {
@@ -52,7 +54,7 @@ router.post('/', asyncHandler(async (req, res) => {
   const r = await query(
     `INSERT INTO phone_numbers (company_id, ivr_provider, phone_number, number_to_display)
      VALUES (?, ?, ?, ?)`,
-    [company_id || null, ivr_provider || 'maskyoo', phone_number, number_to_display || phone_number]);
+    [company_id || null, ivr_provider || 'maskyoo', toIntl(phone_number), number_to_display || phone_number]);
   await logPhone(r.insertId, 'created', { ...who(req.user), toCompanyId: company_id || null, note: phone_number });
   if (company_id) await logPhone(r.insertId, 'assigned', { ...who(req.user), toCompanyId: company_id });
   res.status(201).json({ id: r.insertId });
@@ -64,6 +66,7 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   const cur = owned[0];
   if (!cur) return res.status(404).json({ error: 'מספר לא נמצא' });
   if (req.body.company_id && canAccessCompany(req.user, req.body.company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (req.body.phone_number !== undefined && req.body.phone_number) req.body.phone_number = toIntl(req.body.phone_number);
   const f = ['company_id', 'service_id', 'phone_number', 'number_to_display', 'redirect_to_number', 'ivr_provider', 'is_premium', 'is_visible'];
   const sets = [], params = [];
   for (const k of f) if (req.body[k] !== undefined) { sets.push(`${k} = ?`); params.push(req.body[k] === '' ? null : req.body[k]); }
