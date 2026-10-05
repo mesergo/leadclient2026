@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, companyScope } = require('../db/pool');
+const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -45,12 +45,35 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ numbers: rows.map((r) => ({ ...r, leads_count: r.service_id ? (counts[r.service_id] || 0) : 0 })) });
 }));
 
+// ---- add a virtual number manually ----
+router.post('/', asyncHandler(async (req, res) => {
+  const { company_id, service_id, phone_number, number_to_display, redirect_to_number, ivr_provider } = req.body || {};
+  if (!phone_number) return res.status(400).json({ error: 'חסר מספר טלפון' });
+  if (company_id && canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const r = await query(
+    `INSERT INTO phone_numbers (company_id, service_id, ivr_provider, phone_number, number_to_display, redirect_to_number)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [company_id || null, service_id || null, ivr_provider || 'maskyoo', phone_number,
+      number_to_display || phone_number, redirect_to_number || null]);
+  res.status(201).json({ id: r.insertId });
+}));
+
 router.patch('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT id FROM phone_numbers WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'מספר לא נמצא' });
-  await query('UPDATE phone_numbers SET redirect_to_number = COALESCE(?, redirect_to_number) WHERE id = ?',
-    [req.body.redirect_to_number ?? null, req.params.id]);
+  const f = ['company_id', 'service_id', 'phone_number', 'number_to_display', 'redirect_to_number', 'ivr_provider', 'is_premium', 'is_visible'];
+  const sets = [], params = [];
+  for (const k of f) if (req.body[k] !== undefined) { sets.push(`${k} = ?`); params.push(req.body[k]); }
+  if (sets.length) { params.push(req.params.id); await query(`UPDATE phone_numbers SET ${sets.join(', ')} WHERE id = ?`, params); }
+  res.json({ ok: true });
+}));
+
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'company_id');
+  const owned = await query(`SELECT id FROM phone_numbers WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  if (!owned[0]) return res.status(404).json({ error: 'מספר לא נמצא' });
+  await query('DELETE FROM phone_numbers WHERE id = ?', [req.params.id]);
   res.json({ ok: true });
 }));
 

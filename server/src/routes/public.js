@@ -52,4 +52,42 @@ router.get('/translations/:slug', asyncHandler(async (req, res) => {
   res.json({ strings: map });
 }));
 
+// --- IVR / Maskyoo call webhooks (configure these URLs on the provider's number) ---
+// Accept GET or POST; caller/duration/recording come from body or query.
+const pick = (req, ...keys) => { const b = req.body || {}; for (const k of keys) { if (b[k] != null && b[k] !== '') return b[k]; if (req.query[k] != null && req.query[k] !== '') return req.query[k]; } return null; };
+
+// Call START — log an incoming-call lead for the number's company/channel.
+const callStart = asyncHandler(async (req, res) => {
+  const rows = await query('SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
+  const num = rows[0];
+  if (!num) return res.status(404).json({ error: 'number_not_found' });
+  const caller = pick(req, 'caller', 'from', 'phone', 'ani', 'did');
+  let leadId = null;
+  if (num.company_id) {
+    const r = await query(
+      'INSERT INTO leads (company_id, service_id, lead_phone, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+      [num.company_id, num.service_id || null, caller, 'call']);
+    leadId = r.insertId;
+    announceNewLead(num.company_id, leadId, 'שיחה נכנסת', caller || 'לא מזוהה');
+  }
+  res.json({ ok: true, lead_id: leadId, redirect_to: num.redirect_to_number || null });
+});
+
+// Call END — attach duration / recording to the lead (provider should send lead_id).
+const callEnd = asyncHandler(async (req, res) => {
+  const leadId = pick(req, 'lead_id');
+  const duration = pick(req, 'duration', 'seconds');
+  const recording = pick(req, 'recording', 'recording_url');
+  if (leadId) {
+    await query(
+      `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
+         recording_url = COALESCE(?, recording_url), updated_at = NOW() WHERE id = ?`,
+      [duration ? `\n[שיחה] משך: ${duration}` : '', recording || null, leadId]);
+  }
+  res.json({ ok: true });
+});
+
+router.all('/call/:id/start', callStart);
+router.all('/call/:id/end', callEnd);
+
 module.exports = router;
