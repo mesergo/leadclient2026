@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// In production the client is served by the API (same origin), so default to a
+// relative base ('') there. Only fall back to localhost:4000 in dev. An explicit
+// VITE_API_URL always wins.
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '');
 
 async function request(path, { method = 'GET', body, token } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
