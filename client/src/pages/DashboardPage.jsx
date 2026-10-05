@@ -5,11 +5,13 @@ import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import { dateRange, DATE_PRESETS } from '../dates';
 import * as Icons from '../icons';
+import QuotaPanel from '../components/QuotaPanel';
 
 export default function DashboardPage() {
   const { token, user } = useAuth();
   const { t } = useLang();
   const isSuper = user?.role === 'super_admin';
+  const isCustomer = user?.company_id && (user.role === 'company_admin' || user.role === 'company_user');
 
   // filter state
   const [agencies, setAgencies] = useState([]);
@@ -127,6 +129,14 @@ export default function DashboardPage() {
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {/* customer quota usage */}
+      {isCustomer && (
+        <div className="panel">
+          <h2 className="section-title" style={{ marginTop: 0 }}>{t('quota.title')}</h2>
+          <QuotaPanel companyId={user.company_id} token={token} />
+        </div>
+      )}
 
       {/* KPI tiles */}
       <h2 className="section-title">{t('dash.generalInfo')}</h2>
