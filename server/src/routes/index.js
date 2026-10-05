@@ -18,6 +18,7 @@ module.exports = function registerRoutes(app) {
   app.use('/api/profile', require('./profile'));
   app.use('/api/notifications', require('./notifications'));
   app.use('/api/webhook-log', require('./webhookLog'));
+  app.use('/api/maskyoo', require('./maskyoo'));
   app.use('/api/language', require('./languages'));
   app.use('/api/import', require('./import'));
   app.use('/api/import-live', require('./importLive'));
