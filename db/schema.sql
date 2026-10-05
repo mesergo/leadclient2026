@@ -572,4 +572,22 @@ CREATE TABLE IF NOT EXISTS live_sync (
   markers       TEXT NULL,
   last_sync_at  DATETIME NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- raw inbound webhook attempts (Maskyoo call callbacks, widget intake, etc.)
+CREATE TABLE IF NOT EXISTS webhook_log (
+  id                 BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  source             VARCHAR(30) NULL,
+  method             VARCHAR(10) NULL,
+  path               VARCHAR(255) NULL,
+  ip                 VARCHAR(45) NULL,
+  query_data         TEXT NULL,
+  body_data          TEXT NULL,
+  matched_number_id  BIGINT UNSIGNED NULL,
+  company_id         BIGINT UNSIGNED NULL,
+  lead_id            BIGINT UNSIGNED NULL,
+  result             VARCHAR(30) NULL,
+  error              VARCHAR(255) NULL,
+  created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_wl_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;

@@ -30,6 +30,7 @@ import LanguageEditPage from './pages/LanguageEditPage';
 import ProfilePage from './pages/ProfilePage';
 import DevelopersPage from './pages/DevelopersPage';
 import ImportLivePage from './pages/ImportLivePage';
+import WebhookLogPage from './pages/WebhookLogPage';
 import ActionsPage from './pages/ActionsPage';
 import './App.css';
 
@@ -75,6 +76,7 @@ function Routing() {
         <Route path="/language/:slug" element={<Role roles={['super_admin', 'agency_admin']}><LanguageEditPage /></Role>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/import-live" element={<Role roles={['super_admin']}><ImportLivePage /></Role>} />
+        <Route path="/webhook-log" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><WebhookLogPage /></Role>} />
         <Route path="/developers" element={<DevelopersPage />} />
         <Route path="/actions" element={<ActionsPage />} />
       </Route>
