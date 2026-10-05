@@ -41,4 +41,18 @@ async function syncRouting(maskyooNumber, destPhone) {
   return { ok: u.status?.code === 200, u };
 }
 
-module.exports = { call, syncRouting, intl };
+// Download a call recording by its call UUID (returns a WAV Buffer, or null).
+async function getRecording(uuid) {
+  if (!config.maskyoo.token || !uuid) return null;
+  try {
+    const url = `${config.maskyoo.apiUrl}?${new URLSearchParams({ service: 'get_record_by_call_uuid', call_uuid: uuid, format: 'json' })}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${config.maskyoo.token}` } });
+    if (!r.ok) return null;
+    const ct = r.headers.get('content-type') || '';
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (/audio|octet-stream/i.test(ct) && buf.length > 100) return buf; // reject HTML/JSON error pages
+    return null;
+  } catch (e) { return null; }
+}
+
+module.exports = { call, syncRouting, getRecording, intl };

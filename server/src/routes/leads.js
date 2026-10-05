@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const integrations = require('../services/integrations');
 const notify = require('../services/notify');
+const maskyoo = require('../services/maskyoo');
 const config = require('../config');
 // recordings are stored in a private dir inside the persistent volume (dot-prefixed
 // so express.static does NOT serve it publicly); only the authed proxy below reads it.
@@ -30,6 +31,23 @@ router.get('/:id/recording', asyncHandler(async (req, res) => {
     if (fs.existsSync(fp)) return res.sendFile(fp);
     return res.status(404).json({ error: 'file_missing' });
   }
+
+  // Maskyoo recording by call UUID -> fetch via REST API (get_record_by_call_uuid), store, serve
+  if (lead.recording_url.startsWith('maskyoo-uuid:')) {
+    const uuid = lead.recording_url.slice('maskyoo-uuid:'.length);
+    const buf = await maskyoo.getRecording(uuid);
+    if (!buf) return res.status(404).json({ error: 'recording_not_ready' }); // may still be processing
+    try {
+      fs.mkdirSync(REC_DIR, { recursive: true });
+      const fname = `lead-${lead.id}.wav`;
+      fs.writeFileSync(path.join(REC_DIR, fname), buf);
+      await query('UPDATE leads SET recording_url = ? WHERE id = ?', [`local:${fname}`, lead.id]);
+    } catch (e) { /* still serve what we fetched */ }
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Disposition', `inline; filename="recording-${lead.id}.wav"`);
+    return res.send(buf);
+  }
+
   if (!/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
 
   // first access: fetch from Maskyoo (Bearer + whitelisted IP), store locally, then serve
