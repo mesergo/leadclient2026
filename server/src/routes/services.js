@@ -35,9 +35,10 @@ router.get('/new-context', asyncHandler(async (req, res) => {
   const users = await query(
     `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
      FROM users WHERE company_id = ? AND is_active = 1 ORDER BY name`, [companyId]);
+  // available = this company's own unlinked numbers OR the global pool (unassigned)
   const numbers = await query(
     `SELECT id, phone_number, number_to_display FROM phone_numbers
-     WHERE service_id IS NULL AND company_id = ? ORDER BY phone_number`, [companyId]);
+     WHERE service_id IS NULL AND (company_id = ? OR company_id IS NULL) ORDER BY phone_number`, [companyId]);
   const company = await query('SELECT c.id, c.name, c.agency_id, a.name AS agency_name FROM companies c LEFT JOIN agencies a ON a.id = c.agency_id WHERE c.id = ?', [companyId]);
   res.json({ company: company[0] || null, users, numbers });
 }));
@@ -94,8 +95,8 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
       const nums = Array.isArray(obj?.numbers) ? obj.numbers.filter(Boolean) : [];
       if (nums.length) primary = nums[0];
     }
-    await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = ?, redirect_config = ? WHERE id = ? AND company_id = ? AND service_id IS NULL',
-      [r.insertId, primary, cfg, b.phone_number_id, company_id]);
+    await query('UPDATE phone_numbers SET company_id = ?, service_id = ?, redirect_to_number = ?, redirect_config = ? WHERE id = ? AND service_id IS NULL AND (company_id = ? OR company_id IS NULL)',
+      [company_id, r.insertId, primary, cfg, b.phone_number_id, company_id]);
     await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
     await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: company_id, serviceId: r.insertId, note: 'שויך לערוץ' });
   }
