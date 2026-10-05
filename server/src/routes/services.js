@@ -5,6 +5,15 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
 const { logPhone } = require('../services/phoneLog');
+const maskyoo = require('../services/maskyoo');
+// push a number's routing to Maskyoo (only Maskyoo numbers; best-effort, non-blocking)
+async function syncMaskyoo(phoneNumberId, dest) {
+  if (!dest) return;
+  try {
+    const [pn] = await query('SELECT phone_number, ivr_provider FROM phone_numbers WHERE id = ?', [phoneNumberId]);
+    if (pn && pn.ivr_provider === 'maskyoo') maskyoo.syncRouting(pn.phone_number, dest).catch(() => {});
+  } catch (e) { /* never block the save */ }
+}
 
 const router = express.Router();
 const who = (u) => ({ userId: u.id, userName: u.name || u.display_name || u.username || '' });
@@ -99,6 +108,7 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
       [company_id, r.insertId, primary, cfg, b.phone_number_id, company_id]);
     await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
     await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: company_id, serviceId: r.insertId, note: 'שויך לערוץ' });
+    syncMaskyoo(b.phone_number_id, primary);
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, created_at FROM services WHERE id = ?', [r.insertId]);
   res.status(201).json({ service: rows[0] });
@@ -169,6 +179,7 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
       }
       await query('UPDATE phone_numbers SET redirect_to_number = ?, redirect_config = ? WHERE id = ? AND service_id = ?',
         [primary, cfg, p.id, req.params.id]);
+      syncMaskyoo(p.id, primary);
     }
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url, is_active FROM services WHERE id = ?', [req.params.id]);
