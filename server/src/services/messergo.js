@@ -76,8 +76,11 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
     // MesserGO returns HTTP 200 even on failure — success is StatusId === 1.
     const statusId = json.StatusId != null ? json.StatusId : (json.Data && json.Data.StatusId);
     if (Number(statusId) === 1) return { ok: true, mocked: false, statusId };
-    return { ok: false, mocked: false, statusId, error: json.StatusDescription || json.Message || 'send_failed', json };
+    const reason = json.StatusDescription || json.Message || (json.Data && json.Data.StatusDescription) || 'send_failed';
+    console.error(`[messergo] OTP send failed to ${local}: statusId=${statusId} reason="${reason}" http=${r.status}`);
+    return { ok: false, mocked: false, statusId, error: reason, json };
   } catch (e) {
+    console.error('[messergo] OTP send error:', e.message);
     return { ok: false, mocked: false, error: e.message };
   }
 }

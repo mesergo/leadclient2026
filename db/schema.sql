@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS agencies (
   name                  VARCHAR(100) NOT NULL,
   logo_url              VARCHAR(500) NULL,
   public_token          CHAR(36) NULL,
+  is_default_signup     TINYINT(1) NOT NULL DEFAULT 0,
   main_company_id       BIGINT UNSIGNED NULL,
   ivr_provider          ENUM('native','micropay','paycall','maskyoo','all') NOT NULL DEFAULT 'native',
   phone_limit           INT NULL,

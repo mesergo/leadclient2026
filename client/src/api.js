@@ -34,9 +34,10 @@ export const api = {
   login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
   me: (token) => request('/api/auth/me', { token }),
   googleLogin: (credential) => request('/api/auth/google', { method: 'POST', body: { credential } }),
-  // public trial registration under an agency token
-  registerInfo: (token) => request(`/api/auth/register/${token}`),
-  register: (token, body) => request(`/api/auth/register/${token}`, { method: 'POST', body }),
+  // public trial registration (optional agency token; without one -> default agency)
+  registerInfo: (token) => request(token ? `/api/auth/register/${token}` : '/api/auth/register'),
+  register: (token, body) => request(token ? `/api/auth/register/${token}` : '/api/auth/register', { method: 'POST', body }),
+  registerGoogle: (token, credential) => request(token ? `/api/auth/register/${token}/google` : '/api/auth/register/google', { method: 'POST', body: { credential } }),
   // phone OTP login
   phoneRequest: (phone) => request('/api/auth/phone/request', { method: 'POST', body: { phone } }),
   phoneVerify: (phone, code) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code } }),

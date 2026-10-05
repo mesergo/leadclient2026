@@ -61,47 +61,107 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-// --- Public self-registration (trial account under an agency) ---------------
-// The agency is identified by its public_token in the URL. Creates a company
-// (trial, no virtual number) + a company_admin user, then signs them in. No
-// packages/payment. Phone gets verified at first entry via the usual gate.
-router.get('/register/:token', async (req, res, next) => {
-  try {
-    const ag = await query('SELECT name FROM agencies WHERE public_token = ? AND is_active = 1 LIMIT 1', [req.params.token]);
-    if (!ag[0]) return res.status(404).json({ error: 'קישור הרשמה לא תקין' });
-    res.json({ agency: { name: ag[0].name } });
-  } catch (e) { next(e); }
-});
+// --- Public self-registration (trial account) -------------------------------
+// With a :token the agency is taken from its public_token; without one it falls
+// back to the agency flagged is_default_signup. Creates a company (trial, no
+// virtual number) + a company_admin user, then signs them in. No packages/payment.
+// Phone gets verified at first entry via the usual gate. Google signup supported.
+async function resolveSignupAgency(token) {
+  if (token) {
+    const r = await query('SELECT id, name FROM agencies WHERE public_token = ? AND is_active = 1 LIMIT 1', [token]);
+    return r[0] || null;
+  }
+  const r = await query('SELECT id, name FROM agencies WHERE is_default_signup = 1 AND is_active = 1 LIMIT 1');
+  return r[0] || null;
+}
 
-router.post('/register/:token', async (req, res, next) => {
-  try {
-    const ag = await query('SELECT id, name FROM agencies WHERE public_token = ? AND is_active = 1 LIMIT 1', [req.params.token]);
-    if (!ag[0]) return res.status(404).json({ error: 'קישור הרשמה לא תקין' });
-    const { company_name, full_name, email, phone, password } = req.body || {};
-    if (!company_name || !full_name || !email || !phone || !password) return res.status(400).json({ error: 'חסרים שדות חובה' });
-    if (String(password).length < 6) return res.status(400).json({ error: 'הסיסמה חייבת לפחות 6 תווים' });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
-    const exists = await query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', [email, email]);
-    if (exists[0]) return res.status(409).json({ error: 'כבר קיים משתמש עם אימייל זה' });
+const httpErr = (status, message) => Object.assign(new Error(message), { status });
 
-    const comp = await query(
-      'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
-      [String(company_name).trim(), ag[0].id, crypto.randomUUID()]);
-    await query(
-      `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES
-       (?, 'חדש', '#4f46e5', 1, 1, 0), (?, 'טופל', '#16a34a', 2, 0, 1), (?, 'בוטל', '#dc2626', 3, 0, 1)`,
-      [comp.insertId, comp.insertId, comp.insertId]);
-    const hash = await bcrypt.hash(password, 10);
-    const u = await query(
-      `INSERT INTO users (company_id, agency_id, role, username, email, display_name, phone, password_hash, language, is_active, created_at)
-       VALUES (?, ?, 'company_admin', ?, ?, ?, ?, ?, 'he', 1, NOW())`,
-      [comp.insertId, ag[0].id, email, email, String(full_name).trim(), messergo.toE164(phone), hash]);
-    res.status(201).json(sessionPayload({
-      id: u.insertId, username: email, display_name: full_name, role: 'company_admin',
-      company_id: comp.insertId, agency_id: ag[0].id, phone_verified_at: null,
-    }));
+// Create a trial company + company_admin user under `agency`. For Google signup
+// pass google_id (and no password/company_name/phone are required).
+async function createTrialAccount(agency, { company_name, full_name, email, phone, password, google_id }) {
+  if (!full_name || !email) throw httpErr(400, 'חסרים שדות חובה');
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw httpErr(400, 'כתובת אימייל לא תקינה');
+  if (!google_id) {
+    if (!company_name || !phone || !password) throw httpErr(400, 'חסרים שדות חובה');
+    if (String(password).length < 6) throw httpErr(400, 'הסיסמה חייבת לפחות 6 תווים');
+  }
+  const exists = await query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', [email, email]);
+  if (exists[0]) throw httpErr(409, 'כבר קיים משתמש עם אימייל זה');
+
+  const compName = (company_name && company_name.trim()) || String(full_name).trim();
+  const comp = await query(
+    'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
+    [compName, agency.id, crypto.randomUUID()]);
+  await query(
+    `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES
+     (?, 'חדש', '#4f46e5', 1, 1, 0), (?, 'טופל', '#16a34a', 2, 0, 1), (?, 'בוטל', '#dc2626', 3, 0, 1)`,
+    [comp.insertId, comp.insertId, comp.insertId]);
+  const hash = password ? await bcrypt.hash(password, 10) : null;
+  const u = await query(
+    `INSERT INTO users (company_id, agency_id, role, username, email, display_name, phone, password_hash, google_id, language, is_active, created_at)
+     VALUES (?, ?, 'company_admin', ?, ?, ?, ?, ?, ?, 'he', 1, NOW())`,
+    [comp.insertId, agency.id, email, email, String(full_name).trim(), phone ? messergo.toE164(phone) : null, hash, google_id || null]);
+  return sessionPayload({
+    id: u.insertId, username: email, display_name: full_name, role: 'company_admin',
+    company_id: comp.insertId, agency_id: agency.id, phone_verified_at: null,
+  });
+}
+
+async function infoHandler(req, res, next) {
+  try {
+    const agency = await resolveSignupAgency(req.params.token);
+    if (!agency) return res.status(404).json({ error: req.params.token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
+    res.json({ agency: { name: agency.name } });
   } catch (e) { next(e); }
-});
+}
+
+async function registerHandler(req, res, next) {
+  try {
+    const agency = await resolveSignupAgency(req.params.token);
+    if (!agency) return res.status(404).json({ error: req.params.token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
+    res.status(201).json(await createTrialAccount(agency, req.body || {}));
+  } catch (e) { if (e.status) return res.status(e.status).json({ error: e.message }); next(e); }
+}
+
+// Google signup: existing Google/email user -> just sign in; otherwise create a trial.
+async function googleRegisterHandler(req, res, next) {
+  try {
+    const token = req.params.token || (req.body && req.body.token);
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'חסר אישור גוגל' });
+    if (!googleAuth.configured()) return res.status(503).json({ error: 'התחברות גוגל אינה מוגדרת בשרת' });
+    let p;
+    try { p = await googleAuth.verify(credential); } catch (e) { return res.status(401).json({ error: 'אימות גוגל נכשל' }); }
+    if (!p || !p.email || !p.email_verified) return res.status(401).json({ error: 'כתובת הגוגל אינה מאומתת' });
+
+    let rows = await query(`SELECT ${USER_COLS} FROM users WHERE google_id = ? AND is_active = 1 LIMIT 1`, [p.sub]);
+    let user = rows[0];
+    if (!user) {
+      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 1`, [p.email]);
+      user = rows[0];
+      if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]);
+    }
+    if (user) { // already registered -> sign in
+      if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+        const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
+        if (c[0]) user.agency_id = c[0].agency_id;
+      }
+      return res.json(sessionPayload(user));
+    }
+    const agency = await resolveSignupAgency(token);
+    if (!agency) return res.status(404).json({ error: token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
+    res.status(201).json(await createTrialAccount(agency, { full_name: p.name || p.email, email: p.email, google_id: p.sub }));
+  } catch (e) { if (e.status) return res.status(e.status).json({ error: e.message }); next(e); }
+}
+
+// more specific routes first so "google" is not captured as :token
+router.post('/register/google', googleRegisterHandler);
+router.post('/register/:token/google', googleRegisterHandler);
+router.get('/register', infoHandler);
+router.get('/register/:token', infoHandler);
+router.post('/register', registerHandler);
+router.post('/register/:token', registerHandler);
 
 // --- Google sign-in --------------------------------------------------------
 // Verify the Google credential, then sign in a matching EXISTING user (by
@@ -174,7 +234,7 @@ router.post('/phone/verify-request', requireAuth, async (req, res, next) => {
     if (!target) return res.status(400).json({ error: 'אין מספר טלפון לאימות' });
     const r = await otp.requestOtp({ phone: target, purpose: 'verify' });
     if (!r.ok && r.error === 'too_soon') return res.status(429).json({ error: 'נשלח קוד לאחרונה, נסה שוב בעוד רגע' });
-    if (!r.ok) return res.status(502).json({ error: 'שליחת הקוד נכשלה' });
+    if (!r.ok) return res.status(502).json({ error: 'שליחת הקוד נכשלה' + (r.error && r.error !== 'send_failed' ? `: ${r.error}` : '') });
     res.json({ ok: true, mocked: r.mocked, devCode: r.devCode });
   } catch (e) { next(e); }
 });

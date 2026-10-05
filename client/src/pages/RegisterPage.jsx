@@ -3,13 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import GoogleButton from '../components/GoogleButton';
 import logo from '../assets/logo.png';
 
 // Public trial signup. The agency is taken from the :token in the URL
-// (/register/<agency public_token>). Creates a trial company + company_admin.
+// (/register/<agency public_token>), or the default agency when there is no
+// token (/register). Creates a trial company + company_admin.
 export default function RegisterPage() {
   const { token } = useParams();
-  const { registerAccount } = useAuth();
+  const { registerAccount, registerWithGoogle } = useAuth();
   const { t } = useLang();
   const nav = useNavigate();
 
@@ -31,6 +33,12 @@ export default function RegisterPage() {
     try { await registerAccount(token, f); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
+  }
+
+  async function onGoogle(credential) {
+    setError('');
+    try { await registerWithGoogle(token, credential); nav('/'); }
+    catch (err) { setError(err.message); }
   }
 
   if (invalid) return (
@@ -62,6 +70,9 @@ export default function RegisterPage() {
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || !agency}>
           {busy ? t('reg.creating') : t('reg.create')}
         </button>
+        <div style={{ marginTop: 16 }}>
+          <GoogleButton onCredential={onGoogle} onError={() => setError(t('login.googleError'))} />
+        </div>
       </form>
     </div>
   );

@@ -19,6 +19,8 @@ async function ensureSchema() {
     // public self-registration: a per-agency signup token
     await ensureColumn('agencies', 'public_token', "public_token CHAR(36) NULL");
     await query('UPDATE agencies SET public_token = UUID() WHERE public_token IS NULL OR public_token = ""');
+    // the agency that tokenless /register falls back to
+    await ensureColumn('agencies', 'is_default_signup', "is_default_signup TINYINT(1) NOT NULL DEFAULT 0");
     // trial accounts + per-customer quotas (display only; NULL = unlimited)
     await ensureColumn('companies', 'is_trial', "is_trial TINYINT(1) NOT NULL DEFAULT 0");
     await ensureColumn('companies', 'quota_users', "quota_users INT NULL");
