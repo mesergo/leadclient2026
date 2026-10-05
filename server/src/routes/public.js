@@ -121,7 +121,9 @@ async function processCall(num, req, res, logId) {
   // Maskyoo reads the destination to route the call to from the START of the response
   // body (destination number), followed by JSON (as the legacy system returned).
   const dest = num ? toIsraeliMsisdn(num.redirect_to_number) : '';
-  const reply = (ok, desc) => res.type('text/plain').send(dest + JSON.stringify({ success: ok, success_description: desc }));
+  // Maskyoo reads the destination number from the response. Return ONLY that
+  // number, or an empty body when there is none.
+  const reply = () => res.type('text/plain').send(dest || '');
 
   if (!num) { await updateLog(logId, { result: 'no_match' }); return reply(false, 'no match'); }
   if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return reply(true, 'number unassigned'); }
