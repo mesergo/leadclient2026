@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import PhoneVerify from '../components/PhoneVerify';
 import { browserPushStatus, enableBrowserPush, disableBrowserPush } from '../push';
 
 // notification matrix: which events, on which channels
@@ -9,7 +10,7 @@ const N_EVENTS = ['new_lead', 'status_change', 'reminder_due', 'lead_message'];
 const N_CHANS = ['app', 'browser', 'sms'];
 
 export default function ProfilePage() {
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const { t, setLang, langs } = useLang();
 
   const [u, setU] = useState(null);
@@ -76,7 +77,7 @@ export default function ProfilePage() {
       {error && <p className="error">{error}</p>}
 
       <div className="tabs">
-        {[['profile', 'ue.tabProfile'], ['password', 'ue.tabPassword'], ['notif', 'notif.prefs'], ['lang', 'ue.tabLang']]
+        {[['profile', 'ue.tabProfile'], ['phone', 'pv.tab'], ['password', 'ue.tabPassword'], ['notif', 'notif.prefs'], ['lang', 'ue.tabLang']]
           .map(([k, lbl]) => <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}>{t(lbl)}</button>)}
       </div>
 
@@ -88,6 +89,11 @@ export default function ProfilePage() {
             {fld(t('ue.lastName'), 'last_name')}
             {fld(t('ue.displayName'), 'display_name')}
           </>)}
+
+          {tab === 'phone' && (
+            <PhoneVerify token={token} initialPhone={u.phone || ''} verified={!!u.phone_verified_at}
+              onVerified={() => { load(); refreshUser(); }} />
+          )}
 
           {tab === 'password' && (<>
             <div className="form-field"><label>{t('ue.currentPassword')}</label><div className="form-field-control">

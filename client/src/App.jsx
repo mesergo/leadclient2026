@@ -28,6 +28,7 @@ import BillingPage from './pages/BillingPage';
 import LanguagePage from './pages/LanguagePage';
 import LanguageEditPage from './pages/LanguageEditPage';
 import ProfilePage from './pages/ProfilePage';
+import VerifyPhonePage from './pages/VerifyPhonePage';
 import DevelopersPage from './pages/DevelopersPage';
 import ImportLivePage from './pages/ImportLivePage';
 import WebhookLogPage from './pages/WebhookLogPage';
@@ -35,9 +36,12 @@ import ActionsPage from './pages/ActionsPage';
 import './App.css';
 
 function Protected() {
-  const { token, loading } = useAuth();
+  const { token, user, loading, impersonatorName } = useAuth();
   if (loading) return <div className="loading-screen">טוען...</div>;
   if (!token) return <Navigate to="/login" replace />;
+  if (!user) return <div className="loading-screen">טוען...</div>; // /me still resolving
+  // mandatory phone verification before entering (skipped while impersonating)
+  if (!user.phone_verified_at && !impersonatorName) return <VerifyPhonePage />;
   return <Layout />;
 }
 function Role({ roles, children }) {
