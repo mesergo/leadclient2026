@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+client/dist
+server/public/uploads/*
+.git
+.env
+.env.*
+!.env.production.example
+db/localhost.sql
+db/*.local.sql
+db/prod-*.sql
+.playwright-cli
+.design
+*.png
+*.log
+npm-debug.log*
