@@ -41,6 +41,36 @@ async function syncRouting(maskyooNumber, destPhone) {
   return { ok: u.status?.code === 200, u };
 }
 
+// Ensure a Maskyoo number carries every tag in `tagNames` (create the tag if it
+// doesn't exist yet, then add the number as a member). Idempotent & best-effort:
+// 5072 = tag already exists, 5044 = number already a member — both are fine.
+async function syncTags(maskyooNumber, tagNames) {
+  if (!config.maskyoo.token) return { ok: false, error: 'no_token' };
+  const num = intl(maskyooNumber);
+  if (!num) return { ok: false, error: 'bad_num' };
+  const wanted = (tagNames || []).map((t) => String(t == null ? '' : t).trim()).filter(Boolean);
+  if (!wanted.length) return { ok: false, error: 'no_tags' };
+  // name -> id map of all existing tags (one call)
+  const list = await call('view_tags');
+  const map = {};
+  if (Array.isArray(list.result)) for (const t of list.result) map[String(t.tag_name)] = t.tag_id;
+  const done = [];
+  for (const name of wanted) {
+    let id = map[name];
+    if (!id) {
+      await call('create_tag', { tag_name: name }, 'POST'); // may 5072 if it exists (race)
+      const v = await call('view_tag_by_name', { tag_name: name }); // reliable id lookup
+      id = Array.isArray(v.result) && v.result[0] ? v.result[0].tag_id : null;
+      if (id) map[name] = id;
+    }
+    if (!id) { done.push({ name, ok: false }); continue; }
+    const a = await call('add_member_to_tag', { tag_id: id, maskyoo: num }, 'POST');
+    const code = a.status && a.status.code;
+    done.push({ name, id, ok: code === 200 || code === 5044, code });
+  }
+  return { ok: true, done };
+}
+
 // Download a call recording by its call UUID (returns a WAV Buffer, or null).
 async function getRecording(uuid) {
   if (!config.maskyoo.token || !uuid) return null;
@@ -55,4 +85,4 @@ async function getRecording(uuid) {
   } catch (e) { return null; }
 }
 
-module.exports = { call, syncRouting, getRecording, intl };
+module.exports = { call, syncRouting, syncTags, getRecording, intl };

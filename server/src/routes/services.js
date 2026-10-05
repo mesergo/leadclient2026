@@ -8,10 +8,15 @@ const { logPhone } = require('../services/phoneLog');
 const maskyoo = require('../services/maskyoo');
 // push a number's routing to Maskyoo (only Maskyoo numbers; best-effort, non-blocking)
 async function syncMaskyoo(phoneNumberId, dest) {
-  if (!dest) return;
   try {
-    const [pn] = await query('SELECT phone_number, ivr_provider FROM phone_numbers WHERE id = ?', [phoneNumberId]);
-    if (pn && pn.ivr_provider === 'maskyoo') maskyoo.syncRouting(pn.phone_number, dest).catch(() => {});
+    const [pn] = await query('SELECT phone_number, ivr_provider, company_id, service_id FROM phone_numbers WHERE id = ?', [phoneNumberId]);
+    if (!pn || pn.ivr_provider !== 'maskyoo') return;
+    if (dest) maskyoo.syncRouting(pn.phone_number, dest).catch(() => {});
+    // Always keep the number tagged: app26 + company id + channel id (best-effort)
+    const tags = ['app26'];
+    if (pn.company_id) tags.push('company-' + pn.company_id);
+    if (pn.service_id) tags.push('channel-' + pn.service_id);
+    maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
   } catch (e) { /* never block the save */ }
 }
 
