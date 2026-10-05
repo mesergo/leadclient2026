@@ -54,6 +54,7 @@ export const api = {
   company: (id, token) => request(`/api/companies/${id}`, { token }),
   createCompany: (body, token) => request('/api/companies', { method: 'POST', body, token }),
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),
+  companyUsage: (id, token) => request(`/api/companies/${id}/usage`, { token }),
   impersonateCompany: (id, token) => request(`/api/companies/${id}/impersonate`, { method: 'POST', token }),
 
   importLeads: (body, token) => request('/api/import', { method: 'POST', body, token }),

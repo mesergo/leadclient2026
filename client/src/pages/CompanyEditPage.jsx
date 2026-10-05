@@ -3,12 +3,14 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import QuotaPanel from '../components/QuotaPanel';
 
 const INDUSTRIES = ['תיירות', 'שירותים', 'חינוך ולימודים', 'עמותות', 'אירועים', 'מסחר ותעשיה', 'מקצועות חופשיים', 'פרסום', 'אחר'];
 
 export default function CompanyEditPage() {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isManager = user?.role === 'super_admin' || user?.role === 'agency_admin';
   const { t } = useLang();
   const [c, setC] = useState(null);
   const [form, setForm] = useState({});
@@ -27,6 +29,10 @@ export default function CompanyEditPage() {
         name: form.name, phone: form.phone, fax: form.fax, address: form.address, zip_code: form.zip_code, industry: form.industry,
         returning_sms_enabled: form.returning_sms_enabled ? 1 : 0, returning_sms_from: form.returning_sms_from, returning_sms_text: form.returning_sms_text,
         leads_distribution_enabled: form.leads_distribution_enabled ? 1 : 0,
+        ...(isManager ? {
+          quota_users: form.quota_users ?? '', quota_numbers: form.quota_numbers ?? '',
+          quota_leads: form.quota_leads ?? '', quota_channels: form.quota_channels ?? '',
+        } : {}),
       }, token);
       setMsg(t('cod.saved')); load();
     } catch (e) { setError(e.message); }
@@ -46,6 +52,7 @@ export default function CompanyEditPage() {
       <div className="tabs">
         <button className={'tab' + (tab === 'details' ? ' active' : '')} onClick={() => setTab('details')}>{t('cop.tabDetails')}</button>
         <button className={'tab' + (tab === 'settings' ? ' active' : '')} onClick={() => setTab('settings')}>{t('cop.tabSettings')}</button>
+        <button className={'tab' + (tab === 'quota' ? ' active' : '')} onClick={() => setTab('quota')}>{t('quota.tab')}</button>
       </div>
       <form className="form-panel" onSubmit={save}>
         <div className="form-panel-body">
@@ -72,8 +79,19 @@ export default function CompanyEditPage() {
             <div className="form-field"><label>{t('cop.leadsDist')}</label><div className="form-field-control">
               <input type="checkbox" checked={!!form.leads_distribution_enabled} onChange={(e) => set('leads_distribution_enabled', e.target.checked)} /></div></div>
           </>)}
+          {tab === 'quota' && (<>
+            <QuotaPanel companyId={id} token={token} reloadKey={msg} />
+            {isManager && (<>
+              <h3 style={{ margin: '18px 0 6px' }}>{t('quota.setLimits')}</h3>
+              <p className="muted" style={{ marginTop: 0 }}>{t('quota.emptyUnlimited')}</p>
+              {[['quota_users', 'quota.users'], ['quota_numbers', 'quota.numbers'], ['quota_leads', 'quota.leads'], ['quota_channels', 'quota.channels']].map(([k, lbl]) => (
+                <div className="form-field" key={k}><label>{t(lbl)}</label><div className="form-field-control">
+                  <input type="number" min="0" value={form[k] ?? ''} placeholder={t('quota.unlimited')} onChange={(e) => set(k, e.target.value)} /></div></div>
+              ))}
+            </>)}
+          </>)}
         </div>
-        <div className="form-actions"><button className="btn btn-primary">{t('common.save')}</button></div>
+        <div className="form-actions">{(tab !== 'quota' || isManager) && <button className="btn btn-primary">{t('common.save')}</button>}</div>
       </form>
     </div>
   );
