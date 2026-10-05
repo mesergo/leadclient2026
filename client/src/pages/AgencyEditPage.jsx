@@ -46,6 +46,7 @@ export default function AgencyEditPage() {
         icount_pass: icountOn ? form.icount_pass : '',
         allow_add_user_external: form.allow_add_user_external ? 1 : 0,
         control_templates: form.control_templates ? 1 : 0,
+        is_default_signup: form.is_default_signup ? 1 : 0,
       }, token);
       setMsg(t('cod.saved'));
       load();
@@ -127,6 +128,13 @@ export default function AgencyEditPage() {
 
           <div className="form-field"><label>{t('agedit.externalUser')}</label>
             <div className="form-field-control"><input type="checkbox" checked={!!form.allow_add_user_external} onChange={(e) => set('allow_add_user_external', e.target.checked)} /></div>
+          </div>
+
+          <div className="form-field"><label>{t('agedit.defaultSignup')}</label>
+            <div className="form-field-control" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <input type="checkbox" checked={!!form.is_default_signup} onChange={(e) => set('is_default_signup', e.target.checked)} />
+              <span className="muted" style={{ fontSize: 12 }}>{t('agedit.defaultSignupHint')}</span>
+            </div>
           </div>
 
           {/* template management — options revealed only when the checkbox is on */}

@@ -47,7 +47,7 @@ router.get('/:id', requireRole('super_admin', 'agency_admin'), asyncHandler(asyn
   const scope = agencyScope(req.user, 'id');
   const rows = await query(
     `SELECT id, name, logo_url, ivr_provider, phone_limit, whatsapp_id, icount_cid, icount_user,
-            icount_pass, allow_add_user_external, control_templates, is_active, created_at, public_token
+            icount_pass, allow_add_user_external, control_templates, is_active, created_at, public_token, is_default_signup
      FROM agencies WHERE id = ? AND (${scope.sql})`, [req.params.id, ...scope.params]);
   if (!rows[0]) return res.status(404).json({ error: 'סוכנות לא נמצאה' });
   const [ph] = await query('SELECT COUNT(*) n FROM phone_numbers p JOIN companies c ON c.id = p.company_id WHERE c.agency_id = ?', [req.params.id]);
@@ -55,18 +55,22 @@ router.get('/:id', requireRole('super_admin', 'agency_admin'), asyncHandler(asyn
 }));
 
 router.patch('/:id', requireRole('super_admin'), asyncHandler(async (req, res) => {
-  const { name, is_active, phone_limit, ivr_provider, whatsapp_id, icount_cid, icount_user, icount_pass, allow_add_user_external, control_templates } = req.body || {};
+  const { name, is_active, phone_limit, ivr_provider, whatsapp_id, icount_cid, icount_user, icount_pass, allow_add_user_external, control_templates, is_default_signup } = req.body || {};
   await query(
     `UPDATE agencies SET
        name = COALESCE(?, name), is_active = COALESCE(?, is_active),
        phone_limit = COALESCE(?, phone_limit), ivr_provider = COALESCE(?, ivr_provider),
        whatsapp_id = COALESCE(?, whatsapp_id), icount_cid = COALESCE(?, icount_cid),
        icount_user = COALESCE(?, icount_user), icount_pass = COALESCE(?, icount_pass),
-       allow_add_user_external = COALESCE(?, allow_add_user_external), control_templates = COALESCE(?, control_templates)
+       allow_add_user_external = COALESCE(?, allow_add_user_external), control_templates = COALESCE(?, control_templates),
+       is_default_signup = COALESCE(?, is_default_signup)
      WHERE id = ?`,
     [name ?? null, is_active ?? null, phone_limit ?? null, ivr_provider ?? null, whatsapp_id ?? null,
-     icount_cid ?? null, icount_user ?? null, icount_pass ?? null, allow_add_user_external ?? null, control_templates ?? null, req.params.id]
+     icount_cid ?? null, icount_user ?? null, icount_pass ?? null, allow_add_user_external ?? null, control_templates ?? null,
+     is_default_signup ?? null, req.params.id]
   );
+  // only one agency can be the tokenless-signup default
+  if (Number(is_default_signup) === 1) await query('UPDATE agencies SET is_default_signup = 0 WHERE id <> ?', [req.params.id]);
   const rows = await query('SELECT id, name, logo_url, ivr_provider, phone_limit, whatsapp_id, is_active, created_at FROM agencies WHERE id = ?', [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'סוכנות לא נמצאה' });
   res.json({ agency: rows[0] });

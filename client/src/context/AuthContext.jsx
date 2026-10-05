@@ -40,6 +40,12 @@ export function AuthProvider({ children }) {
     setToken(d.token);
     setUser(d.user);
   };
+  const registerWithGoogle = async (regToken, credential) => {
+    const d = await api.registerGoogle(regToken, credential);
+    localStorage.setItem('lc_token', d.token);
+    setToken(d.token);
+    setUser(d.user);
+  };
   const logout = () => {
     localStorage.removeItem('lc_token'); localStorage.removeItem('lc_admin_token'); localStorage.removeItem('lc_admin_name');
     setImpersonatorName(null); setToken(null); setUser(null);
@@ -61,5 +67,5 @@ export function AuthProvider({ children }) {
     if (admin) { localStorage.setItem('lc_token', admin); setToken(admin); setUser(null); }
   };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

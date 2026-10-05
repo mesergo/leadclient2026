@@ -45,13 +45,17 @@ async function requestOtp({ phone, purpose = 'login', campaign, smsText, voiceMe
   await query('UPDATE otp_codes SET consumed = 1 WHERE phone = ? AND purpose = ? AND consumed = 0', [e164, purpose]);
 
   const code = genCode();
-  await query(
+  const ins = await query(
     'INSERT INTO otp_codes (phone, code_hash, purpose, expires_at) VALUES (?, ?, ?, (NOW() + INTERVAL ? MINUTE))',
     [e164, hash(e164, code), purpose, config.otp.ttlMinutes]);
 
   const sent = await messergo.sendOtp({ phone: e164, code, campaign, smsText, voiceMessage });
-  const out = { ok: sent.ok, mocked: !!sent.mocked };
-  if (!sent.ok) out.error = sent.error || 'send_failed';
+  if (!sent.ok) {
+    // a code that never went out must not block the next attempt via the resend throttle
+    await query('DELETE FROM otp_codes WHERE id = ?', [ins.insertId]);
+    return { ok: false, error: sent.error || 'send_failed' };
+  }
+  const out = { ok: true, mocked: !!sent.mocked };
   if (sent.mocked) out.devCode = code; // mock only
   return out;
 }

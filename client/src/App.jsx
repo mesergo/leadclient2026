@@ -54,6 +54,7 @@ function Routing() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/register/:token" element={<RegisterPage />} />
       <Route element={<Protected />}>
         <Route path="/" element={<DashboardPage />} />
