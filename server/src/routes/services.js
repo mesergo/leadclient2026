@@ -4,8 +4,10 @@ const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
+const { logPhone } = require('../services/phoneLog');
 
 const router = express.Router();
+const who = (u) => ({ userId: u.id, userName: u.name || u.display_name || u.username || '' });
 router.use(requireAuth);
 
 const safeParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
@@ -95,6 +97,7 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
     await query('UPDATE phone_numbers SET service_id = ?, redirect_to_number = ?, redirect_config = ? WHERE id = ? AND company_id = ? AND service_id IS NULL',
       [r.insertId, primary, cfg, b.phone_number_id, company_id]);
     await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
+    await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: company_id, serviceId: r.insertId, note: 'שויך לערוץ' });
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, created_at FROM services WHERE id = ?', [r.insertId]);
   res.status(201).json({ service: rows[0] });

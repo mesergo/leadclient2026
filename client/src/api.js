@@ -105,6 +105,7 @@ export const api = {
   createVirtual: (body, token) => request('/api/virtual', { method: 'POST', body, token }),
   updateVirtual: (id, body, token) => request(`/api/virtual/${id}`, { method: 'PATCH', body, token }),
   deleteVirtual: (id, token) => request(`/api/virtual/${id}`, { method: 'DELETE', token }),
+  virtualLog: (id, token) => request(`/api/virtual/${id}/log`, { token }),
   webhookLog: (token, f) => request(`/api/webhook-log${qs(f)}`, { token }),
   clearWebhookLog: (token) => request('/api/webhook-log', { method: 'DELETE', token }),
   notifications: (token) => request('/api/notifications', { token }),

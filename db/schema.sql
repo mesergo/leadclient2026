@@ -590,4 +590,19 @@ CREATE TABLE IF NOT EXISTS webhook_log (
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_wl_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- per-number change log (assignments / transfers between companies)
+CREATE TABLE IF NOT EXISTS phone_number_log (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  phone_number_id BIGINT UNSIGNED NOT NULL,
+  action          VARCHAR(20) NOT NULL,
+  from_company_id BIGINT UNSIGNED NULL,
+  to_company_id   BIGINT UNSIGNED NULL,
+  service_id      BIGINT UNSIGNED NULL,
+  user_id         BIGINT UNSIGNED NULL,
+  user_name       VARCHAR(120) NULL,
+  note            VARCHAR(255) NULL,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_pnl_number (phone_number_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;
