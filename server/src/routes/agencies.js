@@ -47,7 +47,7 @@ router.get('/:id', requireRole('super_admin', 'agency_admin'), asyncHandler(asyn
   const scope = agencyScope(req.user, 'id');
   const rows = await query(
     `SELECT id, name, logo_url, ivr_provider, phone_limit, whatsapp_id, icount_cid, icount_user,
-            icount_pass, allow_add_user_external, control_templates, is_active, created_at
+            icount_pass, allow_add_user_external, control_templates, is_active, created_at, public_token
      FROM agencies WHERE id = ? AND (${scope.sql})`, [req.params.id, ...scope.params]);
   if (!rows[0]) return res.status(404).json({ error: 'סוכנות לא נמצאה' });
   const [ph] = await query('SELECT COUNT(*) n FROM phone_numbers p JOIN companies c ON c.id = p.company_id WHERE c.agency_id = ?', [req.params.id]);
