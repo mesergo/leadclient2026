@@ -56,23 +56,20 @@ router.get('/translations/:slug', asyncHandler(async (req, res) => {
 // Accept GET or POST; caller/duration/recording come from body or query.
 const pick = (req, ...keys) => { const b = req.body || {}; for (const k of keys) { if (b[k] != null && b[k] !== '') return b[k]; if (req.query[k] != null && req.query[k] !== '') return req.query[k]; } return null; };
 
-// Single call webhook — the SAME URL handles call start and call end.
-// Start (no duration) logs an incoming-call lead; end (has duration/recording,
-// or a status like hangup) attaches the details to the matching recent lead.
-const callHook = asyncHandler(async (req, res) => {
-  const rows = await query('SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
-  const num = rows[0];
+// Core: given the matched phone_number, process a call event.
+// Start (no duration) logs an incoming-call lead; end (duration/recording, or a
+// hangup-like status) attaches the details to that caller's recent lead.
+async function processCall(num, req, res) {
   if (!num) return res.status(404).json({ error: 'number_not_found' });
   if (!num.company_id) return res.json({ ok: true, redirect_to: num.redirect_to_number || null });
 
-  const caller = pick(req, 'caller', 'from', 'phone', 'ani', 'did');
+  const caller = pick(req, 'caller', 'from', 'phone', 'ani', 'source');
   const duration = pick(req, 'duration', 'seconds');
   const recording = pick(req, 'recording', 'recording_url');
   const status = String(pick(req, 'status', 'event', 'type') || '').toLowerCase();
   const isEnd = duration != null || /end|hangup|finish|complete|done/.test(status);
 
   if (isEnd) {
-    // attach to the recent lead opened by this caller on this number (last 30 min)
     const recent = await query(
       `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
          AND created_at >= (NOW() - INTERVAL 30 MINUTE) ORDER BY id DESC LIMIT 1`,
@@ -84,17 +81,31 @@ const callHook = asyncHandler(async (req, res) => {
         [duration ? `\n[שיחה] משך: ${duration}` : '', recording || null, recent[0].id]);
       return res.json({ ok: true, lead_id: recent[0].id, redirect_to: num.redirect_to_number || null });
     }
-    // no prior start event — fall through and create the lead with the details
   }
-
   const r = await query(
     `INSERT INTO leads (company_id, service_id, lead_phone, lead_info, lead_through, recording_url, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'call', ?, NOW(), NOW())`,
     [num.company_id, num.service_id || null, caller, duration ? `[שיחה] משך: ${duration}` : null, recording || null]);
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   res.json({ ok: true, lead_id: r.insertId, redirect_to: num.redirect_to_number || null });
-});
+}
 
-router.all('/call/:id', callHook);
+// One fixed URL for ALL numbers: Maskyoo sends the dialed number (DID); we match
+// it to our phone_number (by its last digits, format-agnostic).
+router.all('/call', asyncHandler(async (req, res) => {
+  const did = pick(req, 'did', 'number', 'to', 'called', 'virtual', 'dnis', 'dest', 'target');
+  const key = String(did || '').replace(/\D/g, '').slice(-9);
+  if (!key) return res.status(400).json({ error: 'missing_dialed_number' });
+  const rows = await query(
+    `SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers
+     WHERE REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?) ORDER BY id DESC LIMIT 1`, [key]);
+  return processCall(rows[0], req, res);
+}));
+
+// Also addressable per-number by id (optional).
+router.all('/call/:id', asyncHandler(async (req, res) => {
+  const rows = await query('SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
+  return processCall(rows[0], req, res);
+}));
 
 module.exports = router;
