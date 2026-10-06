@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS users (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   company_id            BIGINT UNSIGNED NULL,
   agency_id             BIGINT UNSIGNED NULL,
-  role                  ENUM('super_admin','agency_admin','company_admin','company_user','translator') NOT NULL DEFAULT 'company_user',
+  role                  ENUM('super_admin','agency_admin','sales_manager','company_admin','company_user','translator') NOT NULL DEFAULT 'company_user',
   username              VARCHAR(255) NOT NULL,
   email                 VARCHAR(255) NULL,
   first_name            VARCHAR(50) NULL,

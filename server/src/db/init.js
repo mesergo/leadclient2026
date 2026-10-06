@@ -48,6 +48,9 @@ async function ensureSchema() {
   await safe('packages.seed', seedPackages);
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
+  // read-only agency-scoped sales role
+  await safe('users.role.sales_manager', () => query(
+    "ALTER TABLE users MODIFY COLUMN role ENUM('super_admin','agency_admin','sales_manager','company_admin','company_user','translator') NOT NULL DEFAULT 'company_user'"));
   // click-to-call: a pending "call me back" that turns an agent's inbound call into an outbound one
   await safe('callbacks.table', () => query(`CREATE TABLE IF NOT EXISTS callbacks (
       id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,

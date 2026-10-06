@@ -53,7 +53,7 @@ router.post('/login', async (req, res, next) => {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'פרטי התחברות שגויים' });
     // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
-    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+    if ((user.role === 'agency_admin' || user.role === 'sales_manager') && !user.agency_id && user.company_id) {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
@@ -157,7 +157,7 @@ async function googleRegisterHandler(req, res, next) {
       if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]);
     }
     if (user) { // already registered -> sign in
-      if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+      if ((user.role === 'agency_admin' || user.role === 'sales_manager') && !user.agency_id && user.company_id) {
         const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
         if (c[0]) user.agency_id = c[0].agency_id;
       }
@@ -218,7 +218,7 @@ router.post('/google', async (req, res, next) => {
       if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]); // link on first use
     }
     if (!user) return res.status(404).json({ error: 'לא נמצא חשבון המשויך לכתובת גוגל זו' });
-    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+    if ((user.role === 'agency_admin' || user.role === 'sales_manager') && !user.agency_id && user.company_id) {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
@@ -250,7 +250,7 @@ router.post('/phone/verify', async (req, res, next) => {
     if (!v.ok) return res.status(401).json({ error: 'קוד שגוי או שפג תוקפו' });
     const user = await findUserByPhone(phone);
     if (!user || !user.phone_verified_at) return res.status(401).json({ error: 'פרטי התחברות שגויים' });
-    if (user.role === 'agency_admin' && !user.agency_id && user.company_id) {
+    if ((user.role === 'agency_admin' || user.role === 'sales_manager') && !user.agency_id && user.company_id) {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }

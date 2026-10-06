@@ -61,7 +61,7 @@ function Routing() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />
         <Route path="/agencies/:id" element={<Role roles={["super_admin","agency_admin"]}><AgencyEditPage /></Role>} />
-        <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompaniesPage /></Role>} />
+        <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin', 'company_admin', 'sales_manager']}><CompaniesPage /></Role>} />
         <Route path="/companies/edit-service" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><EditServicePage /></Role>} />
         <Route path="/companies/add-service" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><AddServicePage /></Role>} />
         <Route path="/companies/:id" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><CompanyDetailPage /></Role>} />

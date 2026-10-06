@@ -15,6 +15,11 @@ function requireAuth(req, res, next) {
       name: payload.name || null,
       impersonated_by: payload.impersonated_by || null,
     };
+    // sales_manager is a read-only role: block every write except the auth/OTP
+    // flows it needs to sign in and pass the phone-verify gate.
+    if (req.user.role === 'sales_manager' && req.method !== 'GET' && req.baseUrl !== '/api/auth') {
+      return res.status(403).json({ error: 'למנהל מכירות הרשאת צפייה בלבד' });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'טוקן לא תקין' });

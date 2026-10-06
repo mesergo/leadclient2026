@@ -1,7 +1,7 @@
 // Multi-tenant isolation — the security core (see docs/ARCHITECTURE.md).
 // MySQL has no RLS; every business query MUST be scoped through here.
 
-const ROLES = ['super_admin', 'agency_admin', 'company_admin', 'company_user', 'translator'];
+const ROLES = ['super_admin', 'agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'];
 
 // Returns a WHERE fragment { sql, params } restricting `col` (a company_id
 // expression) to what `user` may see.
@@ -11,6 +11,7 @@ function companyScope(user, col = 'company_id') {
     case 'super_admin':
       return { sql: '1 = 1', params: [] };
     case 'agency_admin':
+    case 'sales_manager': // read-only, scoped to the agency's companies (writes blocked in requireAuth)
       return {
         sql: `${col} IN (SELECT id FROM companies WHERE agency_id = ?)`,
         params: [user.agency_id],
@@ -28,7 +29,7 @@ function companyScope(user, col = 'company_id') {
 function agencyScope(user, col = 'id') {
   if (!user || !user.role) return { sql: '0 = 1', params: [] };
   if (user.role === 'super_admin') return { sql: '1 = 1', params: [] };
-  if (user.role === 'agency_admin') return { sql: `${col} = ?`, params: [user.agency_id] };
+  if (user.role === 'agency_admin' || user.role === 'sales_manager') return { sql: `${col} = ?`, params: [user.agency_id] };
   // company roles: only their own agency (via their company)
   return {
     sql: `${col} IN (SELECT agency_id FROM companies WHERE id = ?)`,

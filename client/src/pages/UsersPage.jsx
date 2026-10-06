@@ -6,10 +6,10 @@ import { api } from '../api';
 import * as Icons from '../icons';
 import { timeAgo, isRecent } from '../timeago';
 
-const ROLES = ['super_admin', 'agency_admin', 'company_admin', 'company_user', 'translator'];
+const ROLES = ['super_admin', 'agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'];
 const ROLE_LABELS = {
-  he: { super_admin: 'מנהל על', agency_admin: 'מנהל סוכנות', company_admin: 'מנהל חברה', company_user: 'משתמש', translator: 'מתרגם' },
-  en: { super_admin: 'Super admin', agency_admin: 'Agency admin', company_admin: 'Company admin', company_user: 'User', translator: 'Translator' },
+  he: { super_admin: 'מנהל על', agency_admin: 'מנהל סוכנות', sales_manager: 'מנהל מכירות', company_admin: 'מנהל חברה', company_user: 'משתמש', translator: 'מתרגם' },
+  en: { super_admin: 'Super admin', agency_admin: 'Agency admin', sales_manager: 'Sales manager', company_admin: 'Company admin', company_user: 'User', translator: 'Translator' },
 };
 
 export default function UsersPage() {
