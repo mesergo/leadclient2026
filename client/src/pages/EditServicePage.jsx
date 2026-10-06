@@ -44,19 +44,12 @@ export default function EditServicePage() {
   const [audioBusy, setAudioBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
-  // attach-another-number state
-  const [avail, setAvail] = useState([]);
-  const [addSel, setAddSel] = useState({ line_type: '', phone_number_id: '' });
-  const [addConfig, setAddConfig] = useState(emptyRedirect());
-  const [addBusy, setAddBusy] = useState(false);
-  const loadAvail = (companyId) => companyId && api.serviceNewContext(companyId, token).then((d) => setAvail(d.numbers || [])).catch(() => {});
 
   useEffect(() => {
     if (!id) return;
     api.service(id, token).then((d) => {
       const s = d.service;
       setSvc(s);
-      loadAvail(s.company_id);
       setForm({
         name: s.name || '', description: s.description || '',
         service_type: s.service_type || 'phone', site_url: s.site_url || '',
@@ -134,18 +127,6 @@ export default function EditServicePage() {
     catch (err) { setError(err.message); }
   }
 
-  async function addNumber() {
-    if (!addSel.phone_number_id) { setError(t('es.pickNumber')); return; }
-    setAddBusy(true); setError('');
-    try {
-      const d = await api.addServiceNumber(id, { phone_number_id: Number(addSel.phone_number_id), redirect_config: addConfig }, token);
-      setPhones((d.phones || []).map((p) => ({ ...p, config: toRedirect(p.redirect_config, p.redirect_to_number) })));
-      setAddSel({ line_type: '', phone_number_id: '' }); setAddConfig(emptyRedirect());
-      loadAvail(svc.company_id); setMsg(t('es.numberAdded'));
-    } catch (err) { setError(err.message); }
-    finally { setAddBusy(false); }
-  }
-
   async function onAudio(e) {
     const f = e.target.files?.[0]; if (!f) return;
     setAudioBusy(true); setError('');
@@ -210,37 +191,6 @@ export default function EditServicePage() {
               </div></div>
             ))}
 
-            {/* attach another virtual number to this channel */}
-            <div className="reveal-block">
-              <h4 style={{ margin: '4px 0 8px' }}>{t('es.addNumber')}</h4>
-              <div className="form-field"><label>{t('es.lineType')}</label><div className="form-field-control">
-                <select value={addSel.line_type} onChange={(e) => setAddSel({ line_type: e.target.value, phone_number_id: '' })}>
-                  <option value="">—</option>
-                  {LINE_TYPES.map((l) => <option key={l.v} value={l.v}>{t(l.k)}</option>)}
-                </select></div></div>
-              <div className="form-field"><label>{t('es.virtualNumber')}</label><div className="form-field-control">
-                <select value={addSel.phone_number_id} onChange={(e) => setAddSel((a) => ({ ...a, phone_number_id: e.target.value }))}>
-                  <option value="">{t('es.pickNumber')}</option>
-                  {(!addSel.line_type || addSel.line_type === 'mobile') && (
-                    <optgroup label={t('es.mobile')}>
-                      {avail.filter(isMobileNumber).slice(0, 5).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
-                    </optgroup>
-                  )}
-                  {(!addSel.line_type || addSel.line_type === 'landline') && (
-                    <optgroup label={t('es.landline')}>
-                      {avail.filter((n) => !isMobileNumber(n)).slice(0, 5).map((n) => <option key={n.id} value={n.id}>{n.number_to_display || n.phone_number}</option>)}
-                    </optgroup>
-                  )}
-                </select></div></div>
-              {addSel.phone_number_id && (
-                <div className="form-field"><label>{t('es.redirect')}</label><div className="form-field-control">
-                  <RedirectConfig value={addConfig} onChange={setAddConfig} />
-                </div></div>
-              )}
-              <button type="button" className="btn btn-secondary" disabled={addBusy || !addSel.phone_number_id} onClick={addNumber}>
-                {addBusy ? '...' : t('es.addNumber')}
-              </button>
-            </div>
 
             {/* Maskyoo per-channel settings (synced on save) */}
             <div className="reveal-block">
