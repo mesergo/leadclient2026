@@ -13,7 +13,7 @@ const NAV = [
   { to: '/companies', key: 'nav.companies', Icon: Icons.Building, roles: ['super_admin', 'agency_admin'] },
   { to: '/leads', key: 'nav.leads', Icon: Icons.Inbox },
   { to: '/import', key: 'nav.import', Icon: Icons.Upload },
-  { to: '/virtual', key: 'nav.virtual', Icon: Icons.Phone },
+  { to: '/virtual', key: 'nav.virtual', Icon: Icons.Phone, roles: ['super_admin', 'agency_admin'] },
   { to: '/reports', key: 'nav.reports', Icon: Icons.Chart },
   { to: '/contacts', key: 'nav.contacts', Icon: Icons.Contacts },
   { to: '/users', key: 'nav.users', Icon: Icons.Users, roles: ['super_admin', 'agency_admin', 'company_admin'] },
@@ -22,7 +22,7 @@ const NAV = [
   { to: '/profile', key: 'nav.profile', Icon: Icons.User },
   { to: '/developers', key: 'nav.developers', Icon: Icons.Code },
   { to: '/import-live', key: 'nav.importLive', Icon: Icons.Upload, roles: ['super_admin'] },
-  { to: '/webhook-log', key: 'nav.webhookLog', Icon: Icons.Code, roles: ['super_admin', 'agency_admin', 'company_admin'] },
+  { to: '/webhook-log', key: 'nav.webhookLog', Icon: Icons.Code, roles: ['super_admin', 'agency_admin'] },
 ];
 const CRUMB_KEY = {
   '/': 'nav.dashboard', '/agencies': 'nav.agencies', '/companies': 'nav.companies', '/leads': 'nav.leads',
