@@ -48,8 +48,6 @@ async function ensureSchema() {
   await safe('packages.seed', seedPackages);
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
-  // per-channel customer webhook (end-of-call push)
-  await safe('services.webhook_url', () => ensureColumn('services', 'webhook_url', "webhook_url VARCHAR(500) NULL"));
 }
 
 // Seed starter packages once (only when the table is empty). NULL quota = unlimited.

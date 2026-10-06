@@ -2,8 +2,42 @@ const express = require('express');
 const { query } = require('../db/pool');
 const { asyncHandler } = require('../utils/http');
 const notify = require('../services/notify');
+const recording = require('../services/recording');
 
 const router = express.Router();
+
+// Push end-of-call details to the channel's own webhook (export_webhook_url), with
+// a signed recording link served by us (Maskyoo is never exposed). Fire-and-forget.
+async function fireChannelWebhook(serviceId, lead) {
+  if (!serviceId) return;
+  try {
+    const rows = await query('SELECT export_webhook_url FROM services WHERE id = ?', [serviceId]);
+    const url = rows[0] && rows[0].export_webhook_url;
+    if (!url || !/^https?:\/\//i.test(url)) return;
+    const payload = {
+      event: 'call_ended',
+      lead_id: lead.id,
+      company_id: lead.company_id,
+      service_id: serviceId,
+      caller: lead.caller || null,
+      duration: lead.duration || null,
+      status: lead.status || null,            // 'answered' | 'missed'
+      recording_url: recording.publicUrl(lead.id),
+      at: new Date().toISOString(),
+    };
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+  } catch (e) { /* never block the call webhook */ }
+}
+
+// Public, signed recording download for channel webhooks (no login; no Maskyoo).
+//   GET /api/public/recording/:id?sig=...
+router.get('/recording/:id', asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  if (!recording.verifySig(id, req.query.sig)) return res.status(403).json({ error: 'bad_signature' });
+  const rows = await query('SELECT id, recording_url FROM leads WHERE id = ? LIMIT 1', [id]);
+  if (!rows[0]) return res.status(404).json({ error: 'not_found' });
+  return recording.serve(res, rows[0]);
+}));
 
 // notify a company's users about a newly-arrived lead (fire-and-forget)
 function announceNewLead(companyId, leadId, name, phone) {
@@ -156,6 +190,7 @@ async function processCall(num, req, res, logId) {
            recording_url = COALESCE(?, recording_url), call_status = ?, updated_at = NOW() WHERE id = ?`,
         [info, recStore, callStatus, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
+      fireChannelWebhook(num.service_id, { id: recent[0].id, company_id: num.company_id, caller, duration, status: callStatus });
       return reply(true, 'lead updated');
     }
   } else {

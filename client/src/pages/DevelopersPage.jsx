@@ -157,6 +157,13 @@ export default function DevelopersPage() {
       )}
 
       <div className="panel">
+        <h2>{t('dev.webhookTitle')}</h2>
+        <p className="muted">{t('dev.webhookDesc')}</p>
+        <CodeBlock code={`POST <your webhook URL>\nContent-Type: application/json\n\n{\n  "event": "call_ended",\n  "lead_id": 123,\n  "company_id": 45,\n  "service_id": 67,\n  "caller": "+972541234567",\n  "duration": "42",\n  "status": "answered",            // answered | missed\n  "recording_url": "${O}/api/public/recording/123?sig=…",\n  "at": "2026-01-01T12:00:00.000Z"\n}`} />
+        <p className="muted">{t('dev.webhookRec')}</p>
+      </div>
+
+      <div className="panel">
         <h2>{t('dev.errCodes')}</h2>
         <div className="table-wrap"><table className="data-table">
           <thead><tr><th>{t('dev.errCode')}</th><th>{t('dev.errDesc')}</th></tr></thead>
