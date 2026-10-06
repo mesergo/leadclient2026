@@ -35,6 +35,7 @@ export default function Dialer({ onClose }) {
   async function callNow() {
     setError('');
     if (!from) { setError(t('dial.errFrom')); return; }
+    if (!via) { setError(t('dial.errVia')); return; }
     if (!target) { setError(t('dial.errTarget')); return; }
     setBusy(true);
     try { await api.createCallback({ from_number: from, via_number: via, target_number: target }, token); setDone(true); }
@@ -54,11 +55,10 @@ export default function Dialer({ onClose }) {
 
         {done ? (
           <div className="dialer-done">
-            <p className="success-note">{t('dial.ready')}</p>
-            <p className="muted" style={{ marginBottom: 2 }}>{t('dial.fromMustMatch')} <strong>{from}</strong></p>
-            <p>{t('dial.callNowVia')}</p>
-            <div className="dialer-via-big">{viaDisplay ? (viaDisplay.number_to_display || viaDisplay.phone_number) : via}</div>
-            <p className="muted">{t('dial.willConnect')} {target}</p>
+            <p className="success-note">{t('dial.placed')}</p>
+            <p>{t('dial.ringingYou')}</p>
+            <div className="dialer-via-big">{from}</div>
+            <p className="muted">{t('dial.answerToConnect')} {target}</p>
             <button className="btn btn-primary" style={{ width: '100%' }} onClick={onClose}>{t('common.close') || 'סגור'}</button>
           </div>
         ) : (<>
