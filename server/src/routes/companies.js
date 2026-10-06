@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const { query, companyScope } = require('../db/pool');
+const { query, companyScope, getPool } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
@@ -100,6 +100,28 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   if (sets.length) { params.push(req.params.id); await query(`UPDATE companies SET ${sets.join(', ')} WHERE id = ?`, params); }
   const rows = await query(`SELECT ${FIELDS} FROM companies c WHERE c.id = ?`, [req.params.id]);
   res.json({ company: rows[0] });
+}));
+
+// Permanently delete a company. Releases its virtual numbers back to the pool,
+// removes its users/invites/callbacks, and relies on FK CASCADE for the rest
+// (services, leads, statuses, tags, contacts, files, reports). super_admin only.
+router.delete('/:id', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  const rows = await query('SELECT id FROM companies WHERE id = ?', [id]);
+  if (!rows[0]) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  const userRows = await query('SELECT id FROM users WHERE company_id = ?', [id]);
+  const userIds = userRows.map((u) => u.id);
+  const conn = await getPool().getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.execute('UPDATE phone_numbers SET company_id = NULL, service_id = NULL, redirect_to_number = NULL, redirect_config = NULL WHERE company_id = ?', [id]);
+    await conn.execute('DELETE FROM employee_invites WHERE company_id = ?', [id]);
+    await conn.execute('DELETE FROM callbacks WHERE company_id = ?', [id]);
+    await conn.execute('DELETE FROM companies WHERE id = ?', [id]); // cascades services/leads/statuses/tags/contacts/files/reports
+    if (userIds.length) await conn.query('DELETE FROM users WHERE id IN (?)', [userIds]);
+    await conn.commit();
+  } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+  res.json({ ok: true });
 }));
 
 router.post('/:id/logo', requireRole('super_admin', 'agency_admin', 'company_admin'), upload.single('logo'), asyncHandler(async (req, res) => {
