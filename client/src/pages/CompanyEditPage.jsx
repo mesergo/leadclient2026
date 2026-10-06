@@ -14,13 +14,22 @@ export default function CompanyEditPage() {
   const { t } = useLang();
   const [c, setC] = useState(null);
   const [form, setForm] = useState({});
+  const [packages, setPackages] = useState([]);
   const [tab, setTab] = useState('details');
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
 
   const load = () => api.company(id, token).then((d) => { setC(d.company); setForm(d.company); }).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [id, token]);
+  useEffect(() => { if (isManager) api.packages(token).then((d) => setPackages(d.packages)).catch(() => {}); }, [token]);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // choosing a package copies its quotas into the form (applied on save)
+  function applyPackage(pid) {
+    const p = packages.find((x) => String(x.id) === String(pid));
+    setForm((f) => ({ ...f, package_id: pid || '',
+      ...(p ? { quota_users: p.quota_users ?? '', quota_numbers: p.quota_numbers ?? '', quota_leads: p.quota_leads ?? '', quota_channels: p.quota_channels ?? '' } : {}) }));
+  }
 
   async function save(e) {
     e.preventDefault(); setMsg('');
@@ -30,6 +39,7 @@ export default function CompanyEditPage() {
         returning_sms_enabled: form.returning_sms_enabled ? 1 : 0, returning_sms_from: form.returning_sms_from, returning_sms_text: form.returning_sms_text,
         leads_distribution_enabled: form.leads_distribution_enabled ? 1 : 0,
         ...(isManager ? {
+          package_id: form.package_id ?? '',
           quota_users: form.quota_users ?? '', quota_numbers: form.quota_numbers ?? '',
           quota_leads: form.quota_leads ?? '', quota_channels: form.quota_channels ?? '',
         } : {}),
@@ -82,6 +92,11 @@ export default function CompanyEditPage() {
           {tab === 'quota' && (<>
             <QuotaPanel companyId={id} token={token} reloadKey={msg} />
             {isManager && (<>
+              <div className="form-field" style={{ marginTop: 18 }}><label>{t('quota.package')}</label><div className="form-field-control">
+                <select value={form.package_id || ''} onChange={(e) => applyPackage(e.target.value)}>
+                  <option value="">{t('quota.noPackage')}</option>
+                  {packages.map((p) => <option key={p.id} value={p.id}>{p.name} (₪{p.monthly_price})</option>)}
+                </select></div></div>
               <h3 style={{ margin: '18px 0 6px' }}>{t('quota.setLimits')}</h3>
               <p className="muted" style={{ marginTop: 0 }}>{t('quota.emptyUnlimited')}</p>
               {[['quota_users', 'quota.users'], ['quota_numbers', 'quota.numbers'], ['quota_leads', 'quota.leads'], ['quota_channels', 'quota.channels']].map(([k, lbl]) => (

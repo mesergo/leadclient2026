@@ -12,7 +12,7 @@ router.use(requireAuth);
 const FIELDS = `c.id, c.agency_id, c.name, c.logo_url, c.phone, c.fax, c.address, c.zip_code, c.industry,
   c.public_token, c.contacts_access, c.is_donation_center, c.payment_package, c.is_active, c.created_at,
   c.returning_sms_enabled, c.returning_sms_from, c.returning_sms_text, c.leads_distribution_enabled,
-  c.is_trial, c.quota_users, c.quota_numbers, c.quota_leads, c.quota_channels`;
+  c.is_trial, c.package_id, c.quota_users, c.quota_numbers, c.quota_leads, c.quota_channels`;
 
 router.get('/', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'c.id');
@@ -60,7 +60,7 @@ router.post('/', requireRole('super_admin', 'agency_admin'), asyncHandler(async 
 const EDITABLE = ['name', 'phone', 'fax', 'address', 'zip_code', 'industry', 'is_active',
   'contacts_access', 'is_donation_center', 'payment_package',
   'returning_sms_enabled', 'returning_sms_from', 'returning_sms_text', 'leads_distribution_enabled',
-  'quota_users', 'quota_numbers', 'quota_leads', 'quota_channels'];
+  'quota_users', 'quota_numbers', 'quota_leads', 'quota_channels', 'package_id'];
 
 // Usage vs quota for a company (anyone who can see the company). Read-only.
 router.get('/:id/usage', asyncHandler(async (req, res) => {
@@ -91,10 +91,10 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   const sets = [], params = [];
   for (const f of EDITABLE) {
     if (req.body[f] === undefined) continue;
-    if (f.startsWith('quota_')) {
-      if (!isManager) continue;                       // only managers set quotas (not the customer)
+    if (f.startsWith('quota_') || f === 'package_id') {
+      if (!isManager) continue;                       // only managers set quotas / package (not the customer)
       const v = req.body[f];
-      sets.push(`${f} = ?`); params.push(v === '' || v == null ? null : Number(v)); // empty = unlimited
+      sets.push(`${f} = ?`); params.push(v === '' || v == null ? null : Number(v)); // empty = unlimited / no package
     } else { sets.push(`${f} = ?`); params.push(req.body[f]); }
   }
   if (sets.length) { params.push(req.params.id); await query(`UPDATE companies SET ${sets.join(', ')} WHERE id = ?`, params); }

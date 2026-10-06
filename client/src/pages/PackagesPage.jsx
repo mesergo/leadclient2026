@@ -103,8 +103,8 @@ export default function PackagesPage() {
               <td>{p.name} {p.is_trial_default ? <span className="tag-chip" style={{ background: '#4f46e522', color: '#4f46e5' }}>{t('pkg.trialTag')}</span> : null}</td>
               <td>{money(p.monthly_price)}</td>
               <td>{fmtQuota(p.quota_users)}</td><td>{fmtQuota(p.quota_numbers)}</td><td>{fmtQuota(p.quota_leads)}</td><td>{fmtQuota(p.quota_channels)}</td>
-              <td><button className="btn btn-secondary btn-sm" onClick={() => edit(p)}><Icons.Pencil size={13} /></button></td>
-              <td><button className="btn btn-secondary btn-sm" onClick={() => del(p.id)}><Icons.X size={13} /></button></td>
+              <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => edit(p)}><Icons.Pencil size={13} /> {t('common.edit')}</button></td>
+              <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => del(p.id)}><Icons.X size={13} /> {t('common.delete')}</button></td>
             </tr>
           ))}</tbody>
         </table></div>
