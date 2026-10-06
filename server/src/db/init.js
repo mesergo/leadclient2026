@@ -48,6 +48,20 @@ async function ensureSchema() {
   await safe('packages.seed', seedPackages);
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
+  // click-to-call: a pending "call me back" that turns an agent's inbound call into an outbound one
+  await safe('callbacks.table', () => query(`CREATE TABLE IF NOT EXISTS callbacks (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      company_id BIGINT UNSIGNED NULL,
+      user_id BIGINT UNSIGNED NULL,
+      from_number VARCHAR(20) NOT NULL,
+      via_number VARCHAR(20) NULL,
+      target_number VARCHAR(20) NOT NULL,
+      status VARCHAR(12) NOT NULL DEFAULT 'pending',
+      lead_id BIGINT UNSIGNED NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      used_at DATETIME NULL,
+      INDEX idx_cb_from (from_number, status, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
 }
 
 // Seed starter packages once (only when the table is empty). NULL quota = unlimited.

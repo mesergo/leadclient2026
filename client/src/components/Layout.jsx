@@ -5,6 +5,7 @@ import { useLang } from '../context/LangContext';
 import { LANGS } from '../i18n';
 import * as Icons from '../icons';
 import NotificationBell from './NotificationBell';
+import Dialer from './Dialer';
 import logo from '../assets/logo.png';
 
 const NAV = [
@@ -36,6 +37,7 @@ export default function Layout() {
   const { user, logout, impersonatorName, stopImpersonation } = useAuth();
   const { t, lang, setLang, langs } = useLang();
   const [open, setOpen] = useState(false);
+  const [dialer, setDialer] = useState(false);
   const loc = useLocation();
   const ck = CRUMB_KEY['/' + loc.pathname.split('/')[1]] || CRUMB_KEY[loc.pathname];
   const items = NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
@@ -64,6 +66,7 @@ export default function Layout() {
             <Icons.User size={18} /> {t('header.welcome')}, <strong>{user?.name || user?.display_name || user?.username || ''}</strong>
           </NavLink>
           <div className="header-actions">
+            <button className="icon-btn" title={t('dial.title')} onClick={() => setDialer(true)}><Icons.Phone size={18} /></button>
             <NotificationBell />
             <label className="lang-picker" title={t('nav.language')}>
               <Icons.Globe size={16} />
@@ -78,6 +81,7 @@ export default function Layout() {
           {ck && <div className="breadcrumb">{t(ck)}</div>}
           <Outlet />
         </div>
+        {dialer && <Dialer onClose={() => setDialer(false)} />}
       </div>
     </div>
   );

@@ -217,6 +217,20 @@ CREATE TABLE IF NOT EXISTS user_restrictions (
 
 -- ---------- 4. Statuses & Tags ----------
 
+CREATE TABLE IF NOT EXISTS callbacks (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  company_id            BIGINT UNSIGNED NULL,
+  user_id               BIGINT UNSIGNED NULL,
+  from_number           VARCHAR(20) NOT NULL,
+  via_number            VARCHAR(20) NULL,
+  target_number         VARCHAR(20) NOT NULL,
+  status                VARCHAR(12) NOT NULL DEFAULT 'pending',
+  lead_id               BIGINT UNSIGNED NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  used_at               DATETIME NULL,
+  INDEX idx_cb_from (from_number, status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS packages (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   name                  VARCHAR(100) NOT NULL,

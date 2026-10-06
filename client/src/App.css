@@ -440,3 +440,20 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .push-cta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .pill-on { background: #e6f4ea; color: #1b7a3d; }
+
+/* click-to-call dialer */
+.dialer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.dialer { background: var(--surface, #fff); color: var(--text, #111); width: 320px; max-width: calc(100vw - 32px); border-radius: 14px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+.dialer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dialer-head h3 { margin: 0; }
+.dialer-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
+.dialer-field span { color: var(--muted, #667); }
+.dialer-field input, .dialer-field select { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; }
+.dialer-display { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+.dialer-display input { flex: 1; font-size: 22px; text-align: center; letter-spacing: 2px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
+.dialer-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.dialer-key { font-size: 20px; padding: 12px 0; border: 1px solid var(--border, #e3e3e3); background: var(--surface-2, #f7f7f8); border-radius: 10px; cursor: pointer; }
+.dialer-key:hover { background: var(--surface-3, #eee); }
+.dialer-call { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.dialer-done { text-align: center; }
+.dialer-via-big { font-size: 26px; font-weight: 700; letter-spacing: 1px; margin: 8px 0; color: var(--accent, #0a7); }
