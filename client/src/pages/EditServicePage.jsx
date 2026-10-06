@@ -58,7 +58,7 @@ export default function EditServicePage() {
         returning_sms_from: s.returning_sms_from || '', returning_sms_text: s.returning_sms_text || '',
         service_ref: s.service_ref || '', export_webhook_url: s.export_webhook_url || '',
         close_hours_phone: s.close_hours_phone || '',
-        record_percentage: '100', record_option: (s.record_option ?? '3').toString(),
+        record_percentage: '100', record_option: (s.record_option ?? '2').toString(),
         greeting_in: s.greeting_in || '', greeting_out: s.greeting_out || '', ringback_tone: s.ringback_tone || '',
         maskyoo_expose: (s.maskyoo_expose ?? '1').toString(),
         is_active: s.is_active,
