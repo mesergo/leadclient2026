@@ -153,7 +153,15 @@ router.get('/translations/:slug', asyncHandler(async (req, res) => {
 
 // --- IVR / Maskyoo call webhooks (configure these URLs on the provider's number) ---
 // Accept GET or POST; caller/duration/recording come from body or query.
-const pick = (req, ...keys) => { const b = req.body || {}; for (const k of keys) { if (b[k] != null && b[k] !== '') return b[k]; if (req.query[k] != null && req.query[k] !== '') return req.query[k]; } return null; };
+// Read a param from body then query. Maskyoo sends some params twice (e.g. DDI,
+// CLI, DEST arrive as arrays) — always return the first non-empty scalar.
+const scalar = (v) => { if (Array.isArray(v)) return v.find((x) => x != null && x !== '') ?? null; return v != null && v !== '' ? v : null; };
+const pick = (req, ...keys) => {
+  for (const src of [req.body || {}, req.query || {}]) {
+    for (const k of keys) { const v = scalar(src[k]); if (v != null) return v; }
+  }
+  return null;
+};
 
 // --- inbound webhook log (raw data of every attempt, for debugging) ---
 let wlReady = false;
