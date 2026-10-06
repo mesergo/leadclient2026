@@ -12,7 +12,7 @@ router.use(requireAuth, requireRole('super_admin'));
 // Send a REAL test OTP (code 123456) and return MesserGO's full response so the
 // exact failure reason (StatusId / StatusDescription) is visible. super_admin only.
 //   GET /api/messergo/otp-test?phone=05XXXXXXXX&token=<jwt>
-router.get('/otp-test', asyncHandler(async (req, res) => {
+router.post('/otp-test', asyncHandler(async (req, res) => {
   const phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'missing phone (?phone=05XXXXXXXX)' });
   let egressIp = null;
@@ -36,7 +36,7 @@ router.get('/otp-test', asyncHandler(async (req, res) => {
 
 // Plain SMS test (isolates the SMS leg from the OTP voice failover). super_admin only.
 //   GET /api/messergo/sms-test?phone=05XXXXXXXX&token=<jwt>
-router.get('/sms-test', asyncHandler(async (req, res) => {
+router.post('/sms-test', asyncHandler(async (req, res) => {
   const phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'missing phone (?phone=05XXXXXXXX)' });
   const info = { sender: config.messergo.sender, smsUrl: config.messergo.smsUrl, normalizedLocal: messergo.toLocal(phone) };
