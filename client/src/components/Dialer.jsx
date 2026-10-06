@@ -80,7 +80,7 @@ export default function Dialer({ onClose }) {
           </label>
 
           <div className="dialer-display">
-            <input value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d*#+]/g, ''))} placeholder={t('dial.target')} />
+            <input dir="ltr" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^\d*#+]/g, ''))} placeholder={t('dial.target')} />
             {target && <button className="icon-btn" onClick={() => setTarget((v) => v.slice(0, -1))} aria-label="back"><Icons.X size={16} /></button>}
           </div>
 
