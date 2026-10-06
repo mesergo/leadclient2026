@@ -341,7 +341,7 @@ router.all('/call', asyncHandler(async (req, res) => {
   const key = String(did || '').replace(/\D/g, '').slice(-9);
   if (!key) { await updateLog(logId, { result: 'missing_dialed_number' }); return res.status(400).json({ error: 'missing_dialed_number' }); }
   const rows = await query(
-    `SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers
+    `SELECT id, company_id, service_id, redirect_to_number, phone_number FROM phone_numbers
      WHERE REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?)
      ORDER BY (redirect_to_number IS NOT NULL AND redirect_to_number <> '') DESC, id DESC LIMIT 1`, [key]);
   return processCall(rows[0], req, res, logId);
@@ -350,7 +350,7 @@ router.all('/call', asyncHandler(async (req, res) => {
 // Also addressable per-number by id (optional).
 router.all('/call/:id', asyncHandler(async (req, res) => {
   const logId = await logInbound(req, 'maskyoo-call', { result: 'received' });
-  const rows = await query('SELECT id, company_id, service_id, redirect_to_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
+  const rows = await query('SELECT id, company_id, service_id, redirect_to_number, phone_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
   return processCall(rows[0], req, res, logId);
 }));
 
