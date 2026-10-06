@@ -51,22 +51,26 @@ router.post('/', asyncHandler(async (req, res) => {
     return res.status(502).json({ error: 'יצירת השיחה נכשלה' + (placed.error && placed.error !== 'call_failed' ? `: ${placed.error}` : '') });
   }
 
-  // log it as an outgoing call lead (customer is the lead)
+  // The call is already placed — bookkeeping below is best-effort and must never
+  // turn a successful call into a server error.
   let leadId = null;
-  if (companyId) {
-    const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [companyId]);
-    const lr = await query(
-      `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, call_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', 'active', NOW(), NOW())`,
-      [companyId, serviceId, st[0] ? st[0].id : null, messergo.digits(target).replace(/^972/, '0')]);
-    leadId = lr.insertId;
-    notify.notifyCompany({ companyId, event: 'new_lead', title: 'שיחה יוצאת', body: `חיוג ל-${target_number}`, leadId }).catch(() => {});
+  try {
+    if (companyId) {
+      const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [companyId]);
+      const lr = await query(
+        `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, call_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', 'active', NOW(), NOW())`,
+        [companyId, serviceId, st[0] ? st[0].id : null, messergo.digits(target).replace(/^972/, '0')]);
+      leadId = lr.insertId;
+      notify.notifyCompany({ companyId, event: 'new_lead', title: 'שיחה יוצאת', body: `חיוג ל-${target_number}`, leadId }).catch(() => {});
+    }
+    await query("UPDATE callbacks SET status = 'expired' WHERE from_number = ? AND status = 'pending'", [from]);
+    await query(
+      "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, status, lead_id, used_at) VALUES (?, ?, ?, ?, ?, 'used', ?, NOW())",
+      [companyId, req.user.id, from, via, target, leadId]);
+  } catch (e) {
+    console.error('[dialer] post-call bookkeeping failed:', e.message);
   }
-  // keep a record so the end-of-call webhook can attach the recording to this lead
-  await query("UPDATE callbacks SET status = 'expired' WHERE from_number = ? AND status = 'pending'", [from]);
-  await query(
-    "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, status, lead_id, used_at) VALUES (?, ?, ?, ?, ?, 'used', ?, NOW())",
-    [companyId, req.user.id, from, via, target, leadId]);
 
   res.status(201).json({ ok: true, placed: true, lead_id: leadId });
 }));
