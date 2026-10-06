@@ -15,7 +15,10 @@ router.use(requireAuth, requireRole('super_admin'));
 router.get('/otp-test', asyncHandler(async (req, res) => {
   const phone = req.query.phone;
   if (!phone) return res.status(400).json({ error: 'missing phone (?phone=05XXXXXXXX)' });
+  let egressIp = null;
+  try { egressIp = (await (await fetch('https://api.ipify.org?format=json')).json()).ip; } catch (e) { egressIp = 'unknown'; }
   const info = {
+    egressIp, // the IP MesserGO actually sees — must be whitelisted in the MesserGO account
     configured: messergo.configured(),
     user_set: !!config.messergo.user,
     token_set: !!config.messergo.smsToken,
