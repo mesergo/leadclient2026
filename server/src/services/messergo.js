@@ -48,20 +48,22 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
   }
 
   const auth = Buffer.from(`${config.messergo.user}:${config.messergo.smsToken}`).toString('base64');
+  const voiceSettings = {
+    CallerId: config.messergo.voiceCallerId || 'PRIVATE',
+    Language: 'he-female',
+    RequireDigitPress: true,
+    Digit: '1',
+    Message: voice,
+  };
+  const pre = config.messergo.voicePreMessage;
+  if (pre) voiceSettings.PreMessage = pre; // omit entirely when configured empty
   const payload = {
     Data: {
       Channel: 'SMS_WITH_VOICE_FAILOVER',
       CampaignName: campaign,
       OtpCode: String(code),
       Phone: local,
-      VoiceSettings: {
-        CallerId: config.messergo.voiceCallerId || 'PRIVATE',
-        Language: 'he-female',
-        RequireDigitPress: true,
-        Digit: '1',
-        PreMessage: 'שלום, קוד אימות מ-LeadClient',
-        Message: voice,
-      },
+      VoiceSettings: voiceSettings,
       SMSSettings: { Sender: config.messergo.sender, Message: sms },
     },
   };
