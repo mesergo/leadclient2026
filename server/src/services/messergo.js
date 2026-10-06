@@ -87,4 +87,29 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
   }
 }
 
-module.exports = { sendOtp, toE164, toLocal, isIsraeliMobile, digits, configured };
+// Plain SMS send (not OTP) — for diagnostics and general notifications.
+async function sendSms({ phone, text }) {
+  const local = toLocal(phone);
+  if (!configured()) { console.log(`[messergo MOCK] SMS to ${local}: ${text}`); return { ok: true, mocked: true }; }
+  const auth = Buffer.from(`${config.messergo.user}:${config.messergo.smsToken}`).toString('base64');
+  const payload = { Data: { Message: text, Recipients: [{ Phone: local }], Settings: { Sender: config.messergo.sender } } };
+  try {
+    const r = await fetch(config.messergo.smsUrl, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    const t = await r.text();
+    let json; try { json = JSON.parse(t); } catch { json = { raw: t.slice(0, 500) }; }
+    const statusId = json.StatusId != null ? json.StatusId : (json.Data && json.Data.StatusId);
+    if (Number(statusId) === 1) return { ok: true, mocked: false, statusId };
+    const reason = json.StatusDescription || json.Message || 'send_failed';
+    console.error(`[messergo] SMS send failed to ${local}: statusId=${statusId} reason="${reason}"`);
+    return { ok: false, mocked: false, statusId, error: reason, json };
+  } catch (e) {
+    console.error('[messergo] SMS send error:', e.message);
+    return { ok: false, mocked: false, error: e.message };
+  }
+}
+
+module.exports = { sendOtp, sendSms, toE164, toLocal, isIsraeliMobile, digits, configured };

@@ -54,6 +54,12 @@ export default function DevelopersPage() {
     catch (e) { setOtpOut({ error: e.message }); }
     finally { setOtpBusy(false); }
   }
+  async function runSmsTest() {
+    setOtpBusy(true); setOtpOut(null);
+    try { setOtpOut(await api.messergoSmsTest(token, otpPhone)); }
+    catch (e) { setOtpOut({ error: e.message }); }
+    finally { setOtpBusy(false); }
+  }
 
   const svc = services.find((s) => String(s.id) === String(sel.service_id));
   const code = svc?.public_hash || '<קוד הערוץ שלך>';
@@ -127,6 +133,7 @@ export default function DevelopersPage() {
             <label className="filter-item"><span>{t('login.phone')}</span>
               <input type="tel" placeholder="05XXXXXXXX" value={otpPhone} onChange={(e) => setOtpPhone(e.target.value)} /></label>
             <button className="btn btn-primary" onClick={runOtpTest} disabled={otpBusy || !otpPhone}>{otpBusy ? t('login.sending') : t('dev.otpSend')}</button>
+            <button className="btn btn-secondary" onClick={runSmsTest} disabled={otpBusy || !otpPhone}>{t('dev.smsSend')}</button>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
             <input type="checkbox" checked={otpPreOn} onChange={(e) => setOtpPreOn(e.target.checked)} />

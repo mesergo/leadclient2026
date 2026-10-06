@@ -33,6 +33,7 @@ module.exports = {
     // voice-call pre-message. With RequireDigitPress it must reference {Digit}.
     voicePreMessage: process.env.MESSERGO_VOICE_PREMSG != null ? process.env.MESSERGO_VOICE_PREMSG : 'לקבלת קוד האימות לחץ {Digit}',
     otpUrl: process.env.MESSERGO_OTP_URL || 'https://cloud.mesergo.co.il/api/v2/Otp/Message/Send',
+    smsUrl: process.env.MESSERGO_SMS_URL || 'https://capi.mesergo.co.il/api/v2/SMS/SendSms',
   },
   otp: {
     ttlMinutes: Number(process.env.OTP_TTL_MINUTES || 5),
