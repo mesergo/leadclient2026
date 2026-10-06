@@ -20,6 +20,10 @@ export default function LanguagePage() {
     try { await api.setLanguageActive(l.slug, l.is_active ? 0 : 1, token); load(); }
     catch (e) { setError(e.message); }
   };
+  const toggleMenu = async (l) => {
+    try { await api.setLanguageInMenu(l.slug, l.in_menu ? 0 : 1, token); load(); }
+    catch (e) { setError(e.message); }
+  };
   const pct = (l) => (l.total ? Math.round((Number(l.translated) / Number(l.total)) * 100) : 0);
 
   return (
@@ -30,7 +34,7 @@ export default function LanguagePage() {
 
       <div className="table-wrap"><table className="data-table">
         <thead><tr>
-          <th>{t('lng.language')}</th><th>{t('lng.progress')}</th><th>{t('lng.options')}</th><th>{t('lng.active')}</th>
+          <th>{t('lng.language')}</th><th>{t('lng.progress')}</th><th>{t('lng.options')}</th><th>{t('lng.inMenu')}</th><th>{t('lng.active')}</th>
         </tr></thead>
         <tbody>{rows.map((l) => (
           <tr key={l.slug} className={l.is_active ? '' : 'row-suspended'}>
@@ -44,6 +48,11 @@ export default function LanguagePage() {
               <span className="muted" style={{ fontSize: 12 }}>{pct(l)}% ({Number(l.translated)}/{Number(l.total)})</span>
             </td>
             <td><button className="link-action" onClick={() => nav(`/language/${l.slug}`)}><Icons.Pencil size={13} /> {t('lng.edit')}</button></td>
+            <td>
+              <label className="switch-sm">
+                <input type="checkbox" checked={!!l.in_menu} disabled={!isSuper} onChange={() => toggleMenu(l)} />
+              </label>
+            </td>
             <td>
               <label className="switch-sm">
                 <input type="checkbox" checked={!!l.is_active} disabled={!isSuper} onChange={() => toggle(l)} />
