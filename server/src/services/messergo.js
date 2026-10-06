@@ -53,8 +53,9 @@ function configured() { return !!(config.messergo.user && config.messergo.smsTok
 
 async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voiceMessage, preMessage, channel }) {
   const local = toLocal(phone);
-  const sms = smsText || `קוד האימות שלך: ${code}`;
-  const voice = voiceMessage || `הקוד שלך הוא {OtpCode}`;
+  // the OTP endpoint injects OtpCode into the {OtpCode} placeholder — do NOT inline the code
+  const sms = smsText || 'קוד האימות שלך: {OtpCode}';
+  const voice = voiceMessage || 'הקוד שלך הוא {OtpCode}';
   // Regular mobile => SMS only (never voice). Kosher/landline => allow voice failover.
   const ch = channel || (isKosher(phone) ? 'SMS_WITH_VOICE_FAILOVER' : 'SMS');
 
