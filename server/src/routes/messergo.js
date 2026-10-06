@@ -32,4 +32,14 @@ router.get('/otp-test', asyncHandler(async (req, res) => {
   res.json({ info: { ...info, preMessageUsed: preMessage !== undefined ? preMessage : config.messergo.voicePreMessage }, result });
 }));
 
+// Plain SMS test (isolates the SMS leg from the OTP voice failover). super_admin only.
+//   GET /api/messergo/sms-test?phone=05XXXXXXXX&token=<jwt>
+router.get('/sms-test', asyncHandler(async (req, res) => {
+  const phone = req.query.phone;
+  if (!phone) return res.status(400).json({ error: 'missing phone (?phone=05XXXXXXXX)' });
+  const info = { sender: config.messergo.sender, smsUrl: config.messergo.smsUrl, normalizedLocal: messergo.toLocal(phone) };
+  const result = await messergo.sendSms({ phone, text: 'בדיקת SMS מ-LeadClient: 123456' });
+  res.json({ info, result });
+}));
+
 module.exports = router;

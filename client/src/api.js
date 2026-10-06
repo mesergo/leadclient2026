@@ -57,6 +57,7 @@ export const api = {
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),
   companyUsage: (id, token) => request(`/api/companies/${id}/usage`, { token }),
   messergoOtpTest: (token, phone, premsg) => request(`/api/messergo/otp-test?phone=${encodeURIComponent(phone)}${premsg !== undefined ? `&premsg=${encodeURIComponent(premsg)}` : ''}`, { token }),
+  messergoSmsTest: (token, phone) => request(`/api/messergo/sms-test?phone=${encodeURIComponent(phone)}`, { token }),
   impersonateCompany: (id, token) => request(`/api/companies/${id}/impersonate`, { method: 'POST', token }),
 
   importLeads: (body, token) => request('/api/import', { method: 'POST', body, token }),
