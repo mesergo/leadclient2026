@@ -95,6 +95,12 @@ async function createTrialAccount(agency, { company_name, full_name, email, phon
   const comp = await query(
     'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
     [compName, agency.id, crypto.randomUUID()]);
+  // apply the trial-default package's quotas to the new company, if one is set
+  const pkg = await query('SELECT id, quota_users, quota_numbers, quota_leads, quota_channels FROM packages WHERE is_trial_default = 1 LIMIT 1');
+  if (pkg[0]) {
+    await query('UPDATE companies SET package_id = ?, quota_users = ?, quota_numbers = ?, quota_leads = ?, quota_channels = ? WHERE id = ?',
+      [pkg[0].id, pkg[0].quota_users, pkg[0].quota_numbers, pkg[0].quota_leads, pkg[0].quota_channels, comp.insertId]);
+  }
   await query(
     `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES
      (?, 'חדש', '#4f46e5', 1, 1, 0), (?, 'טופל', '#16a34a', 2, 0, 1), (?, 'בוטל', '#dc2626', 3, 0, 1)`,
