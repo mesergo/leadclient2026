@@ -10,13 +10,24 @@ const maskyoo = require('../services/maskyoo');
 async function syncMaskyoo(phoneNumberId, dest) {
   try {
     const [pn] = await query('SELECT phone_number, ivr_provider, company_id, service_id FROM phone_numbers WHERE id = ?', [phoneNumberId]);
-    if (!pn || pn.ivr_provider !== 'maskyoo') return;
-    if (dest) maskyoo.syncRouting(pn.phone_number, dest).catch(() => {});
-    // Always keep the number tagged: app26 + company id + channel id (best-effort)
+    if (!pn || !pn.phone_number) return;
     const tags = ['app26'];
     if (pn.company_id) tags.push('company-' + pn.company_id);
     if (pn.service_id) tags.push('channel-' + pn.service_id);
-    maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
+    // Attempt the sync for any number: syncRouting reads get_maskyoo first and
+    // no-ops if the number isn't in the Maskyoo account — so a stale ivr_provider
+    // flag ('native' on imported numbers) no longer blocks a real Maskyoo number.
+    if (dest) {
+      const r = await maskyoo.syncRouting(pn.phone_number, dest);
+      if (r && r.ok) {
+        maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
+        if (pn.ivr_provider !== 'maskyoo') { // self-heal the flag once confirmed
+          query("UPDATE phone_numbers SET ivr_provider = 'maskyoo' WHERE id = ?", [phoneNumberId]).catch(() => {});
+        }
+      }
+    } else if (pn.ivr_provider === 'maskyoo') {
+      maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
+    }
   } catch (e) { /* never block the save */ }
 }
 
