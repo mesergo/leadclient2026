@@ -115,7 +115,7 @@ export default function VirtualPage() {
             </div></div>
             <div className="form-field"><label>{t('vir.provider')}</label><div className="form-field-control">
               <select value={form.ivr_provider} onChange={(e) => setF('ivr_provider', e.target.value)}>
-                {['maskyoo', 'native', 'micropay', 'paycall'].map((p) => <option key={p} value={p}>{p}</option>)}
+                {['maskyoo', 'native', 'micropay', 'paycall'].map((p) => <option key={p} value={p}>{p === 'maskyoo' ? t('vir.provDefault') : p}</option>)}
               </select></div></div>
           </div>
           <div className="form-actions"><button className="btn btn-primary" onClick={saveNumber}>{t('common.save')}</button></div>

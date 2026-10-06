@@ -8,7 +8,7 @@ export function toRedirect(raw, fallbackNumber) {
   let o = raw;
   if (typeof raw === 'string') { try { o = JSON.parse(raw); } catch { o = null; } }
   if (o && Array.isArray(o.numbers)) {
-    return { type: o.type === 'parallel' ? 'parallel' : 'sequential', ring_seconds: Number(o.ring_seconds) || 25, numbers: o.numbers.length ? o.numbers.map(String) : [''] };
+    return { type: ['parallel', 'ivr'].includes(o.type) ? o.type : 'sequential', ring_seconds: Number(o.ring_seconds) || 25, numbers: o.numbers.length ? o.numbers.map(String) : [''] };
   }
   return { type: 'sequential', ring_seconds: 25, numbers: [fallbackNumber ? String(fallbackNumber) : ''] };
 }
@@ -45,6 +45,7 @@ export default function RedirectConfig({ value, onChange }) {
             <select value={v.type} onChange={(e) => onChange({ ...v, type: e.target.value })}>
               <option value="sequential">{t('rc.sequential')}</option>
               <option value="parallel">{t('rc.parallel')}</option>
+              <option value="ivr">{t('rc.ivr')}</option>
             </select>
           </label>
           <label className="rc-field"><span>{t('rc.ring')}</span>

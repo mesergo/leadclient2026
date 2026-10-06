@@ -36,7 +36,7 @@ async function syncRouting(maskyooNumber, routing, extra = {}) {
   let numbers = [], type = 'sequential', ring = 0;
   if (routing && typeof routing === 'object' && Array.isArray(routing.numbers)) {
     numbers = routing.numbers.filter(Boolean);
-    type = routing.type === 'parallel' ? 'parallel' : 'sequential';
+    type = ['parallel', 'ivr'].includes(routing.type) ? routing.type : 'sequential';
     ring = Number(routing.ring_seconds) || 0;
   } else if (routing) { numbers = [String(routing)]; }
   const dests = numbers.map(intl).filter(Boolean);
@@ -48,7 +48,10 @@ async function syncRouting(maskyooNumber, routing, extra = {}) {
   const p = {};
   for (const [k, v] of Object.entries(cur)) { if (k === 'create_time') continue; p[k] = v == null ? '' : String(v); }
   p.call_destination_phone = dests.join(',').slice(0, 150);
-  p.dial_option = type === 'parallel' ? '1' : '2';                 // 1=simultaneous, 2=sequential (hunt)
+  // 1=simultaneous, 2=sequential (hunt). For 'ivr' the menu/routing is defined
+  // provider-side (IVR Studio), so keep whatever dial_option the number already has.
+  if (type === 'parallel') p.dial_option = '1';
+  else if (type === 'sequential') p.dial_option = '2';
   if (ring >= 1 && ring <= 180) p.dial_timeout_in_sec = String(ring);
   if (!p.description || !String(p.description).trim()) p.description = `app26 ${num}`; // required, non-empty
   if (config.appUrl) { p.callback_url = `${config.appUrl}/api/public/call`; p.callback_url_option = '3'; } // start + end
