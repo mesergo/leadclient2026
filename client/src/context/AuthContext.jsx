@@ -40,8 +40,8 @@ export function AuthProvider({ children }) {
     setToken(d.token);
     setUser(d.user);
   };
-  const registerWithGoogle = async (regToken, credential) => {
-    const d = await api.registerGoogle(regToken, credential);
+  const registerWithGoogle = async (regToken, credential, extra) => {
+    const d = await api.registerGoogle(regToken, credential, extra);
     localStorage.setItem('lc_token', d.token);
     setToken(d.token);
     setUser(d.user);
