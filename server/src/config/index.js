@@ -30,8 +30,9 @@ module.exports = {
     smsToken: process.env.MESSERGO_SMS_TOKEN || '',        // Basic auth: base64(user:token)
     sender: process.env.MESSERGO_SENDER || 'LeadClient',   // approved sender name/number
     voiceCallerId: process.env.MESSERGO_VOICE_CALLER_ID || 'PRIVATE',
-    // voice-call pre-message (before reading the code). Clean Hebrew; set empty to omit.
-    voicePreMessage: process.env.MESSERGO_VOICE_PREMSG != null ? process.env.MESSERGO_VOICE_PREMSG : 'קוד אימות',
+    // voice-call pre-message (before reading the code). MesserGO rejects free text here,
+    // so default to omitting it; set MESSERGO_VOICE_PREMSG to force a value.
+    voicePreMessage: process.env.MESSERGO_VOICE_PREMSG != null ? process.env.MESSERGO_VOICE_PREMSG : '',
     otpUrl: process.env.MESSERGO_OTP_URL || 'https://cloud.mesergo.co.il/api/v2/Otp/Message/Send',
   },
   otp: {
