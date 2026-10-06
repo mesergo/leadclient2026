@@ -202,6 +202,33 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   res.json({ service: rows[0] });
 }));
 
+// Attach an additional virtual number to an existing channel.
+router.post('/:id/numbers', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
+  const s = companyScope(req.user, 'company_id');
+  const svc = await query(`SELECT id, company_id FROM services WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  if (!svc[0]) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  const b = req.body || {};
+  if (!b.phone_number_id) return res.status(400).json({ error: 'לא נבחר מספר' });
+  let cfg = null, primary = b.redirect_to_number ?? null;
+  if (b.redirect_config != null) {
+    const obj = typeof b.redirect_config === 'string' ? safeParse(b.redirect_config) : b.redirect_config;
+    cfg = JSON.stringify(obj);
+    const nums = Array.isArray(obj && obj.numbers) ? obj.numbers.filter(Boolean) : [];
+    if (nums.length) primary = nums[0];
+  }
+  const r = await query(
+    `UPDATE phone_numbers SET company_id = ?, service_id = ?, redirect_to_number = ?, redirect_config = ?
+       WHERE id = ? AND service_id IS NULL AND (company_id = ? OR company_id IS NULL)`,
+    [svc[0].company_id, req.params.id, primary, cfg, b.phone_number_id, svc[0].company_id]);
+  if (!r.affectedRows) return res.status(409).json({ error: 'המספר כבר משויך לערוץ אחר' });
+  await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: svc[0].company_id, serviceId: Number(req.params.id), note: 'שויך לערוץ' });
+  syncMaskyoo(b.phone_number_id, primary);
+  const phones = await query(
+    `SELECT id, phone_number, number_to_display, redirect_to_number, redirect_config, ivr_provider
+       FROM phone_numbers WHERE service_id = ? ORDER BY id`, [req.params.id]);
+  res.status(201).json({ phones });
+}));
+
 // Upload an after-hours audio clip for the channel.
 router.post('/:id/close-audio', requireRole('super_admin', 'agency_admin', 'company_admin'),
   upload.single('audio'), asyncHandler(async (req, res) => {
