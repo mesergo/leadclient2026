@@ -130,6 +130,18 @@ router.patch('/:id', asyncHandler(async (req, res) => {
       notify.notifyCompany({ companyId: lead.company_id, event: 'status_change', title: 'שינוי סטטוס', body: `${lead.lead_name || lead.lead_phone} → ${st[0].text}`, leadId: lead.id, excludeUserId: req.user.id }).catch(() => {});
     }
   }
+
+  // naming a lead names the contact: propagate to every lead with the same phone
+  // in this company (past and — via nameForPhone on intake — future).
+  if (req.body.lead_name !== undefined && String(req.body.lead_name || '').trim() && lead.lead_phone) {
+    const key = String(lead.lead_phone).replace(/\D/g, '').slice(-9);
+    if (key.length >= 7) {
+      await query(
+        `UPDATE leads SET lead_name = ? WHERE company_id = ? AND id <> ?
+           AND REGEXP_REPLACE(lead_phone, '[^0-9]', '') LIKE CONCAT('%', ?)`,
+        [String(req.body.lead_name).trim(), lead.company_id, lead.id, key]);
+    }
+  }
   res.json({ ok: true });
 }));
 

@@ -107,14 +107,28 @@ function announceNewLead(companyId, leadId, name, phone) {
   notify.notifyCompany({ companyId, event: 'new_lead', title: 'ליד חדש', body: `${name || 'ללא שם'} · ${phone}`, leadId }).catch(() => {});
 }
 
+// If this phone already has a named lead in the company, reuse that name for new leads.
+async function nameForPhone(companyId, phone) {
+  const key = String(phone || '').replace(/\D/g, '').slice(-9);
+  if (!companyId || key.length < 7) return null;
+  try {
+    const r = await query(
+      `SELECT lead_name FROM leads WHERE company_id = ? AND lead_name IS NOT NULL AND lead_name <> ''
+         AND REGEXP_REPLACE(lead_phone, '[^0-9]', '') LIKE CONCAT('%', ?) ORDER BY id DESC LIMIT 1`,
+      [companyId, key]);
+    return r[0] ? r[0].lead_name : null;
+  } catch (e) { return null; }
+}
+
 // public lead intake by service hash (embed widget). No auth.
 router.post('/leads/service/:hash', asyncHandler(async (req, res) => {
   const svc = await query('SELECT id, company_id FROM services WHERE public_hash = ? LIMIT 1', [req.params.hash]);
   if (!svc[0]) return res.status(404).json({ error: 'no_channel_id' });
   const { name, phone, email } = req.body || {};
   if (!phone) return res.status(400).json({ error: 'missing_phone' });
+  const leadName = name || await nameForPhone(svc[0].company_id, phone);
   const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-    [svc[0].company_id, svc[0].id, name || null, phone, email || null, 'widget']);
+    [svc[0].company_id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'widget', { companyId: svc[0].company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(svc[0].company_id, r.insertId, name, phone);
   res.status(201).json({ ok: true });
@@ -128,8 +142,9 @@ router.post('/leads/company/:token', asyncHandler(async (req, res) => {
   if (!svc[0]) return res.status(404).json({ error: 'no_channel_id' });
   const { name, phone, email } = req.body || {};
   if (!phone) return res.status(400).json({ error: 'missing_phone' });
+  const leadName = name || await nameForPhone(co[0].id, phone);
   const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-    [co[0].id, svc[0].id, name || null, phone, email || null, 'widget']);
+    [co[0].id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'company-token', { companyId: co[0].id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(co[0].id, r.insertId, name, phone);
   res.status(201).json({ ok: true });
@@ -265,10 +280,11 @@ async function processCall(num, req, res, logId) {
       let leadId = cb.lead_id;
       if (!leadId) { // no lead yet -> create the single outgoing lead
         const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [num.company_id]);
+        const knownName = await nameForPhone(num.company_id, targetLocal);
         const r = await query(
-          `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, NOW(), NOW())`,
-          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active']);
+          `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, NOW(), NOW())`,
+          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active']);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
         announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal);
@@ -324,10 +340,11 @@ async function processCall(num, req, res, logId) {
     `SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1`,
     [num.company_id]);
   const statusId = st[0] ? st[0].id : null;
+  const knownName = await nameForPhone(num.company_id, caller);
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'call', ?, ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');
