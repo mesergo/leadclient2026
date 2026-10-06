@@ -48,6 +48,13 @@ async function ensureSchema() {
   await safe('packages.seed', seedPackages);
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
+  // Maskyoo per-channel settings synced on save (recording, prompts, caller-id exposure)
+  await safe('services.record_percentage', () => ensureColumn('services', 'record_percentage', 'record_percentage INT NULL'));
+  await safe('services.record_option', () => ensureColumn('services', 'record_option', 'record_option TINYINT NULL'));
+  await safe('services.greeting_in', () => ensureColumn('services', 'greeting_in', 'greeting_in VARCHAR(100) NULL'));
+  await safe('services.greeting_out', () => ensureColumn('services', 'greeting_out', 'greeting_out VARCHAR(100) NULL'));
+  await safe('services.ringback_tone', () => ensureColumn('services', 'ringback_tone', 'ringback_tone VARCHAR(100) NULL'));
+  await safe('services.maskyoo_expose', () => ensureColumn('services', 'maskyoo_expose', 'maskyoo_expose TINYINT NULL'));
   // employee invitations (company manager invites an agent by email/phone)
   await safe('employee_invites.table', () => query(`CREATE TABLE IF NOT EXISTS employee_invites (
       id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,

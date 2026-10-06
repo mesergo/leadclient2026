@@ -28,7 +28,7 @@ const intl = (n) => { const d = String(n || '').replace(/\D/g, ''); if (!d) retu
 // (comma-separated), dial_option (1=simultaneous/parallel, 2=sequential) and
 // dial_timeout_in_sec, keeps callback_url pointing at us (start+end), and re-sends
 // every other field so update_maskyoo (which replaces the whole record) wipes nothing.
-async function syncRouting(maskyooNumber, routing) {
+async function syncRouting(maskyooNumber, routing, extra = {}) {
   if (!config.maskyoo.token) return { ok: false, error: 'no_token' };
   const num = intl(maskyooNumber);
   if (!num) return { ok: false, error: 'bad_args' };
@@ -52,6 +52,18 @@ async function syncRouting(maskyooNumber, routing) {
   if (ring >= 1 && ring <= 180) p.dial_timeout_in_sec = String(ring);
   if (!p.description || !String(p.description).trim()) p.description = `app26 ${num}`; // required, non-empty
   if (config.appUrl) { p.callback_url = `${config.appUrl}/api/public/call`; p.callback_url_option = '3'; } // start + end
+
+  // optional per-channel settings (only override when provided)
+  const inRange = (v, lo, hi) => v != null && v !== '' && Number(v) >= lo && Number(v) <= hi;
+  if (inRange(extra.record_percentage, 0, 100)) p.record_percentage = String(Number(extra.record_percentage));
+  if (inRange(extra.record_option, 1, 3)) p.record_option = String(Number(extra.record_option));
+  if (inRange(extra.expose, 1, 3)) p.expose = String(Number(extra.expose));
+  if (extra.greeting_in != null) p.greeting_in = String(extra.greeting_in);
+  if (extra.greeting_out != null) p.greeting_out = String(extra.greeting_out);
+  if (extra.ringback_tone != null) p.ringback_tone = String(extra.ringback_tone);
+  if (typeof extra.working_hours === 'string' && extra.working_hours.length === 168) p.working_hours = extra.working_hours;
+  if (extra.out_of_time_destination_phone) p.out_of_time_destination_phone = intl(extra.out_of_time_destination_phone);
+
   const u = await call('update_maskyoo', p, 'POST');
   return { ok: u.status?.code === 200, u };
 }

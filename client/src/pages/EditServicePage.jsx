@@ -64,6 +64,9 @@ export default function EditServicePage() {
         returning_sms_from: s.returning_sms_from || '', returning_sms_text: s.returning_sms_text || '',
         service_ref: s.service_ref || '', export_webhook_url: s.export_webhook_url || '',
         close_hours_phone: s.close_hours_phone || '',
+        record_percentage: s.record_percentage ?? '', record_option: s.record_option ?? '',
+        greeting_in: s.greeting_in || '', greeting_out: s.greeting_out || '', ringback_tone: s.ringback_tone || '',
+        maskyoo_expose: s.maskyoo_expose ?? '',
         is_active: s.is_active,
       });
       setPhones((d.phones || []).map((p) => ({ ...p, config: toRedirect(p.redirect_config, p.redirect_to_number) })));
@@ -120,6 +123,11 @@ export default function EditServicePage() {
       close_hours_config: hoursOn && afterMode === 'phone' ? closeConfig : null,
       close_hours_audio_url: hoursOn && afterMode === 'audio' ? (audioUrl || null) : null,
       is_active: form.is_active ? 1 : 0,
+      ...(type === 'phone' ? {
+        record_percentage: form.record_percentage, record_option: form.record_option,
+        greeting_in: form.greeting_in, greeting_out: form.greeting_out, ringback_tone: form.ringback_tone,
+        maskyoo_expose: form.maskyoo_expose,
+      } : {}),
       phones: type === 'phone' ? phones.map((p) => ({ id: p.id, redirect_config: p.config })) : undefined,
     };
     try { await api.updateService(id, body, token); setMsg(t('es.saved')); }
@@ -232,6 +240,35 @@ export default function EditServicePage() {
               <button type="button" className="btn btn-secondary" disabled={addBusy || !addSel.phone_number_id} onClick={addNumber}>
                 {addBusy ? '...' : t('es.addNumber')}
               </button>
+            </div>
+
+            {/* Maskyoo per-channel settings (synced on save) */}
+            <div className="reveal-block">
+              <h4 style={{ margin: '4px 0 8px' }}>{t('es.mkTitle')}</h4>
+              <div className="form-field"><label>{t('es.record')}</label><div className="form-field-control">
+                <input type="number" min="0" max="100" style={{ width: 120 }} placeholder="0-100" value={form.record_percentage}
+                  onChange={(e) => set('record_percentage', e.target.value)} /> <span className="muted">%</span></div></div>
+              <div className="form-field"><label>{t('es.recordOption')}</label><div className="form-field-control">
+                <select value={form.record_option} onChange={(e) => set('record_option', e.target.value)}>
+                  <option value="">—</option>
+                  <option value="1">{t('es.recCaller')}</option>
+                  <option value="2">{t('es.recAnswerer')}</option>
+                  <option value="3">{t('es.recBoth')}</option>
+                </select></div></div>
+              <div className="form-field"><label>{t('es.expose')}</label><div className="form-field-control">
+                <select value={form.maskyoo_expose} onChange={(e) => set('maskyoo_expose', e.target.value)}>
+                  <option value="">—</option>
+                  <option value="1">{t('es.exposeVirtual')}</option>
+                  <option value="2">{t('es.exposeCaller')}</option>
+                  <option value="3">{t('es.exposeAnon')}</option>
+                </select></div></div>
+              <div className="form-field"><label>{t('es.greetingIn')}</label><div className="form-field-control">
+                <input value={form.greeting_in} onChange={(e) => set('greeting_in', e.target.value)} placeholder={t('es.promptName')} /></div></div>
+              <div className="form-field"><label>{t('es.greetingOut')}</label><div className="form-field-control">
+                <input value={form.greeting_out} onChange={(e) => set('greeting_out', e.target.value)} placeholder={t('es.promptName')} /></div></div>
+              <div className="form-field"><label>{t('es.ringback')}</label><div className="form-field-control">
+                <input value={form.ringback_tone} onChange={(e) => set('ringback_tone', e.target.value)} placeholder={t('es.promptName')} /></div></div>
+              <p className="muted" style={{ fontSize: 12 }}>{t('es.mkHint')}</p>
             </div>
           </>)}
 
