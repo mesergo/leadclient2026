@@ -451,7 +451,7 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .dialer-field input, .dialer-field select { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; }
 .dialer-display { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
 .dialer-display input { flex: 1; font-size: 22px; text-align: center; letter-spacing: 2px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
-.dialer-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.dialer-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; direction: ltr; }
 .dialer-key { font-size: 20px; padding: 12px 0; border: 1px solid var(--border, #e3e3e3); background: var(--surface-2, #f7f7f8); border-radius: 10px; cursor: pointer; }
 .dialer-key:hover { background: var(--surface-3, #eee); }
 .dialer-call { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
