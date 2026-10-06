@@ -37,42 +37,22 @@ router.post('/', asyncHandler(async (req, res) => {
   const from = messergo.toE164(from_number);
   const target = messergo.toE164(target_number);
   const via = messergo.toE164(via_number);
+  const companyId = req.user.company_id || null;
 
-  // the outgoing call is logged under the virtual number's company/channel
-  const key = messergo.digits(via).slice(-9);
-  const vn = await query(
-    `SELECT company_id, service_id FROM phone_numbers WHERE REGEXP_REPLACE(phone_number,'[^0-9]','') LIKE CONCAT('%', ?) LIMIT 1`, [key]);
-  const companyId = (vn[0] && vn[0].company_id) || req.user.company_id || null;
-  const serviceId = (vn[0] && vn[0].service_id) || null;
+  // Record the intent BEFORE placing the call, so the inbound webhook can match it
+  // by the customer (DEST) and build the single call_out lead. No dial-time lead.
+  await query("UPDATE callbacks SET status = 'expired' WHERE user_id = ? AND status = 'pending'", [req.user.id]);
+  const cb = await query(
+    "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+    [companyId, req.user.id, from, via, target]);
 
-  // place the dedicated bridged call (no change to call_destination_phone)
+  // place the dedicated bridged call (does NOT change call_destination_phone)
   const placed = await maskyoo.createCall({ maskyooNumber: via, agent: from, customer: target });
   if (!placed.ok) {
+    await query("UPDATE callbacks SET status = 'expired' WHERE id = ?", [cb.insertId]);
     return res.status(502).json({ error: 'יצירת השיחה נכשלה' + (placed.error && placed.error !== 'call_failed' ? `: ${placed.error}` : '') });
   }
-
-  // The call is already placed — bookkeeping below is best-effort and must never
-  // turn a successful call into a server error.
-  let leadId = null;
-  try {
-    if (companyId) {
-      const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [companyId]);
-      const lr = await query(
-        `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, call_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', 'active', NOW(), NOW())`,
-        [companyId, serviceId, st[0] ? st[0].id : null, messergo.digits(target).replace(/^972/, '0')]);
-      leadId = lr.insertId;
-      notify.notifyCompany({ companyId, event: 'new_lead', title: 'שיחה יוצאת', body: `חיוג ל-${target_number}`, leadId }).catch(() => {});
-    }
-    await query("UPDATE callbacks SET status = 'expired' WHERE from_number = ? AND status = 'pending'", [from]);
-    await query(
-      "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, status, lead_id, used_at) VALUES (?, ?, ?, ?, ?, 'used', ?, NOW())",
-      [companyId, req.user.id, from, via, target, leadId]);
-  } catch (e) {
-    console.error('[dialer] post-call bookkeeping failed:', e.message);
-  }
-
-  res.status(201).json({ ok: true, placed: true, lead_id: leadId });
+  res.status(201).json({ ok: true, placed: true });
 }));
 
 module.exports = router;
