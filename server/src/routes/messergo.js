@@ -26,8 +26,10 @@ router.get('/otp-test', asyncHandler(async (req, res) => {
     otpUrl: config.messergo.otpUrl,
     normalized: { e164: messergo.toE164(phone), local: messergo.toLocal(phone) },
   };
-  const result = await messergo.sendOtp({ phone, code: '123456' });
-  res.json({ info, result });
+  // ?premsg=... overrides the voice PreMessage for live experimentation (empty = omit the field)
+  const preMessage = req.query.premsg;
+  const result = await messergo.sendOtp({ phone, code: '123456', ...(preMessage !== undefined ? { preMessage } : {}) });
+  res.json({ info: { ...info, preMessageUsed: preMessage !== undefined ? preMessage : config.messergo.voicePreMessage }, result });
 }));
 
 module.exports = router;

@@ -37,7 +37,7 @@ function isIsraeliMobile(n) {
 // --- OTP send --------------------------------------------------------------
 function configured() { return !!(config.messergo.user && config.messergo.smsToken); }
 
-async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voiceMessage }) {
+async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voiceMessage, preMessage }) {
   const local = toLocal(phone);
   const sms = smsText || `קוד האימות שלך: ${code}`;
   const voice = voiceMessage || `הקוד שלך הוא {OtpCode}`;
@@ -55,8 +55,8 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
     Digit: '1',
     Message: voice,
   };
-  const pre = config.messergo.voicePreMessage;
-  if (pre) voiceSettings.PreMessage = pre; // omit entirely when configured empty
+  const pre = preMessage !== undefined ? preMessage : config.messergo.voicePreMessage; // caller override wins
+  if (pre) voiceSettings.PreMessage = pre; // omit entirely when empty
   const payload = {
     Data: {
       Channel: 'SMS_WITH_VOICE_FAILOVER',
