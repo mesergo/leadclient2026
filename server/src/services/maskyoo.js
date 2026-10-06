@@ -23,20 +23,35 @@ async function call(service, params = {}, method = 'GET') {
 
 const intl = (n) => { const d = String(n || '').replace(/\D/g, ''); if (!d) return ''; if (d.startsWith('972')) return d; if (d.startsWith('0')) return '972' + d.slice(1); return '972' + d; };
 
-// Push our routing to a Maskyoo number: set call_destination_phone (and keep
-// callback_url pointing at us). Reads current settings and re-sends them all so
-// nothing is wiped (update_maskyoo replaces the whole record). Best-effort.
-async function syncRouting(maskyooNumber, destPhone) {
+// Push our routing to a Maskyoo number. `routing` is either a single number
+// (string) or { numbers[], type, ring_seconds }. Maps to call_destination_phone
+// (comma-separated), dial_option (1=simultaneous/parallel, 2=sequential) and
+// dial_timeout_in_sec, keeps callback_url pointing at us (start+end), and re-sends
+// every other field so update_maskyoo (which replaces the whole record) wipes nothing.
+async function syncRouting(maskyooNumber, routing) {
   if (!config.maskyoo.token) return { ok: false, error: 'no_token' };
-  const num = intl(maskyooNumber), dest = intl(destPhone);
-  if (!num || !dest) return { ok: false, error: 'bad_args' };
+  const num = intl(maskyooNumber);
+  if (!num) return { ok: false, error: 'bad_args' };
+
+  let numbers = [], type = 'sequential', ring = 0;
+  if (routing && typeof routing === 'object' && Array.isArray(routing.numbers)) {
+    numbers = routing.numbers.filter(Boolean);
+    type = routing.type === 'parallel' ? 'parallel' : 'sequential';
+    ring = Number(routing.ring_seconds) || 0;
+  } else if (routing) { numbers = [String(routing)]; }
+  const dests = numbers.map(intl).filter(Boolean);
+  if (!dests.length) return { ok: false, error: 'no_dest' };
+
   const g = await call('get_maskyoo', { maskyoo: num });
   if (g.status?.code !== 200 || !g.result || !g.result[0]) return { ok: false, error: 'get_failed', g };
   const cur = g.result[0];
   const p = {};
   for (const [k, v] of Object.entries(cur)) { if (k === 'create_time') continue; p[k] = v == null ? '' : String(v); }
-  p.call_destination_phone = dest;
-  if (config.appUrl) p.callback_url = `${config.appUrl}/api/public/call`;
+  p.call_destination_phone = dests.join(',').slice(0, 150);
+  p.dial_option = type === 'parallel' ? '1' : '2';                 // 1=simultaneous, 2=sequential (hunt)
+  if (ring >= 1 && ring <= 180) p.dial_timeout_in_sec = String(ring);
+  if (!p.description || !String(p.description).trim()) p.description = `app26 ${num}`; // required, non-empty
+  if (config.appUrl) { p.callback_url = `${config.appUrl}/api/public/call`; p.callback_url_option = '3'; } // start + end
   const u = await call('update_maskyoo', p, 'POST');
   return { ok: u.status?.code === 200, u };
 }
