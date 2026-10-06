@@ -57,6 +57,10 @@ export const api = {
   createCompany: (body, token) => request('/api/companies', { method: 'POST', body, token }),
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),
   companyUsage: (id, token) => request(`/api/companies/${id}/usage`, { token }),
+  // employee invitations
+  createInvite: (body, token) => request('/api/invitations', { method: 'POST', body, token }),
+  inviteInfo: (tok) => request(`/api/public/invite/${tok}`),
+  acceptInvite: (tok, body) => request(`/api/public/invite/${tok}/accept`, { method: 'POST', body }),
   callbackOptions: (token) => request('/api/callbacks/options', { token }),
   createCallback: (body, token) => request('/api/callbacks', { method: 'POST', body, token }),
   packages: (token) => request('/api/packages', { token }),

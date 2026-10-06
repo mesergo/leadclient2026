@@ -4,6 +4,7 @@ import { LangProvider } from './context/LangContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import InvitePage from './pages/InvitePage';
 import DashboardPage from './pages/DashboardPage';
 import AgenciesPage from './pages/AgenciesPage';
 import AgencyEditPage from './pages/AgencyEditPage';
@@ -57,6 +58,7 @@ function Routing() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register/:token" element={<RegisterPage />} />
+      <Route path="/invite/:token" element={<InvitePage />} />
       <Route element={<Protected />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />

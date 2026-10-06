@@ -29,6 +29,19 @@ export default function UsersPage() {
   const [editCompanyId, setEditCompanyId] = useState(null); // user id whose company is being edited
   const [editRoleId, setEditRoleId] = useState(null);
   const [error, setError] = useState('');
+  const [inv, setInv] = useState({ open: false, email: '', phone: '' });
+  const [invResult, setInvResult] = useState(null);
+  const [invCopied, setInvCopied] = useState(false);
+  async function createInvite() {
+    setError(''); setInvResult(null);
+    try {
+      const body = { email: inv.email || undefined, phone: inv.phone || undefined };
+      if (canReassign) { if (!flt.company_id) { setError(t('inv.pickCompany')); return; } body.company_id = flt.company_id; }
+      const r = await api.createInvite(body, token);
+      setInvResult(r);
+    } catch (e) { setError(e.message); }
+  }
+  const copyInvite = async () => { try { await navigator.clipboard.writeText(invResult.link); setInvCopied(true); setTimeout(() => setInvCopied(false), 1800); } catch { /* */ } };
 
   const load = (f = flt) => api.users(token, {
     agency: f.agency || undefined, company_id: f.company_id || undefined,
@@ -61,8 +74,38 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="page-header"><h1>{t('nav.users')}</h1></div>
+      <div className="page-header">
+        <h1>{t('nav.users')}</h1>
+        <button className="btn btn-primary" onClick={() => { setInv((v) => ({ ...v, open: !v.open })); setInvResult(null); }}>
+          <Icons.Plus size={15} /> {t('inv.send')}
+        </button>
+      </div>
       {error && <p className="error">{error}</p>}
+
+      {inv.open && (
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>{t('inv.send')}</h3>
+          <p className="muted" style={{ marginTop: -6 }}>{t('inv.hint')}</p>
+          <div className="filter-row" style={{ alignItems: 'flex-end' }}>
+            <label className="filter-item"><span>{t('ue.email')}</span>
+              <input type="email" value={inv.email} onChange={(e) => setInv({ ...inv, email: e.target.value })} placeholder="name@example.com" /></label>
+            <label className="filter-item"><span>{t('login.phone')}</span>
+              <input type="tel" value={inv.phone} onChange={(e) => setInv({ ...inv, phone: e.target.value })} placeholder="05X-XXXXXXX" /></label>
+            <button className="btn btn-primary" onClick={createInvite}>{t('inv.create')}</button>
+          </div>
+          {canReassign && <p className="muted" style={{ fontSize: 12 }}>{t('inv.pickCompany')}</p>}
+          {invResult && (
+            <div style={{ marginTop: 10 }}>
+              {invResult.warning === 'same' && <p className="error">{t('inv.warnSame')}</p>}
+              {invResult.warning === 'other' && <p className="error">{t('inv.warnOther')}</p>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={invResult.link} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                <button type="button" className="btn btn-secondary" onClick={copyInvite}>{invCopied ? t('agedit.copied') : t('agedit.copy')}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {stats && (
         <div className="stat-grid">

@@ -4,6 +4,7 @@ module.exports = function registerRoutes(app) {
   app.use('/api/companies', require('./companies'));
   app.use('/api/packages', require('./packages'));
   app.use('/api/callbacks', require('./callbacks'));
+  app.use('/api/invitations', require('./invitations'));
   app.use('/api/services', require('./services'));
   app.use('/api/statuses', require('./statuses'));
   app.use('/api/tags', require('./tags'));
