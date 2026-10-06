@@ -1,10 +1,73 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { asyncHandler } = require('../utils/http');
 const notify = require('../services/notify');
 const recording = require('../services/recording');
+const messergo = require('../services/messergo');
+const config = require('../config');
+const { issueToken } = require('../services/authService');
 
 const router = express.Router();
+
+// --- Employee invitation acceptance (public) --------------------------------
+const emailOk = (e) => /^\S+@\S+\.\S+$/.test(e || '');
+
+async function loadInvite(token) {
+  const rows = await query(
+    `SELECT i.id, i.company_id, i.email, i.phone, i.role, i.status, i.expires_at, c.name AS company_name
+       FROM employee_invites i JOIN companies c ON c.id = i.company_id WHERE i.token = ? LIMIT 1`, [token]);
+  const inv = rows[0];
+  if (!inv || inv.status !== 'pending' || (inv.expires_at && new Date(inv.expires_at).getTime() < Date.now())) return null;
+  return inv;
+}
+
+// What the employee sees: company name + the locked email/phone the manager set.
+router.get('/invite/:token', asyncHandler(async (req, res) => {
+  const inv = await loadInvite(req.params.token);
+  if (!inv) return res.status(404).json({ error: 'קישור הזמנה לא תקין או שפג תוקפו' });
+  res.json({ company: { name: inv.company_name }, email: inv.email, phone: inv.phone });
+}));
+
+router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
+  const inv = await loadInvite(req.params.token);
+  if (!inv) return res.status(404).json({ error: 'קישור הזמנה לא תקין או שפג תוקפו' });
+  const { full_name, password } = req.body || {};
+  // email/phone are locked to the invite; the employee may supply the one not provided
+  const email = inv.email || (req.body.email || null);
+  const phone = inv.phone || (req.body.phone ? messergo.toE164(req.body.phone) : null);
+  if (!full_name || !String(full_name).trim()) return res.status(400).json({ error: 'חסר שם מלא' });
+  if (!password || String(password).length < 6) return res.status(400).json({ error: 'הסיסמה חייבת לפחות 6 תווים' });
+  if (!email && !phone) return res.status(400).json({ error: 'יש להזין אימייל או נייד' });
+  if (email && !emailOk(email)) return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
+  if (phone && !/^972\d{8,9}$/.test(messergo.digits(phone))) return res.status(400).json({ error: 'מספר נייד לא תקין' });
+
+  // duplicate guard (single-company model): block if this email/phone is already a user
+  const cond = [], params = [];
+  if (email) { cond.push('email = ?'); params.push(email); }
+  if (phone) { cond.push("REGEXP_REPLACE(phone,'[^0-9]','') LIKE CONCAT('%', ?)"); params.push(messergo.digits(phone).slice(-9)); }
+  const existing = cond.length ? await query(`SELECT id, company_id FROM users WHERE is_active = 1 AND (${cond.join(' OR ')}) LIMIT 1`, params) : [];
+  if (existing[0]) {
+    return res.status(409).json({ error: String(existing[0].company_id) === String(inv.company_id)
+      ? 'המשתמש כבר קיים בחברה' : 'האימייל/נייד כבר רשום במערכת. פנה לתמיכה.' });
+  }
+  const username = email || phone;
+  const uexist = await query('SELECT id FROM users WHERE username = ? LIMIT 1', [username]);
+  if (uexist[0]) return res.status(409).json({ error: 'משתמש כבר קיים' });
+
+  const hash = await bcrypt.hash(password, 10);
+  const u = await query(
+    `INSERT INTO users (company_id, role, username, email, display_name, phone, password_hash, language, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'he', 1, NOW())`,
+    [inv.company_id, inv.role || 'company_user', username, email, String(full_name).trim(), phone, hash]);
+  await query("UPDATE employee_invites SET status = 'accepted', accepted_user_id = ? WHERE id = ?", [u.insertId, inv.id]);
+
+  const user = { id: u.insertId, role: inv.role || 'company_user', company_id: inv.company_id, agency_id: null };
+  res.status(201).json({
+    token: issueToken(user),
+    user: { id: u.insertId, name: String(full_name).trim(), role: user.role, company_id: inv.company_id, agency_id: null, phone: phone || null, phone_verified_at: null, phone_verify_required: config.requirePhoneVerify },
+  });
+}));
 
 // Push end-of-call details to the channel's own webhook (export_webhook_url), with
 // a signed recording link served by us (Maskyoo is never exposed). Fire-and-forget.

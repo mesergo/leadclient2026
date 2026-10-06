@@ -34,6 +34,12 @@ export function AuthProvider({ children }) {
     setUser(d.user);
   };
   const refreshUser = async () => { const d = await api.me(token); setUser(d.user); return d.user; };
+  const acceptInvite = async (tok, body) => {
+    const d = await api.acceptInvite(tok, body);
+    localStorage.setItem('lc_token', d.token);
+    setToken(d.token);
+    setUser(d.user);
+  };
   const registerAccount = async (regToken, body) => {
     const d = await api.register(regToken, body);
     localStorage.setItem('lc_token', d.token);
@@ -67,5 +73,5 @@ export function AuthProvider({ children }) {
     if (admin) { localStorage.setItem('lc_token', admin); setToken(admin); setUser(null); }
   };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, acceptInvite, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

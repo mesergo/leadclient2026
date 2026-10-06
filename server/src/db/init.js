@@ -48,6 +48,22 @@ async function ensureSchema() {
   await safe('packages.seed', seedPackages);
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
+  // employee invitations (company manager invites an agent by email/phone)
+  await safe('employee_invites.table', () => query(`CREATE TABLE IF NOT EXISTS employee_invites (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      company_id BIGINT UNSIGNED NOT NULL,
+      invited_by BIGINT UNSIGNED NULL,
+      email VARCHAR(255) NULL,
+      phone VARCHAR(20) NULL,
+      token CHAR(36) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'company_user',
+      status VARCHAR(12) NOT NULL DEFAULT 'pending',
+      accepted_user_id BIGINT UNSIGNED NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NULL,
+      UNIQUE KEY uq_inv_token (token),
+      INDEX idx_inv_company (company_id, status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // read-only agency-scoped sales role
   await safe('users.role.sales_manager', () => query(
     "ALTER TABLE users MODIFY COLUMN role ENUM('super_admin','agency_admin','sales_manager','company_admin','company_user','translator') NOT NULL DEFAULT 'company_user'"));

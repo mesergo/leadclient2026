@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS invitations (
+CREATE TABLE IF NOT EXISTS employee_invites (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   user_id               BIGINT UNSIGNED NOT NULL,
   company_id            BIGINT UNSIGNED NULL,
@@ -216,6 +216,22 @@ CREATE TABLE IF NOT EXISTS user_restrictions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------- 4. Statuses & Tags ----------
+
+CREATE TABLE IF NOT EXISTS employee_invites (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  company_id            BIGINT UNSIGNED NOT NULL,
+  invited_by            BIGINT UNSIGNED NULL,
+  email                 VARCHAR(255) NULL,
+  phone                 VARCHAR(20) NULL,
+  token                 CHAR(36) NOT NULL,
+  role                  VARCHAR(20) NOT NULL DEFAULT 'company_user',
+  status                VARCHAR(12) NOT NULL DEFAULT 'pending',
+  accepted_user_id      BIGINT UNSIGNED NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at            DATETIME NULL,
+  UNIQUE KEY uq_inv_token (token),
+  INDEX idx_inv_company (company_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS callbacks (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
