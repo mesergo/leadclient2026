@@ -25,10 +25,12 @@ router.get('/otp-test', asyncHandler(async (req, res) => {
     sender: config.messergo.sender,
     otpUrl: config.messergo.otpUrl,
     normalized: { e164: messergo.toE164(phone), local: messergo.toLocal(phone) },
+    kosher: messergo.isKosher(phone),
+    channel: req.query.channel || (messergo.isKosher(phone) ? 'SMS_WITH_VOICE_FAILOVER' : 'SMS'),
   };
-  // ?premsg=... overrides the voice PreMessage for live experimentation (empty = omit the field)
+  // ?premsg=... overrides the voice PreMessage; ?channel=... forces the channel (for testing)
   const preMessage = req.query.premsg;
-  const result = await messergo.sendOtp({ phone, code: '123456', ...(preMessage !== undefined ? { preMessage } : {}) });
+  const result = await messergo.sendOtp({ phone, code: '123456', ...(preMessage !== undefined ? { preMessage } : {}), ...(req.query.channel ? { channel: req.query.channel } : {}) });
   res.json({ info: { ...info, preMessageUsed: preMessage !== undefined ? preMessage : config.messergo.voicePreMessage }, result });
 }));
 

@@ -34,39 +34,53 @@ function isIsraeliMobile(n) {
   return /^9725\d{8}$/.test(d);
 }
 
+// Kosher phone number prefixes (local 0XXXXXXXXX form). These lines can't receive
+// SMS, so they get voice OTP; every other number is treated as a regular mobile
+// (SMS only, never voice). Source: "ועד בני תורה" kosher ranges.
+const KOSHER_PREFIXES = [
+  '05041', '05271', '05276', '05331', '05341', '05484', '05485',
+  '05532', '05552', '05567', '055400', '05541', '05576', '05832',
+];
+function isKosher(n) {
+  const local = toLocal(n);
+  if (KOSHER_PREFIXES.some((p) => local.startsWith(p))) return true;
+  if (/^0[2-9]80\d/.test(local)) return true; // Bezeq kosher landline (0X) 80X-XXXX
+  return false;
+}
+
 // --- OTP send --------------------------------------------------------------
 function configured() { return !!(config.messergo.user && config.messergo.smsToken); }
 
-async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voiceMessage, preMessage }) {
+async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voiceMessage, preMessage, channel }) {
   const local = toLocal(phone);
   const sms = smsText || `קוד האימות שלך: ${code}`;
   const voice = voiceMessage || `הקוד שלך הוא {OtpCode}`;
+  // Regular mobile => SMS only (never voice). Kosher/landline => allow voice failover.
+  const ch = channel || (isKosher(phone) ? 'SMS_WITH_VOICE_FAILOVER' : 'SMS');
 
   if (!configured()) {
-    console.log(`[messergo MOCK] OTP to ${local}: ${code}`);
-    return { ok: true, mocked: true };
+    console.log(`[messergo MOCK] OTP to ${local} (${ch}): ${code}`);
+    return { ok: true, mocked: true, channel: ch };
   }
 
   const auth = Buffer.from(`${config.messergo.user}:${config.messergo.smsToken}`).toString('base64');
-  const voiceSettings = {
-    CallerId: config.messergo.voiceCallerId || 'PRIVATE',
-    Language: 'he-female',
-    RequireDigitPress: true,
-    Digit: '1',
-    Message: voice,
-  };
-  const pre = preMessage !== undefined ? preMessage : config.messergo.voicePreMessage; // caller override wins
-  if (pre) voiceSettings.PreMessage = pre; // omit entirely when empty
-  const payload = {
-    Data: {
-      Channel: 'SMS_WITH_VOICE_FAILOVER',
-      CampaignName: campaign,
-      OtpCode: String(code),
-      Phone: local,
-      VoiceSettings: voiceSettings,
-      SMSSettings: { Sender: config.messergo.sender, Message: sms },
-    },
-  };
+  const data = { Channel: ch, CampaignName: campaign, OtpCode: String(code), Phone: local };
+  if (ch === 'SMS' || ch === 'SMS_WITH_VOICE_FAILOVER') {
+    data.SMSSettings = { Sender: config.messergo.sender, Message: sms };
+  }
+  if (ch === 'VOICE' || ch === 'SMS_WITH_VOICE_FAILOVER') {
+    const voiceSettings = {
+      CallerId: config.messergo.voiceCallerId || 'PRIVATE',
+      Language: 'he-female',
+      RequireDigitPress: true,
+      Digit: '1',
+      Message: voice,
+    };
+    const pre = preMessage !== undefined ? preMessage : config.messergo.voicePreMessage; // caller override wins
+    if (pre) voiceSettings.PreMessage = pre; // omit entirely when empty
+    data.VoiceSettings = voiceSettings;
+  }
+  const payload = { Data: data };
   try {
     const r = await fetch(config.messergo.otpUrl, {
       method: 'POST',
@@ -77,10 +91,10 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
     let json; try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 500) }; }
     // MesserGO returns HTTP 200 even on failure — success is StatusId === 1.
     const statusId = json.StatusId != null ? json.StatusId : (json.Data && json.Data.StatusId);
-    if (Number(statusId) === 1) return { ok: true, mocked: false, statusId };
+    if (Number(statusId) === 1) return { ok: true, mocked: false, statusId, channel: ch };
     const reason = json.StatusDescription || json.Message || (json.Data && json.Data.StatusDescription) || 'send_failed';
-    console.error(`[messergo] OTP send failed to ${local}: statusId=${statusId} reason="${reason}" http=${r.status}`);
-    return { ok: false, mocked: false, statusId, error: reason, json };
+    console.error(`[messergo] OTP send failed to ${local} (${ch}): statusId=${statusId} reason="${reason}" http=${r.status}`);
+    return { ok: false, mocked: false, statusId, error: reason, channel: ch, json };
   } catch (e) {
     console.error('[messergo] OTP send error:', e.message);
     return { ok: false, mocked: false, error: e.message };
@@ -112,4 +126,4 @@ async function sendSms({ phone, text }) {
   }
 }
 
-module.exports = { sendOtp, sendSms, toE164, toLocal, isIsraeliMobile, digits, configured };
+module.exports = { sendOtp, sendSms, toE164, toLocal, isIsraeliMobile, isKosher, digits, configured };
