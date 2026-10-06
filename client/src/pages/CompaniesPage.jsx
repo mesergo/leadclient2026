@@ -22,6 +22,7 @@ export default function CompaniesPage() {
   const [editCh, setEditCh] = useState(null); // { id, name }
   const canManage = user?.role === 'super_admin' || user?.role === 'agency_admin';
   const canImpersonate = canManage;
+  const canChannels = canManage || user?.role === 'company_admin'; // company_admin manages its own channels
 
   const loadCompanies = () => api.companies(token).then((d) => setCompanies(d.companies)).catch((e) => setError(e.message));
   const loadServices = () => api.services(token).then((d) => setServices(d.services)).catch(() => {});
@@ -125,14 +126,14 @@ export default function CompaniesPage() {
                     {channels.length === 0 && <p className="muted" style={{ fontSize: 12 }}>{t('co.noChannels')}</p>}
                     {channels.map((s) => (
                       <div className={'channel-row' + (s.is_active ? '' : ' channel-suspended')} key={s.id}>
-                        {canManage && <button className="icon-btn icon-btn--red icon-xs" title="מחיקה" onClick={() => delChannel(s.id)}><Icons.Trash size={13} /></button>}
-                        {canManage && <button className={'icon-btn icon-xs ' + (s.is_active ? 'icon-btn--amber' : 'icon-btn--green')} title={s.is_active ? t('co.suspendChannel') : t('co.activateChannel')} onClick={() => toggleChannel(s)}>{s.is_active ? <Icons.Lock size={12} /> : <Icons.Unlock size={12} />}</button>}
-                        {canManage && <button className="icon-btn icon-xs" title={t('co.editChannel')} onClick={() => nav(`/companies/edit-service?id=${s.id}`)}><Icons.Pencil size={12} /></button>}
+                        {canChannels && <button className="icon-btn icon-btn--red icon-xs" title="מחיקה" onClick={() => delChannel(s.id)}><Icons.Trash size={13} /></button>}
+                        {canChannels && <button className={'icon-btn icon-xs ' + (s.is_active ? 'icon-btn--amber' : 'icon-btn--green')} title={s.is_active ? t('co.suspendChannel') : t('co.activateChannel')} onClick={() => toggleChannel(s)}>{s.is_active ? <Icons.Lock size={12} /> : <Icons.Unlock size={12} />}</button>}
+                        {canChannels && <button className="icon-btn icon-xs" title={t('co.editChannel')} onClick={() => nav(`/companies/edit-service?id=${s.id}`)}><Icons.Pencil size={12} /></button>}
                         <button className="channel-name link-name" onClick={() => nav(`/companies/edit-service?id=${s.id}`)}>{s.name}</button>
                       </div>
                     ))}
                   </div>
-                  {canManage && (
+                  {canChannels && (
                     <div className="channel-add">
                       <button className="link-action link-action--green" onClick={() => nav(`/companies/add-service?company=${c.id}`)}><Icons.Plus size={13} /> {t('co.newChannel')}</button>
                     </div>

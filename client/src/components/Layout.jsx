@@ -12,6 +12,7 @@ const NAV = [
   { to: '/', key: 'nav.dashboard', Icon: Icons.Grid, end: true },
   { to: '/agencies', key: 'nav.agencies', Icon: Icons.Building, roles: ['super_admin'] },
   { to: '/companies', key: 'nav.companies', Icon: Icons.Building, roles: ['super_admin', 'agency_admin'] },
+  { to: '/companies', key: 'nav.channels', Icon: Icons.Chart, roles: ['company_admin'] },
   { to: '/leads', key: 'nav.leads', Icon: Icons.Inbox },
   { to: '/import', key: 'nav.import', Icon: Icons.Upload },
   { to: '/virtual', key: 'nav.virtual', Icon: Icons.Phone, roles: ['super_admin', 'agency_admin'] },
