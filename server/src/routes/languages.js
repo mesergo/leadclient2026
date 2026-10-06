@@ -9,7 +9,7 @@ router.use(requireAuth);
 // Languages list with per-language string + translated counts.
 router.get('/', asyncHandler(async (req, res) => {
   const rows = await query(
-    `SELECT l.slug, l.language, l.language_english, l.dir, l.is_rtl, l.is_active,
+    `SELECT l.slug, l.language, l.language_english, l.dir, l.is_rtl, l.is_active, l.in_menu,
             COUNT(ts.id) AS total,
             SUM(ts.string_value IS NOT NULL AND ts.string_value <> '') AS translated
      FROM languages l
@@ -19,7 +19,8 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.patch('/:slug', requireRole('super_admin'), asyncHandler(async (req, res) => {
-  await query('UPDATE languages SET is_active = COALESCE(?, is_active) WHERE slug = ?', [req.body.is_active ?? null, req.params.slug]);
+  await query('UPDATE languages SET is_active = COALESCE(?, is_active), in_menu = COALESCE(?, in_menu) WHERE slug = ?',
+    [req.body.is_active ?? null, req.body.in_menu ?? null, req.params.slug]);
   res.json({ ok: true });
 }));
 

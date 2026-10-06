@@ -40,7 +40,7 @@ router.post('/leads/company/:token', asyncHandler(async (req, res) => {
 
 // Active languages for the UI language picker (no auth — needed before/around login).
 router.get('/languages', asyncHandler(async (req, res) => {
-  const rows = await query('SELECT slug, language, language_english, is_rtl FROM languages WHERE is_active = 1 ORDER BY language');
+  const rows = await query('SELECT slug, language, language_english, is_rtl FROM languages WHERE is_active = 1 AND in_menu = 1 ORDER BY language');
   res.json({ languages: rows });
 }));
 

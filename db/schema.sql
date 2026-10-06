@@ -572,7 +572,8 @@ CREATE TABLE IF NOT EXISTS languages (
   language_english      VARCHAR(50) NULL,
   dir                   VARCHAR(5) NOT NULL DEFAULT 'ltr',
   is_rtl                TINYINT(1) NOT NULL DEFAULT 0,
-  is_active             TINYINT(1) NOT NULL DEFAULT 1
+  is_active             TINYINT(1) NOT NULL DEFAULT 1,
+  in_menu               TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS translation_strings (

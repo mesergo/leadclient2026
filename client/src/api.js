@@ -140,6 +140,7 @@ export const api = {
   importLiveStatus: (token) => request('/api/import-live/status', { token }),
   languages: (token) => request('/api/language', { token }),
   setLanguageActive: (slug, is_active, token) => request(`/api/language/${slug}`, { method: 'PATCH', body: { is_active }, token }),
+  setLanguageInMenu: (slug, in_menu, token) => request(`/api/language/${slug}`, { method: 'PATCH', body: { in_menu }, token }),
   languageStrings: (slug, namespace, token) => request(`/api/language/${slug}/strings${qs({ namespace })}`, { token }),
   saveLanguageStrings: (slug, strings, token) => request(`/api/language/${slug}/strings`, { method: 'PUT', body: { strings }, token }),
   profile: (token) => request('/api/profile', { token }),
