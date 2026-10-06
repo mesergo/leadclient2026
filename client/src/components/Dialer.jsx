@@ -11,7 +11,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 // Registering a callback makes the next inbound call from that mobile route to
 // the customer (logged as an outgoing call). The agent then rings the virtual #.
 export default function Dialer({ onClose }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t } = useLang();
   const [opts, setOpts] = useState({ mobiles: [], targets: [], virtuals: [] });
   const [from, setFrom] = useState('');
@@ -25,7 +25,8 @@ export default function Dialer({ onClose }) {
     api.callbackOptions(token).then((d) => {
       setOpts(d);
       if (d.virtuals[0]) setVia(d.virtuals[0].phone_number);
-      if (d.mobiles[0]) setFrom(d.mobiles[0].phone);
+      // default "from" to the signed-in agent's own mobile — it MUST equal the number they call from
+      setFrom(user?.phone || (d.mobiles[0] && d.mobiles[0].phone) || '');
     }).catch((e) => setError(e.message));
   }, [token]);
 
@@ -54,6 +55,7 @@ export default function Dialer({ onClose }) {
         {done ? (
           <div className="dialer-done">
             <p className="success-note">{t('dial.ready')}</p>
+            <p className="muted" style={{ marginBottom: 2 }}>{t('dial.fromMustMatch')} <strong>{from}</strong></p>
             <p>{t('dial.callNowVia')}</p>
             <div className="dialer-via-big">{viaDisplay ? (viaDisplay.number_to_display || viaDisplay.phone_number) : via}</div>
             <p className="muted">{t('dial.willConnect')} {target}</p>
