@@ -11,7 +11,7 @@ import logo from '../assets/logo.png';
 const NAV = [
   { to: '/', key: 'nav.dashboard', Icon: Icons.Grid, end: true },
   { to: '/agencies', key: 'nav.agencies', Icon: Icons.Building, roles: ['super_admin'] },
-  { to: '/companies', key: 'nav.companies', Icon: Icons.Building, roles: ['super_admin', 'agency_admin'] },
+  { to: '/companies', key: 'nav.companies', Icon: Icons.Building, roles: ['super_admin', 'agency_admin', 'sales_manager'] },
   { to: '/companies', key: 'nav.channels', Icon: Icons.Chart, roles: ['company_admin'] },
   { to: '/leads', key: 'nav.leads', Icon: Icons.Inbox },
   { to: '/import', key: 'nav.import', Icon: Icons.Upload },
@@ -41,7 +41,12 @@ export default function Layout() {
   const [dialer, setDialer] = useState(false);
   const loc = useLocation();
   const ck = CRUMB_KEY['/' + loc.pathname.split('/')[1]] || CRUMB_KEY[loc.pathname];
-  const items = NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
+  let items = NAV.filter((n) => !n.roles || n.roles.includes(user?.role));
+  // sales_manager is read-only: restrict the menu to view pages
+  if (user?.role === 'sales_manager') {
+    const allow = new Set(['/', '/companies', '/leads', '/reports', '/contacts', '/profile']);
+    items = items.filter((n) => allow.has(n.to));
+  }
 
   return (
     <div className="app-shell">

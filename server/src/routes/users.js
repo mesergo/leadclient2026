@@ -117,7 +117,7 @@ router.post('/:id/impersonate', asyncHandler(async (req, res) => {
   if (!target) return res.status(404).json({ error: 'משתמש לא נמצא' });
   if (String(target.id) === String(req.user.id)) return res.status(400).json({ error: 'לא ניתן להתחבר כעצמך' });
   // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
-  if (target.role === 'agency_admin' && !target.agency_id && target.company_id) {
+  if ((target.role === 'agency_admin' || target.role === 'sales_manager') && !target.agency_id && target.company_id) {
     const c = await query('SELECT agency_id FROM companies WHERE id = ?', [target.company_id]);
     if (c[0]) target.agency_id = c[0].agency_id;
   }
