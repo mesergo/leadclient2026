@@ -247,30 +247,27 @@ async function processCall(num, req, res, logId) {
          ORDER BY id DESC LIMIT 1`, [viaKey, cbKey, cbKey]);
     const cb = cbRows[0];
     if (cb) {
-      const target = toIsraeliMsisdn(cb.target_number);
-      if (!isEnd) {
-        if (cb.status === 'pending') { // first START: route agent->customer, log an outgoing lead
-          const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [num.company_id]);
-          const r = await query(
-            `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, call_status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג חוזר', 'call_out', 'active', NOW(), NOW())`,
-            [num.company_id, num.service_id || null, st[0] ? st[0].id : null, target]);
-          await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [r.insertId, cb.id]);
-          await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'callback_out' });
-          announceNewLead(num.company_id, r.insertId, 'שיחה יוצאת', target);
-        } else {
-          await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: cb.lead_id, result: 'callback_dup' });
-        }
-      } else if (cb.lead_id) { // END: attach recording/duration to the outgoing lead
-        await query(
-          `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
-             recording_url = COALESCE(?, recording_url), call_status = ?, updated_at = NOW()
-           WHERE id = ? AND (recording_url IS NULL OR recording_url = '')`,
-          [`\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, recStore, answered ? 'answered' : 'missed', cb.lead_id]);
-        await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: cb.lead_id, result: 'callback_end' });
-        fireChannelWebhook(num.service_id, { id: cb.lead_id, company_id: num.company_id, caller: target, duration, status: answered ? 'answered' : 'missed' });
+      const targetLocal = String(cb.target_number).replace(/\D/g, '').replace(/^972/, '0');
+      let leadId = cb.lead_id;
+      if (!leadId) { // no lead yet -> create the single outgoing lead
+        const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [num.company_id]);
+        const r = await query(
+          `INSERT INTO leads (company_id, service_id, status_id, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, NOW(), NOW())`,
+          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active']);
+        leadId = r.insertId;
+        await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
+        announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal);
+        await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: 'callback_out' });
+      } else { // lead exists -> attach the recording as soon as any webhook carries it; finalize on end
+        if (recStore) await query("UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '')", [recStore, leadId]);
+        if (isEnd) await query(
+          'UPDATE leads SET call_status = ?, lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), updated_at = NOW() WHERE id = ?',
+          [answered ? 'answered' : 'missed', `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
+        await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: isEnd ? 'callback_end' : 'callback_rec' });
       }
-      return res.type('text/plain').send(target || ''); // route the agent's call to the customer
+      if (isEnd) fireChannelWebhook(num.service_id, { id: leadId, company_id: num.company_id, caller: targetLocal, duration, status: answered ? 'answered' : 'missed' });
+      return res.type('text/plain').send(toIsraeliMsisdn(cb.target_number) || '');
     }
   }
 
