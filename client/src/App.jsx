@@ -41,8 +41,8 @@ function Protected() {
   if (loading) return <div className="loading-screen">טוען...</div>;
   if (!token) return <Navigate to="/login" replace />;
   if (!user) return <div className="loading-screen">טוען...</div>; // /me still resolving
-  // mandatory phone verification before entering (skipped while impersonating)
-  if (!user.phone_verified_at && !impersonatorName) return <VerifyPhonePage />;
+  // mandatory phone verification before entering (unless disabled server-side, or impersonating)
+  if (user.phone_verify_required !== false && !user.phone_verified_at && !impersonatorName) return <VerifyPhonePage />;
   return <Layout />;
 }
 function Role({ roles, children }) {
