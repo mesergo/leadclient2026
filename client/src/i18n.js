@@ -117,7 +117,7 @@ const DICT = {
     'prof.newPw': 'סיסמה חדשה', 'prof.updatePw': 'עדכון סיסמה', 'prof.pwUpdated': 'הסיסמה עודכנה.',
     // developers
     'dev.embed': 'הטמעת LeadClient', 'dev.pick': 'בחר ערוץ לחיבור:', 'dev.pickPh': 'בחר ערוץ...',
-    'dev.code': 'קוד הטמעה:', 'dev.errCodes': 'קודי שגיאה', 'dev.otpTest': 'בדיקת שליחת OTP (MesserGO)', 'dev.otpTestHint': 'שולח קוד ניסיון ומציג את תשובת MesserGO המלאה (StatusId / סיבת כישלון)', 'dev.otpSend': 'שלח בדיקה', 'dev.errCode': 'קוד', 'dev.errDesc': 'תיאור',
+    'dev.code': 'קוד הטמעה:', 'dev.errCodes': 'קודי שגיאה', 'dev.otpTest': 'בדיקת שליחת OTP (MesserGO)', 'dev.otpTestHint': 'שולח קוד ניסיון ומציג את תשובת MesserGO המלאה (StatusId / סיבת כישלון)', 'dev.otpSend': 'שלח בדיקה', 'dev.otpPreOverride': 'עקוף PreMessage (לבדיקה)', 'dev.errCode': 'קוד', 'dev.errDesc': 'תיאור',
     'dev.err.noChannel': 'לא התקבל קוד ערוץ תקין', 'dev.err.noPhone': 'חסר מספר טלפון בפנייה',
     'dev.subtitle': 'חיבור דפי אינטרנט אל LeadClient', 'dev.start': 'מתחילים',
     'dev.jquery': 'על מנת לשלוח מידע אל המערכת, יש להטמיע תחילה את ספריית jQuery בעמוד. רוב אתרי WordPress כוללים אותה כברירת מחדל.',
@@ -223,7 +223,7 @@ const DICT = {
     'prof.details': 'Details', 'prof.role': 'Role', 'prof.changePw': 'Change password', 'prof.currentPw': 'Current password',
     'prof.newPw': 'New password', 'prof.updatePw': 'Update password', 'prof.pwUpdated': 'Password updated.',
     'dev.embed': 'Embed LeadClient', 'dev.pick': 'Select a channel to connect:', 'dev.pickPh': 'Select channel...',
-    'dev.code': 'Embed code:', 'dev.errCodes': 'Error codes', 'dev.otpTest': 'OTP send test (MesserGO)', 'dev.otpTestHint': 'Sends a test code and shows MesserGO full response (StatusId / failure reason)', 'dev.otpSend': 'Send test', 'dev.errCode': 'Code', 'dev.errDesc': 'Description',
+    'dev.code': 'Embed code:', 'dev.errCodes': 'Error codes', 'dev.otpTest': 'OTP send test (MesserGO)', 'dev.otpTestHint': 'Sends a test code and shows MesserGO full response (StatusId / failure reason)', 'dev.otpSend': 'Send test', 'dev.otpPreOverride': 'Override PreMessage (test)', 'dev.errCode': 'Code', 'dev.errDesc': 'Description',
     'dev.err.noChannel': 'No valid channel code received', 'dev.err.noPhone': 'Missing phone number in the request',
     'dev.subtitle': 'Connect web pages to LeadClient', 'dev.start': 'Getting started',
     'dev.jquery': 'To send data to the system, first embed the jQuery library in your page. Most WordPress sites include it by default.',

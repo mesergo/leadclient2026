@@ -44,11 +44,13 @@ export default function DevelopersPage() {
 
   // MesserGO OTP diagnostic (super_admin)
   const [otpPhone, setOtpPhone] = useState('');
+  const [otpPre, setOtpPre] = useState('');
+  const [otpPreOn, setOtpPreOn] = useState(false);
   const [otpOut, setOtpOut] = useState(null);
   const [otpBusy, setOtpBusy] = useState(false);
   async function runOtpTest() {
     setOtpBusy(true); setOtpOut(null);
-    try { setOtpOut(await api.messergoOtpTest(token, otpPhone)); }
+    try { setOtpOut(await api.messergoOtpTest(token, otpPhone, otpPreOn ? otpPre : undefined)); }
     catch (e) { setOtpOut({ error: e.message }); }
     finally { setOtpBusy(false); }
   }
@@ -126,6 +128,14 @@ export default function DevelopersPage() {
               <input type="tel" placeholder="05XXXXXXXX" value={otpPhone} onChange={(e) => setOtpPhone(e.target.value)} /></label>
             <button className="btn btn-primary" onClick={runOtpTest} disabled={otpBusy || !otpPhone}>{otpBusy ? t('login.sending') : t('dev.otpSend')}</button>
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <input type="checkbox" checked={otpPreOn} onChange={(e) => setOtpPreOn(e.target.checked)} />
+            <span className="muted">{t('dev.otpPreOverride')}</span>
+          </label>
+          {otpPreOn && (
+            <input style={{ width: '100%', marginTop: 6 }} placeholder="לקבלת קוד האימות לחץ {Digit}  (ריק = בלי PreMessage)"
+              value={otpPre} onChange={(e) => setOtpPre(e.target.value)} />
+          )}
           {otpOut && (
             <div style={{ marginTop: 12 }}>
               {otpOut.result && (
