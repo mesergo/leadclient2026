@@ -72,7 +72,7 @@ function Routing() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/leads/:id" element={<LeadDetailPage />} />
         <Route path="/import" element={<ImportPage />} />
-        <Route path="/virtual" element={<VirtualPage />} />
+        <Route path="/virtual" element={<Role roles={['super_admin', 'agency_admin']}><VirtualPage /></Role>} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
         <Route path="/contacts/:id" element={<ContactDetailPage />} />
@@ -83,7 +83,7 @@ function Routing() {
         <Route path="/language/:slug" element={<Role roles={['super_admin', 'agency_admin']}><LanguageEditPage /></Role>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/import-live" element={<Role roles={['super_admin']}><ImportLivePage /></Role>} />
-        <Route path="/webhook-log" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><WebhookLogPage /></Role>} />
+        <Route path="/webhook-log" element={<Role roles={['super_admin', 'agency_admin']}><WebhookLogPage /></Role>} />
         <Route path="/developers" element={<DevelopersPage />} />
         <Route path="/actions" element={<ActionsPage />} />
       </Route>
