@@ -147,9 +147,11 @@ export default function LeadsPage() {
         <tbody>{sorted.map((l) => {
           const TI = typeIcon(l);
           const cs = isCallLead(l) ? callState(l) : null;
+          const outgoing = (l.lead_through || '') === 'call_out';
+          const iconStyle = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
           return (
             <tr key={l.id}>
-              <td><TI size={16} style={cs ? { color: cs.color } : undefined} title={cs ? t(cs.key) : undefined} /></td>
+              <td><TI size={16} style={iconStyle} title={outgoing ? t('lead.outgoing') : (cs ? t(cs.key) : undefined)} /></td>
               <td><button className="link-name" onClick={() => setSelected(l.id)}>{l.lead_name || t('lead.na')}</button></td>
               <td>{formatIL(l.lead_phone, t('lead.unknownPhone'))}</td><td>{l.lead_email || '--'}</td>
               <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>

@@ -233,14 +233,18 @@ async function processCall(num, req, res, logId) {
   if (!num) { await updateLog(logId, { result: 'no_match' }); return reply(false, 'no match'); }
   if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return reply(true, 'number unassigned'); }
 
-  // --- click-to-call: an agent calling in with a pending callback becomes an OUTBOUND call ---
+  // --- click-to-call: recognize the webhook of a dialer (create_maskyoo_call_v2) call ---
+  // Match a recent callback on THIS virtual where the caller is the agent OR the customer,
+  // so the one outgoing lead is reused (no duplicate inbound lead is created).
   const cbKey = String(caller || '').replace(/\D/g, '').slice(-9);
-  if (cbKey) {
+  const viaKey = String(num.phone_number || '').replace(/\D/g, '').slice(-9);
+  if (cbKey && viaKey) {
     const cbRows = await query(
       `SELECT id, target_number, status, lead_id FROM callbacks
-         WHERE REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?)
-           AND status IN ('pending','used') AND created_at > (NOW() - INTERVAL 10 MINUTE)
-         ORDER BY id DESC LIMIT 1`, [cbKey]);
+         WHERE REGEXP_REPLACE(via_number, '[^0-9]', '') LIKE CONCAT('%', ?)
+           AND (REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?) OR REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
+           AND status IN ('pending','used') AND created_at > (NOW() - INTERVAL 20 MINUTE)
+         ORDER BY id DESC LIMIT 1`, [viaKey, cbKey, cbKey]);
     const cb = cbRows[0];
     if (cb) {
       const target = toIsraeliMsisdn(cb.target_number);
