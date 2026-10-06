@@ -246,13 +246,19 @@ async function processCall(num, req, res, logId) {
   // so the one outgoing lead is reused (no duplicate inbound lead is created).
   const cbKey = String(caller || '').replace(/\D/g, '').slice(-9);
   const viaKey = String(num.phone_number || '').replace(/\D/g, '').slice(-9);
-  if (cbKey && viaKey) {
+  const destKey = String(routedTo || '').replace(/\D/g, '').slice(-9); // DEST = the customer, unique per dial
+  if (viaKey && (cbKey || destKey)) {
+    // Match this dial by the customer (DEST) first — the agent may have several
+    // callbacks on the same virtual; only the DEST tells them apart.
     const cbRows = await query(
       `SELECT id, target_number, status, lead_id FROM callbacks
          WHERE REGEXP_REPLACE(via_number, '[^0-9]', '') LIKE CONCAT('%', ?)
-           AND (REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?) OR REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
            AND status IN ('pending','used') AND created_at > (NOW() - INTERVAL 20 MINUTE)
-         ORDER BY id DESC LIMIT 1`, [viaKey, cbKey, cbKey]);
+           AND ( (? <> '' AND REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
+                 OR REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?)
+                 OR REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?) )
+         ORDER BY (? <> '' AND REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?)) DESC, id DESC
+         LIMIT 1`, [viaKey, destKey, destKey, cbKey, cbKey, destKey, destKey]);
     const cb = cbRows[0];
     if (cb) {
       const targetLocal = String(cb.target_number).replace(/\D/g, '').replace(/^972/, '0');
