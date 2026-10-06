@@ -1,5 +1,5 @@
 const express = require('express');
-const { query } = require('../db/pool');
+const { query, companyScope } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const messergo = require('../services/messergo');
@@ -7,19 +7,20 @@ const messergo = require('../services/messergo');
 const router = express.Router();
 router.use(requireAuth);
 
-// Options for the dialer dropdowns, scoped to the signed-in user's company:
-// the agents' mobiles, the channels' forwarding targets, and the virtual numbers.
+// Options for the dialer dropdowns, scoped to what the user may see (super_admin →
+// all, agency_admin → their agencies, company roles → their company): the agents'
+// mobiles, the channels' forwarding targets, and the virtual numbers.
 router.get('/options', asyncHandler(async (req, res) => {
-  const cid = req.user.company_id;
-  if (!cid) return res.json({ mobiles: [], targets: [], virtuals: [] });
+  const s = companyScope(req.user, 'company_id');
   const mobiles = await query(
     `SELECT COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name, phone
-       FROM users WHERE company_id = ? AND is_active = 1 AND phone IS NOT NULL AND phone <> '' ORDER BY name`, [cid]);
+       FROM users WHERE is_active = 1 AND phone IS NOT NULL AND phone <> '' AND (${s.sql}) ORDER BY name LIMIT 300`, s.params);
   const t = await query(
     `SELECT DISTINCT redirect_to_number AS n FROM phone_numbers
-       WHERE company_id = ? AND redirect_to_number IS NOT NULL AND redirect_to_number <> ''`, [cid]);
+       WHERE redirect_to_number IS NOT NULL AND redirect_to_number <> '' AND (${s.sql}) LIMIT 300`, s.params);
   const virtuals = await query(
-    'SELECT id, phone_number, number_to_display FROM phone_numbers WHERE company_id = ? ORDER BY phone_number', [cid]);
+    `SELECT id, phone_number, number_to_display FROM phone_numbers
+       WHERE company_id IS NOT NULL AND (${s.sql}) ORDER BY phone_number LIMIT 500`, s.params);
   res.json({ mobiles, targets: t.map((x) => x.n), virtuals });
 }));
 
