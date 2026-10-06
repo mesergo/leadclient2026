@@ -43,5 +43,7 @@ module.exports = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',          // for verifying Google id_token (aud)
   },
+  // mandatory phone verification before entering the app. Set PHONE_VERIFY_REQUIRED=false to lift the gate.
+  requirePhoneVerify: process.env.PHONE_VERIFY_REQUIRED !== 'false',
   appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL, for the Maskyoo callback_url
 };

@@ -29,6 +29,7 @@ function sessionPayload(user) {
     user: {
       id: user.id, name: user.display_name || user.username, role: user.role,
       company_id: user.company_id, agency_id: user.agency_id, phone_verified_at: user.phone_verified_at || null,
+      phone_verify_required: config.requirePhoneVerify,
     },
   };
 }
@@ -261,7 +262,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
     const u = rows[0];
     const name = u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
-    res.json({ user: { ...rows[0], name, impersonated_by: req.user.impersonated_by } });
+    res.json({ user: { ...rows[0], name, impersonated_by: req.user.impersonated_by, phone_verify_required: config.requirePhoneVerify } });
   } catch (e) {
     next(e);
   }
