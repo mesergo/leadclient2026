@@ -10,7 +10,7 @@ export const LANGS = [
 const DICT = {
   he: {
     brand: 'LeadClient',
-    'nav.dashboard': 'מרכז שליטה', 'nav.agencies': 'סוכנויות', 'nav.companies': 'חברות',
+    'nav.dashboard': 'מרכז שליטה', 'nav.agencies': 'סוכנויות', 'nav.companies': 'חברות', 'nav.channels': 'ערוצים',
     'nav.leads': 'לידים', 'nav.import': 'ייבוא לידים', 'nav.virtual': 'מספרים וירטואליים',
     'nav.reports': 'דוחות', 'nav.contacts': 'אנשי קשר', 'nav.users': 'משתמשים',
     'nav.billing': 'מרכז החיובים', 'nav.packages': 'חבילות',
@@ -131,7 +131,7 @@ const DICT = {
   },
   en: {
     brand: 'LeadClient',
-    'nav.dashboard': 'Dashboard', 'nav.agencies': 'Agencies', 'nav.companies': 'Companies',
+    'nav.dashboard': 'Dashboard', 'nav.agencies': 'Agencies', 'nav.companies': 'Companies', 'nav.channels': 'Channels',
     'nav.leads': 'Leads', 'nav.import': 'Import Leads', 'nav.virtual': 'Virtual Numbers',
     'nav.reports': 'Reports', 'nav.contacts': 'Contacts', 'nav.users': 'Users',
     'nav.billing': 'Billing', 'nav.packages': 'Packages',
