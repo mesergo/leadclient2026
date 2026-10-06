@@ -61,6 +61,10 @@ export default function CompaniesPage() {
     if (!confirm(`${t('co.impersonateConfirm')} "${c.name}"?`)) return;
     try { const d = await api.impersonateCompany(c.id, token); setImpersonatedSession(d.token, d.user); location.href = '/'; } catch (e) { setError(e.message); }
   }
+  async function delCompany(c) {
+    if (!window.confirm(t('co.confirmDelCompany') + `\n\n"${c.name}"`)) return;
+    try { await api.deleteCompany(c.id, token); loadCompanies(); loadServices(); } catch (e) { setError(e.message); }
+  }
   async function toggleCompany(c) {
     try { await api.updateCompany(c.id, { is_active: c.is_active ? 0 : 1 }, token); loadCompanies(); } catch (e) { setError(e.message); }
   }
@@ -119,6 +123,7 @@ export default function CompaniesPage() {
                       <button className="link-action" onClick={() => nav(`/users?company=${c.id}`)}><Icons.Users size={13} /> {t('co.users')}</button>
                       {canImpersonate && <button className="link-action" onClick={() => impersonate(c)}><Icons.User size={13} /> {t('co.impersonate')}</button>}
                       {canManage && <button className="link-action" onClick={() => toggleCompany(c)}>{c.is_active ? <Icons.Lock size={13} /> : <Icons.Unlock size={13} />}</button>}
+                      {user?.role === 'super_admin' && <button className="link-action link-action--red" title={t('co.delCompany')} onClick={() => delCompany(c)}><Icons.Trash size={13} /></button>}
                     </div>
                     <h3><Icons.Building size={16} /> {c.name} <span className="muted">({channels.length})</span></h3>
                   </div>

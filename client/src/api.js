@@ -57,6 +57,7 @@ export const api = {
   createCompany: (body, token) => request('/api/companies', { method: 'POST', body, token }),
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),
   companyUsage: (id, token) => request(`/api/companies/${id}/usage`, { token }),
+  deleteCompany: (id, token) => request(`/api/companies/${id}`, { method: 'DELETE', token }),
   addServiceNumber: (id, body, token) => request(`/api/services/${id}/numbers`, { method: 'POST', body, token }),
   // employee invitations
   createInvite: (body, token) => request('/api/invitations', { method: 'POST', body, token }),
