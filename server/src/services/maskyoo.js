@@ -41,6 +41,21 @@ async function syncRouting(maskyooNumber, destPhone) {
   return { ok: u.status?.code === 200, u };
 }
 
+// Place an outbound (click-to-call) call: ring `agent`, and on answer bridge to
+// `customer`, both presenting the virtual Maskyoo number as caller ID.
+// Uses create_maskyoo_call_v2. Returns { ok, code, error, r }.
+async function createCall({ maskyooNumber, agent, customer }) {
+  if (!config.maskyoo.token) return { ok: false, error: 'no_token' };
+  const m = intl(maskyooNumber), d1 = intl(agent), d2 = intl(customer);
+  if (!m || !d1 || !d2) return { ok: false, error: 'bad_args' };
+  const r = await call('create_maskyoo_call_v2', {
+    maskyoo1: m, destination1: d1, maskyoo2: m, destination2: d2,
+  }, 'POST');
+  const code = r.status && r.status.code;
+  if (code === 200) return { ok: true, code, r };
+  return { ok: false, code, error: (r.status && r.status.description) || 'call_failed', r };
+}
+
 // Ensure a Maskyoo number carries every tag in `tagNames` (create the tag if it
 // doesn't exist yet, then add the number as a member). Idempotent & best-effort:
 // 5072 = tag already exists, 5044 = number already a member — both are fine.
@@ -85,4 +100,4 @@ async function getRecording(uuid) {
   } catch (e) { return null; }
 }
 
-module.exports = { call, syncRouting, syncTags, getRecording, intl };
+module.exports = { call, syncRouting, syncTags, createCall, getRecording, intl };
