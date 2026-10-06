@@ -7,18 +7,24 @@ const { upload, fileUrl } = require('../services/uploads');
 const { logPhone } = require('../services/phoneLog');
 const maskyoo = require('../services/maskyoo');
 // push a number's routing to Maskyoo (only Maskyoo numbers; best-effort, non-blocking)
-async function syncMaskyoo(phoneNumberId, dest) {
+async function syncMaskyoo(phoneNumberId) {
   try {
-    const [pn] = await query('SELECT phone_number, ivr_provider, company_id, service_id FROM phone_numbers WHERE id = ?', [phoneNumberId]);
+    const [pn] = await query('SELECT phone_number, ivr_provider, company_id, service_id, redirect_config, redirect_to_number FROM phone_numbers WHERE id = ?', [phoneNumberId]);
     if (!pn || !pn.phone_number) return;
     const tags = ['app26'];
     if (pn.company_id) tags.push('company-' + pn.company_id);
     if (pn.service_id) tags.push('channel-' + pn.service_id);
-    // Attempt the sync for any number: syncRouting reads get_maskyoo first and
-    // no-ops if the number isn't in the Maskyoo account — so a stale ivr_provider
-    // flag ('native' on imported numbers) no longer blocks a real Maskyoo number.
-    if (dest) {
-      const r = await maskyoo.syncRouting(pn.phone_number, dest);
+    // Build the full routing (numbers + sequential/parallel + ring) from the saved config.
+    let routing = null;
+    if (pn.redirect_config) {
+      const o = safeParse(pn.redirect_config);
+      if (o && Array.isArray(o.numbers) && o.numbers.filter(Boolean).length) routing = o;
+    }
+    if (!routing && pn.redirect_to_number) routing = String(pn.redirect_to_number);
+    // syncRouting reads get_maskyoo first and no-ops if the number isn't in the Maskyoo
+    // account — so a stale ivr_provider flag ('native' on imports) never blocks a real one.
+    if (routing) {
+      const r = await maskyoo.syncRouting(pn.phone_number, routing);
       if (r && r.ok) {
         maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
         if (pn.ivr_provider !== 'maskyoo') { // self-heal the flag once confirmed
@@ -124,7 +130,7 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
       [company_id, r.insertId, primary, cfg, b.phone_number_id, company_id]);
     await query('UPDATE services SET phone_service_number = (SELECT phone_number FROM phone_numbers WHERE id = ?) WHERE id = ?', [b.phone_number_id, r.insertId]);
     await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: company_id, serviceId: r.insertId, note: 'שויך לערוץ' });
-    syncMaskyoo(b.phone_number_id, primary);
+    syncMaskyoo(b.phone_number_id);
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, created_at FROM services WHERE id = ?', [r.insertId]);
   res.status(201).json({ service: rows[0] });
@@ -195,7 +201,7 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
       }
       await query('UPDATE phone_numbers SET redirect_to_number = ?, redirect_config = ? WHERE id = ? AND service_id = ?',
         [primary, cfg, p.id, req.params.id]);
-      syncMaskyoo(p.id, primary);
+      syncMaskyoo(p.id);
     }
   }
   const rows = await query('SELECT id, company_id, name, service_type, public_hash, site_url, is_active FROM services WHERE id = ?', [req.params.id]);
@@ -222,7 +228,7 @@ router.post('/:id/numbers', requireRole('super_admin', 'agency_admin', 'company_
     [svc[0].company_id, req.params.id, primary, cfg, b.phone_number_id, svc[0].company_id]);
   if (!r.affectedRows) return res.status(409).json({ error: 'המספר כבר משויך לערוץ אחר' });
   await logPhone(b.phone_number_id, 'assigned', { ...who(req.user), toCompanyId: svc[0].company_id, serviceId: Number(req.params.id), note: 'שויך לערוץ' });
-  syncMaskyoo(b.phone_number_id, primary);
+  syncMaskyoo(b.phone_number_id);
   const phones = await query(
     `SELECT id, phone_number, number_to_display, redirect_to_number, redirect_config, ivr_provider
        FROM phone_numbers WHERE service_id = ? ORDER BY id`, [req.params.id]);
