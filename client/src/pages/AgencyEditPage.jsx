@@ -102,7 +102,7 @@ export default function AgencyEditPage() {
           <div className="form-field"><label>{t('agedit.ivr')}</label>
             <div className="form-field-control">
               <select value={form.ivr_provider || 'native'} onChange={(e) => set('ivr_provider', e.target.value)}>
-                {IVR.map((v) => <option key={v} value={v}>{v}</option>)}
+                {IVR.map((v) => <option key={v} value={v}>{v === 'maskyoo' ? t('vir.provDefault') : v}</option>)}
               </select>
             </div>
           </div>

@@ -39,7 +39,7 @@ export default function WebhookLogPage() {
         <label className="filter-item"><span>{t('wl.source')}</span>
           <select value={filters.source} onChange={(e) => setF('source', e.target.value)}>
             <option value="">{t('common.all')}</option>
-            <option value="maskyoo-call">maskyoo-call</option>
+            <option value="maskyoo-call">{t('wl.srcCall')}</option>
             <option value="widget">widget</option>
             <option value="company-token">company-token</option>
           </select></label>
@@ -62,7 +62,7 @@ export default function WebhookLogPage() {
           <Fragment key={l.id}>
             <tr>
               <td style={{ whiteSpace: 'nowrap' }}>{new Date(l.created_at).toLocaleString('he-IL')}</td>
-              <td>{l.source || '-'}</td><td>{l.method}</td>
+              <td>{l.source === 'maskyoo-call' ? t('wl.srcCall') : (l.source || '-')}</td><td>{l.method}</td>
               <td><span style={{ color: RESULT_COLORS[l.result] || 'inherit', fontWeight: 600 }}>{l.result || '-'}</span>{l.error ? ` · ${l.error}` : ''}</td>
               <td>{l.ip || '-'}</td>
               <td>{l.lead_id ? <button className="link-name" onClick={() => nav(`/leads/${l.lead_id}`)}>#{l.lead_id}</button> : '-'}</td>
