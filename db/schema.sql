@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS companies (
   industry              VARCHAR(50) NULL,
   public_token          CHAR(36) NOT NULL,
   is_trial              TINYINT(1) NOT NULL DEFAULT 0,
+  package_id            BIGINT UNSIGNED NULL,
   quota_users           INT NULL,
   quota_numbers         INT NULL,
   quota_leads           INT NULL,
@@ -215,6 +216,22 @@ CREATE TABLE IF NOT EXISTS user_restrictions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------- 4. Statuses & Tags ----------
+
+CREATE TABLE IF NOT EXISTS packages (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  name                  VARCHAR(100) NOT NULL,
+  monthly_price         DECIMAL(10,2) NOT NULL DEFAULT 0,
+  quota_users           INT NULL,
+  quota_numbers         INT NULL,
+  quota_leads           INT NULL,
+  quota_channels        INT NULL,
+  overage_users         DECIMAL(10,2) NULL,
+  overage_numbers       DECIMAL(10,2) NULL,
+  overage_leads         DECIMAL(10,2) NULL,
+  overage_channels      DECIMAL(10,2) NULL,
+  is_trial_default      TINYINT(1) NOT NULL DEFAULT 0,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS otp_codes (
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,

@@ -27,6 +27,18 @@ async function ensureSchema() {
     await ensureColumn('companies', 'quota_numbers', "quota_numbers INT NULL");
     await ensureColumn('companies', 'quota_leads', "quota_leads INT NULL");
     await ensureColumn('companies', 'quota_channels', "quota_channels INT NULL");
+    // billing packages: quotas + monthly price + per-quota overage price
+    await query(`CREATE TABLE IF NOT EXISTS packages (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL,
+      monthly_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      quota_users INT NULL, quota_numbers INT NULL, quota_leads INT NULL, quota_channels INT NULL,
+      overage_users DECIMAL(10,2) NULL, overage_numbers DECIMAL(10,2) NULL,
+      overage_leads DECIMAL(10,2) NULL, overage_channels DECIMAL(10,2) NULL,
+      is_trial_default TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    await ensureColumn('companies', 'package_id', "package_id BIGINT UNSIGNED NULL");
   } catch (e) {
     console.error('ensureSchema:', e.message);
   }

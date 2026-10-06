@@ -18,6 +18,7 @@ const NAV = [
   { to: '/contacts', key: 'nav.contacts', Icon: Icons.Contacts },
   { to: '/users', key: 'nav.users', Icon: Icons.Users, roles: ['super_admin', 'agency_admin', 'company_admin'] },
   { to: '/billing', key: 'nav.billing', Icon: Icons.Card, roles: ['super_admin', 'agency_admin'] },
+  { to: '/packages', key: 'nav.packages', Icon: Icons.Grid, roles: ['super_admin'] },
   { to: '/language', key: 'nav.language', Icon: Icons.Globe, roles: ['super_admin'] },
   { to: '/profile', key: 'nav.profile', Icon: Icons.User },
   { to: '/developers', key: 'nav.developers', Icon: Icons.Code },
@@ -28,7 +29,7 @@ const CRUMB_KEY = {
   '/': 'nav.dashboard', '/agencies': 'nav.agencies', '/companies': 'nav.companies', '/leads': 'nav.leads',
   '/import': 'nav.import', '/virtual': 'nav.virtual', '/reports': 'nav.reports', '/contacts': 'nav.contacts',
   '/users': 'nav.users', '/billing': 'nav.billing', '/language': 'nav.language', '/profile': 'nav.profile',
-  '/developers': 'nav.developers', '/webhook-log': 'nav.webhookLog',
+  '/developers': 'nav.developers', '/webhook-log': 'nav.webhookLog', '/packages': 'nav.packages',
 };
 
 export default function Layout() {

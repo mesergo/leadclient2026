@@ -30,6 +30,7 @@ import LanguagePage from './pages/LanguagePage';
 import LanguageEditPage from './pages/LanguageEditPage';
 import ProfilePage from './pages/ProfilePage';
 import VerifyPhonePage from './pages/VerifyPhonePage';
+import PackagesPage from './pages/PackagesPage';
 import DevelopersPage from './pages/DevelopersPage';
 import ImportLivePage from './pages/ImportLivePage';
 import WebhookLogPage from './pages/WebhookLogPage';
@@ -79,6 +80,7 @@ function Routing() {
         <Route path="/users" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><UsersPage /></Role>} />
         <Route path="/users/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><UserEditPage /></Role>} />
         <Route path="/billing" element={<Role roles={['super_admin', 'agency_admin']}><BillingPage /></Role>} />
+        <Route path="/packages" element={<Role roles={['super_admin']}><PackagesPage /></Role>} />
         <Route path="/language" element={<Role roles={['super_admin', 'agency_admin']}><LanguagePage /></Role>} />
         <Route path="/language/:slug" element={<Role roles={['super_admin', 'agency_admin']}><LanguageEditPage /></Role>} />
         <Route path="/profile" element={<ProfilePage />} />
