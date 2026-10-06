@@ -21,10 +21,31 @@ async function syncMaskyoo(phoneNumberId) {
       if (o && Array.isArray(o.numbers) && o.numbers.filter(Boolean).length) routing = o;
     }
     if (!routing && pn.redirect_to_number) routing = String(pn.redirect_to_number);
+
+    // Per-channel Maskyoo settings (working hours / after-hours / recording / prompts / exposure)
+    const extra = {};
+    if (pn.service_id) {
+      const [sv] = await query(
+        `SELECT open_hours, close_hours_phone, close_hours_config, record_percentage, record_option,
+                greeting_in, greeting_out, ringback_tone, maskyoo_expose FROM services WHERE id = ?`, [pn.service_id]);
+      if (sv) {
+        if (typeof sv.open_hours === 'string' && sv.open_hours.length === 168 && /0/.test(sv.open_hours)) extra.working_hours = sv.open_hours;
+        let afterDest = sv.close_hours_phone || null;
+        if (!afterDest && sv.close_hours_config) { const c = safeParse(sv.close_hours_config); const n = c && Array.isArray(c.numbers) ? c.numbers.filter(Boolean) : []; if (n.length) afterDest = n[0]; }
+        if (afterDest) extra.out_of_time_destination_phone = afterDest;
+        if (sv.record_percentage != null) extra.record_percentage = sv.record_percentage;
+        if (sv.record_option != null) extra.record_option = sv.record_option;
+        if (sv.maskyoo_expose != null) extra.expose = sv.maskyoo_expose;
+        if (sv.greeting_in != null) extra.greeting_in = sv.greeting_in;
+        if (sv.greeting_out != null) extra.greeting_out = sv.greeting_out;
+        if (sv.ringback_tone != null) extra.ringback_tone = sv.ringback_tone;
+      }
+    }
+
     // syncRouting reads get_maskyoo first and no-ops if the number isn't in the Maskyoo
     // account — so a stale ivr_provider flag ('native' on imports) never blocks a real one.
     if (routing) {
-      const r = await maskyoo.syncRouting(pn.phone_number, routing);
+      const r = await maskyoo.syncRouting(pn.phone_number, routing, extra);
       if (r && r.ok) {
         maskyoo.syncTags(pn.phone_number, tags).catch(() => {});
         if (pn.ivr_provider !== 'maskyoo') { // self-heal the flag once confirmed
@@ -165,6 +186,12 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
        close_hours_phone = ${has('close_hours_phone') ? '?' : 'close_hours_phone'},
        close_hours_audio_url = ${has('close_hours_audio_url') ? '?' : 'close_hours_audio_url'},
        close_hours_config = ${has('close_hours_config') ? '?' : 'close_hours_config'},
+       record_percentage = ${has('record_percentage') ? '?' : 'record_percentage'},
+       record_option = ${has('record_option') ? '?' : 'record_option'},
+       greeting_in = ${has('greeting_in') ? '?' : 'greeting_in'},
+       greeting_out = ${has('greeting_out') ? '?' : 'greeting_out'},
+       ringback_tone = ${has('ringback_tone') ? '?' : 'ringback_tone'},
+       maskyoo_expose = ${has('maskyoo_expose') ? '?' : 'maskyoo_expose'},
        is_active = COALESCE(?, is_active)
      WHERE id = ?`,
     [
@@ -185,6 +212,12 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
       ...(has('close_hours_phone') ? [b.close_hours_phone ?? null] : []),
       ...(has('close_hours_audio_url') ? [b.close_hours_audio_url ?? null] : []),
       ...(has('close_hours_config') ? [b.close_hours_config == null ? null : (typeof b.close_hours_config === 'string' ? b.close_hours_config : JSON.stringify(b.close_hours_config))] : []),
+      ...(has('record_percentage') ? [b.record_percentage === '' || b.record_percentage == null ? null : Number(b.record_percentage)] : []),
+      ...(has('record_option') ? [b.record_option === '' || b.record_option == null ? null : Number(b.record_option)] : []),
+      ...(has('greeting_in') ? [b.greeting_in ?? null] : []),
+      ...(has('greeting_out') ? [b.greeting_out ?? null] : []),
+      ...(has('ringback_tone') ? [b.ringback_tone ?? null] : []),
+      ...(has('maskyoo_expose') ? [b.maskyoo_expose === '' || b.maskyoo_expose == null ? null : Number(b.maskyoo_expose)] : []),
       has('is_active') ? (b.is_active ? 1 : 0) : null,
       req.params.id,
     ]);
