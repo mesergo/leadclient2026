@@ -6,9 +6,15 @@ import { api } from '../api';
 import GoogleButton from '../components/GoogleButton';
 import logo from '../assets/logo.png';
 
-// Public trial signup. The agency is taken from the :token in the URL
-// (/register/<agency public_token>), or the default agency when there is no
-// token (/register). Creates a trial company + company_admin.
+const emailOk = (e) => /^\S+@\S+\.\S+$/.test(e || '');
+function phoneOk(p) {
+  const d = String(p || '').replace(/\D/g, '').replace(/^00/, '').replace(/^0+/, '0');
+  return /^972\d{8,9}$/.test(d) || /^0\d{8,9}$/.test(d);
+}
+
+// Public trial signup. Agency from the :token (/register/<token>) or the default
+// agency (/register). Password form with per-field validation, or Google signup
+// followed by a "complete details" step (company + phone) then phone verification.
 export default function RegisterPage() {
   const { token } = useParams();
   const { registerAccount, registerWithGoogle } = useAuth();
@@ -20,6 +26,10 @@ export default function RegisterPage() {
   const [f, setF] = useState({ company_name: '', full_name: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // google "complete details" step
+  const [gCred, setGCred] = useState(null);
+  const [gInfo, setGInfo] = useState(null); // { email, name }
+  const [gForm, setGForm] = useState({ company_name: '', phone: '' });
 
   useEffect(() => {
     api.registerInfo(token).then((d) => setAgency(d.agency)).catch(() => setInvalid(true));
@@ -27,8 +37,22 @@ export default function RegisterPage() {
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
+  function validate() {
+    if (!f.company_name.trim()) return t('reg.errCompany');
+    if (!f.full_name.trim()) return t('reg.errName');
+    if (!f.email.trim()) return t('reg.errEmailMissing');
+    if (!emailOk(f.email)) return t('reg.errEmailInvalid');
+    if (!f.phone.trim()) return t('reg.errPhoneMissing');
+    if (!phoneOk(f.phone)) return t('reg.errPhoneInvalid');
+    if (!f.password) return t('reg.errPassMissing');
+    if (f.password.length < 6) return t('reg.errPassShort');
+    return null;
+  }
+
   async function submit(e) {
     e.preventDefault();
+    const v = validate();
+    if (v) { setError(v); return; }
     setBusy(true); setError('');
     try { await registerAccount(token, f); nav('/'); }
     catch (err) { setError(err.message); }
@@ -36,9 +60,24 @@ export default function RegisterPage() {
   }
 
   async function onGoogle(credential) {
-    setError('');
-    try { await registerWithGoogle(token, credential); nav('/'); }
+    setError(''); setBusy(true);
+    try {
+      const r = await api.googlePrecheck(credential);
+      if (r.exists) { await registerWithGoogle(token, credential); nav('/'); return; }
+      setGCred(credential); setGInfo({ email: r.email, name: r.name });
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  async function submitGoogle(e) {
+    e.preventDefault();
+    if (!gForm.company_name.trim()) { setError(t('reg.errCompany')); return; }
+    if (!gForm.phone.trim()) { setError(t('reg.errPhoneMissing')); return; }
+    if (!phoneOk(gForm.phone)) { setError(t('reg.errPhoneInvalid')); return; }
+    setBusy(true); setError('');
+    try { await registerWithGoogle(token, gCred, gForm); nav('/'); }
     catch (err) { setError(err.message); }
+    finally { setBusy(false); }
   }
 
   if (invalid) return (
@@ -46,6 +85,23 @@ export default function RegisterPage() {
       <img src={logo} alt="LeadClient" className="login-logo" />
       <p className="error">{t('reg.invalidLink')}</p>
     </div></div>
+  );
+
+  // Google "complete details" step
+  if (gCred) return (
+    <div className="login-wrap">
+      <form className="login-card" onSubmit={submitGoogle}>
+        <img src={logo} alt="LeadClient" className="login-logo" />
+        <h2 style={{ textAlign: 'center', margin: '4px 0 0' }}>{t('reg.googleComplete')}</h2>
+        <p className="muted" style={{ textAlign: 'center', marginTop: 2 }}>{gInfo?.name} · {gInfo?.email}</p>
+        {error && <p className="error">{error}</p>}
+        <div className="field"><label>{t('reg.companyName')}</label>
+          <input value={gForm.company_name} onChange={(e) => setGForm((p) => ({ ...p, company_name: e.target.value }))} autoFocus /></div>
+        <div className="field"><label>{t('login.phone')}</label>
+          <input type="tel" inputMode="tel" placeholder="05X-XXXXXXX" value={gForm.phone} onChange={(e) => setGForm((p) => ({ ...p, phone: e.target.value }))} /></div>
+        <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>{busy ? t('reg.creating') : t('reg.continue')}</button>
+      </form>
+    </div>
   );
 
   return (

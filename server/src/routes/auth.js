@@ -80,12 +80,17 @@ async function resolveSignupAgency(token) {
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
 
 // Create a trial company + company_admin user under `agency`. For Google signup
-// pass google_id (and no password/company_name/phone are required).
+// pass google_id instead of password (company_name/phone still required — collected
+// in the "complete details" step).
 async function createTrialAccount(agency, { company_name, full_name, email, phone, password, google_id }) {
-  if (!full_name || !email) throw httpErr(400, 'חסרים שדות חובה');
+  if (!full_name || !String(full_name).trim()) throw httpErr(400, 'חסר שם מלא');
+  if (!company_name || !String(company_name).trim()) throw httpErr(400, 'חסר שם חברה');
+  if (!email || !String(email).trim()) throw httpErr(400, 'חסר אימייל');
   if (!/^\S+@\S+\.\S+$/.test(email)) throw httpErr(400, 'כתובת אימייל לא תקינה');
+  if (!phone || !String(phone).trim()) throw httpErr(400, 'חסר מספר נייד');
+  if (!/^972\d{8,9}$/.test(messergo.digits(messergo.toE164(phone)))) throw httpErr(400, 'מספר נייד לא תקין');
   if (!google_id) {
-    if (!company_name || !phone || !password) throw httpErr(400, 'חסרים שדות חובה');
+    if (!password) throw httpErr(400, 'חסרה סיסמה');
     if (String(password).length < 6) throw httpErr(400, 'הסיסמה חייבת לפחות 6 תווים');
   }
   const exists = await query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', [email, email]);
@@ -160,11 +165,31 @@ async function googleRegisterHandler(req, res, next) {
     }
     const agency = await resolveSignupAgency(token);
     if (!agency) return res.status(404).json({ error: token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
-    res.status(201).json(await createTrialAccount(agency, { full_name: p.name || p.email, email: p.email, google_id: p.sub }));
+    const b = req.body || {};
+    res.status(201).json(await createTrialAccount(agency, {
+      full_name: p.name || p.email, email: p.email, google_id: p.sub,
+      company_name: b.company_name, phone: b.phone,
+    }));
   } catch (e) { if (e.status) return res.status(e.status).json({ error: e.message }); next(e); }
 }
 
+// Verify a Google credential and report whether that user already exists, so the
+// register page can either sign them in or show the "complete details" step.
+async function googlePrecheck(req, res, next) {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) return res.status(400).json({ error: 'חסר אישור גוגל' });
+    if (!googleAuth.configured()) return res.status(503).json({ error: 'התחברות גוגל אינה מוגדרת בשרת' });
+    let p;
+    try { p = await googleAuth.verify(credential); } catch (e) { return res.status(401).json({ error: 'אימות גוגל נכשל' }); }
+    if (!p || !p.email || !p.email_verified) return res.status(401).json({ error: 'כתובת הגוגל אינה מאומתת' });
+    const rows = await query('SELECT id FROM users WHERE (google_id = ? OR email = ?) AND is_active = 1 LIMIT 1', [p.sub, p.email]);
+    res.json({ exists: !!rows[0], email: p.email, name: p.name || '' });
+  } catch (e) { next(e); }
+}
+
 // more specific routes first so "google" is not captured as :token
+router.post('/register/google/precheck', googlePrecheck);
 router.post('/register/google', googleRegisterHandler);
 router.post('/register/:token/google', googleRegisterHandler);
 router.get('/register', infoHandler);
