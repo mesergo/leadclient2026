@@ -235,7 +235,7 @@ router.post('/phone/verify-request', requireAuth, async (req, res, next) => {
     if (!target) return res.status(400).json({ error: 'אין מספר טלפון לאימות' });
     const r = await otp.requestOtp({ phone: target, purpose: 'verify' });
     if (!r.ok && r.error === 'too_soon') return res.status(429).json({ error: 'נשלח קוד לאחרונה, נסה שוב בעוד רגע' });
-    if (!r.ok) return res.status(502).json({ error: 'שליחת הקוד נכשלה' + (r.error && r.error !== 'send_failed' ? `: ${r.error}` : '') });
+    if (!r.ok) return res.status(400).json({ error: 'שליחת הקוד נכשלה' + (r.error && r.error !== 'send_failed' ? `: ${r.error}` : '') });
     res.json({ ok: true, mocked: r.mocked, devCode: r.devCode });
   } catch (e) { next(e); }
 });
