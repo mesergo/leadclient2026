@@ -28,7 +28,8 @@ function sessionPayload(user) {
     token: issueToken(user),
     user: {
       id: user.id, name: user.display_name || user.username, role: user.role,
-      company_id: user.company_id, agency_id: user.agency_id, phone_verified_at: user.phone_verified_at || null,
+      company_id: user.company_id, agency_id: user.agency_id,
+      phone: user.phone || null, phone_verified_at: user.phone_verified_at || null,
       phone_verify_required: config.requirePhoneVerify,
     },
   };
@@ -38,7 +39,7 @@ router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
-    const cols = 'id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone_verified_at';
+    const cols = 'id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone, phone_verified_at';
     let rows = await query(`SELECT ${cols} FROM users WHERE username = ? LIMIT 1`, [username]);
     let user = rows[0];
     // fall back to email — but only when it resolves to exactly one active, password user
@@ -106,6 +107,7 @@ async function createTrialAccount(agency, { company_name, full_name, email, phon
   return sessionPayload({
     id: u.insertId, username: email, display_name: full_name, role: 'company_admin',
     company_id: comp.insertId, agency_id: agency.id, phone_verified_at: null,
+    phone: phone ? messergo.toE164(phone) : null,
   });
 }
 

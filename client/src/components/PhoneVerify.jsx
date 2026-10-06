@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 
@@ -15,6 +15,9 @@ export default function PhoneVerify({ token, initialPhone = '', verified = false
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // prefill the number once it arrives (e.g. from registration / /me), unless the user already typed
+  useEffect(() => { if (initialPhone) setPhone((p) => p || initialPhone); }, [initialPhone]);
 
   async function sendCode(e) {
     e.preventDefault();
