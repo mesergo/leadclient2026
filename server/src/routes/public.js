@@ -76,10 +76,12 @@ router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
 // call_ended: phone channels at call end; lead_created: form / widget leads.
 function fireChannelWebhook(serviceId, lead, event = 'call_ended') {
   if (!serviceId) return;
-  const base = { leadId: lead.id, companyId: lead.company_id, serviceId };
-  const payload = event === 'call_ended'
-    ? channelWebhook.callEndedPayload({ ...base, caller: lead.caller, duration: lead.duration, status: lead.status })
-    : channelWebhook.leadCreatedPayload({ ...base, name: lead.name, phone: lead.phone, email: lead.email, source: lead.source });
+  if (event === 'call_ended') { // waits for the recording of an answered call (in the background)
+    channelWebhook.sendCallEnded(serviceId, lead).catch(() => {});
+    return;
+  }
+  const payload = channelWebhook.leadCreatedPayload({ leadId: lead.id, companyId: lead.company_id, serviceId,
+    name: lead.name, phone: lead.phone, email: lead.email, source: lead.source });
   channelWebhook.send(serviceId, payload, { companyId: lead.company_id, leadId: lead.id }).catch(() => {});
 }
 

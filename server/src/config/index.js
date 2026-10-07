@@ -66,5 +66,8 @@ module.exports = {
   },
   // mandatory phone verification before entering the app. Set PHONE_VERIFY_REQUIRED=false to lift the gate.
   requirePhoneVerify: process.env.PHONE_VERIFY_REQUIRED !== 'false',
-  appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL, for the Maskyoo callback_url
+  appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL as configured (may be empty)
+  // public URL for links that leave the system (recording links, iCount return/IPN,
+  // invitations) — never empty, so links are never silently dropped
+  publicUrl: (process.env.APP_URL || 'https://app26.leadclient.net').replace(/\/$/, ''),
 };
