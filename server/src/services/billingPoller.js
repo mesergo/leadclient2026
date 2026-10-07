@@ -16,7 +16,7 @@ async function tick() {
       if (r) console.log(`[billingPoller] trial usage sub#${s.id}: ${r.minutes} min, ₪${r.amount} -> ${r.status}`);
     }
     const stale = await query(
-      `SELECT * FROM subscriptions WHERE status IN ('active', 'past_due') AND icount_hk_id IS NOT NULL
+      `SELECT * FROM subscriptions WHERE status IN ('active', 'past_due') AND (icount_hk_id IS NOT NULL OR billing_email IS NOT NULL)
          AND (last_sync_at IS NULL OR last_sync_at < NOW() - INTERVAL 6 HOUR) ORDER BY id LIMIT 50`);
     for (const s of stale) {
       try { await billing.syncSubscription(s); } catch (e) { console.warn('[billingPoller] sync', s.id, e.message); }

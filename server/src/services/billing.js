@@ -94,9 +94,15 @@ async function chargeTrialUsage(sub) {
 // Pull the standing order's state from iCount: a failed last debit -> past_due,
 // recovered -> active, deleted -> cancelled.
 async function syncSubscription(sub) {
-  if (icount.isMock() || !sub.icount_hk_id) return null;
-  const r = await icount.hkInfo(sub.icount_hk_id);
-  const h = r.hk_info || {};
+  if (icount.isMock()) return null;
+  const hkId = await ensureHkId(sub);
+  if (!hkId) return null;
+  const r = await icount.hkInfo(hkId);
+  return applyHkInfo({ ...sub, icount_hk_id: hkId }, r.hk_info || {});
+}
+
+// Store what iCount says about the standing order on our subscription + company.
+async function applyHkInfo(sub, h) {
   let status = sub.status;
   if (h.is_deleted) status = 'cancelled';
   else if (h.last_debit_success === false && h.last_debit) status = 'past_due';
@@ -110,4 +116,55 @@ async function syncSubscription(sub) {
   return status;
 }
 
-module.exports = { activateSubscription, verifyPendingByEmail, callMinutes, chargeTrialUsage, syncSubscription, ymd, addDays };
+// The subscription's iCount standing-order id; if the IPN didn't carry it, find
+// the profile by the billing email and remember it.
+async function ensureHkId(sub) {
+  if (sub.icount_hk_id) return sub.icount_hk_id;
+  if (icount.isMock() || !sub.billing_email) return null;
+  const hks = await icount.findHkByEmail(sub.billing_email);
+  const since = new Date(sub.created_at).getTime() - 5 * 60000;
+  const hk = hks.find((h) => !h.is_deleted && (!h.ts_created || new Date(h.ts_created).getTime() >= since));
+  if (!hk) return null;
+  await query('UPDATE subscriptions SET icount_hk_id = ?, cc_last4 = COALESCE(?, cc_last4) WHERE id = ?', [hk.hk_id, hk.cc_last4 || null, sub.id]);
+  return hk.hk_id;
+}
+
+const itemsTotal = (items) => (Array.isArray(items) ? items : []).reduce((t, i) =>
+  t + Number(i.unitprice_incvat ?? i.unitprice ?? 0) * Number(i.quantity ?? 1), 0);
+
+// Live health of the standing order, straight from iCount (hk/info + transactions).
+// state: ok | failing | paused | cancelled | finished | not_found
+async function liveStatus(sub) {
+  if (icount.isMock()) {
+    return {
+      mock: true, state: 'ok', hk_id: sub.icount_hk_id, start_date: sub.start_date || sub.trial_ends_at || sub.activated_at,
+      next_debit: sub.next_debit, cc_last4: sub.cc_last4, amount: Number(sub.monthly_price), transactions: [],
+    };
+  }
+  const hkId = await ensureHkId(sub);
+  if (!hkId) return { state: 'not_found' };
+  const r = await icount.hkInfo(hkId, { get_transactions: true });
+  const h = r.hk_info || {};
+  await applyHkInfo({ ...sub, icount_hk_id: hkId }, h);
+  let state = 'ok';
+  if (h.is_deleted) state = 'cancelled';
+  else if (h.is_finished) state = 'finished';
+  else if (h.is_paused) state = 'paused';
+  else if (h.last_debit_success === false && h.last_debit) state = 'failing';
+  const txs = Array.isArray(r.hk_transactions) ? r.hk_transactions : [];
+  const last = h.last_transaction || txs[txs.length - 1] || null;
+  return {
+    state, hk_id: hkId,
+    start_date: h.start_date || null, next_debit: h.next_debit || null,
+    last_debit: h.last_debit || null, last_debit_success: h.last_debit_success ?? null,
+    last_error: last && last.debit_status === 'FAILURE' ? (last.more_info || null) : null,
+    payments_done: h.last_success_num ?? null,
+    cc_type: h.cc_type || null, cc_last4: h.cc_last4 || sub.cc_last4 || null, cc_expires: h.cc_expires || null,
+    amount: itemsTotal(h.items) || Number(sub.monthly_price) || null,
+    transactions: txs.slice(-8).reverse().map((t) => ({
+      date: t.debit_date, sum: t.debit_sum, status: t.debit_status, info: t.more_info || null, docnum: t.docnum || null,
+    })),
+  };
+}
+
+module.exports = { activateSubscription, verifyPendingByEmail, callMinutes, chargeTrialUsage, syncSubscription, liveStatus, ymd, addDays };

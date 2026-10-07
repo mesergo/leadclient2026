@@ -475,3 +475,7 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .billing-pkg-price span { font-size: 13px; font-weight: 400; color: var(--text-dim); }
 .billing-pkg-vat { font-size: 12px; color: var(--text-dim); }
 .billing-pkg ul { margin: 8px 0 0; padding-inline-start: 18px; font-size: 13px; color: var(--text-dim); }
+.bill-status { border: 1px solid; border-radius: var(--radius-lg); padding: 10px 14px; font-size: 14px; line-height: 1.6; }
+.bill-status.ok { border-color: #2e7d32; background: #e8f5e9; color: #1b5e20; }
+.bill-status.warn { border-color: #e67e22; background: #fff4e5; color: #8a4b00; }
+.bill-status.bad { border-color: #c62828; background: #fdecea; color: #8e1b1b; }
