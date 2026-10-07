@@ -89,7 +89,7 @@ const ipnSigOk = (subId, sig) => {
 // `returnTo` (e.g. "/pay/<token>") sends the customer back to that page with ?status=,
 // otherwise back into the app with ?billing=.
 async function generateSale({ subId, pkg, company, customer, startDate, returnTo }) {
-  const base = config.appUrl || '';
+  const base = config.publicUrl;
   const back = (s) => (returnTo ? `${base}${returnTo}?status=${s}` : `${base}/?billing=${s}&sub=${subId}`);
   if (isMock()) {
     return { sale_uniqid: `mock-${subId}`, sale_url: back('mock'), mock: true };

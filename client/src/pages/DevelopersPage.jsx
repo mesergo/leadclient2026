@@ -159,7 +159,7 @@ export default function DevelopersPage() {
       <div className="panel">
         <h2>{t('dev.webhookTitle')}</h2>
         <p className="muted">{t('dev.webhookDesc')}</p>
-        <CodeBlock code={`POST <your webhook URL>\nContent-Type: application/json\n\n{\n  "event": "call_ended",\n  "lead_id": 123,\n  "company_id": 45,\n  "service_id": 67,\n  "caller": "+972541234567",\n  "duration": "42",\n  "status": "answered",            // answered | missed\n  "recording_url": "${O}/api/public/recording/123?sig=…",\n  "at": "2026-01-01T12:00:00.000Z"\n}`} />
+        <CodeBlock code={`POST <your webhook URL>\nContent-Type: application/json\n\n{\n  "event": "call_ended",\n  "lead_id": 123,\n  "company_id": 45,\n  "service_id": 67,\n  "caller": "+972541234567",\n  "duration": "42",\n  "status": "answered",            // answered | missed\n  "recording_url": "${O}/api/public/recording/123?sig=…",   // null for missed calls\n  "recording_ready": true,         // the file is already downloadable from recording_url\n  "at": "2026-01-01T12:00:00.000Z"\n}`} />
         <p className="muted">{t('dev.webhookRec')}</p>
         <p className="muted" style={{ marginBottom: 0 }}>{t('dev.webhookLead')}</p>
         <CodeBlock code={`{\n  "event": "lead_created",\n  "lead_id": 124,\n  "company_id": 45,\n  "service_id": 67,\n  "name": "ישראל ישראלי",\n  "phone": "0541234567",\n  "email": "a@b.co",\n  "source": "widget",               // widget | form\n  "at": "2026-01-01T12:00:00.000Z"\n}`} />

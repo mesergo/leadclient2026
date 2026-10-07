@@ -21,8 +21,27 @@ function verifySig(id, sig) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 function publicUrl(id) {
-  if (!config.appUrl) return null;
-  return `${config.appUrl}/api/public/recording/${id}?sig=${sign(id)}`;
+  return `${config.publicUrl}/api/public/recording/${id}?sig=${sign(id)}`;
+}
+
+// Make sure a lead's recording can be downloaded right away from our signed link:
+// a provider recording (call UUID) is fetched once and cached locally.
+// Resolves true when it's available, false when there is none / not ready yet.
+async function prefetch(leadId) {
+  const lead = (await query('SELECT id, recording_url FROM leads WHERE id = ?', [leadId]))[0];
+  const u = lead && lead.recording_url;
+  if (!u) return false;
+  if (u.startsWith('local:')) return fs.existsSync(path.join(REC_DIR, path.basename(u.slice(6))));
+  if (u.startsWith('maskyoo-uuid:')) {
+    const buf = await maskyoo.getRecording(u.slice('maskyoo-uuid:'.length));
+    if (!buf) return false;
+    fs.mkdirSync(REC_DIR, { recursive: true });
+    const fname = `lead-${lead.id}.wav`;
+    fs.writeFileSync(path.join(REC_DIR, fname), buf);
+    await query('UPDATE leads SET recording_url = ? WHERE id = ?', [`local:${fname}`, lead.id]);
+    return true;
+  }
+  return /^https?:\/\//i.test(u); // legacy direct URL: proxied on demand
 }
 
 // Stream the recording for a lead row ({id, recording_url}) to res. Handles the
@@ -54,7 +73,7 @@ async function serve(res, lead) {
   if (!/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
   try {
     const r = await fetch(lead.recording_url, { headers: config.maskyoo.token ? { Authorization: `Bearer ${config.maskyoo.token}` } : {} });
-    if (!r.ok) return res.status(502).json({ error: `maskyoo_${r.status}` });
+    if (!r.ok) return res.status(502).json({ error: 'recording_unavailable' }); // never name the provider
     const ct = r.headers.get('content-type') || 'audio/mpeg';
     if (!/audio|octet-stream|mpeg|wav|mp4/i.test(ct)) return res.status(502).json({ error: 'not_audio', ct });
     const ext = /wav/i.test(ct) ? 'wav' : /mp4|m4a|aac/i.test(ct) ? 'm4a' : 'mp3';
@@ -71,4 +90,4 @@ async function serve(res, lead) {
   } catch (e) { res.status(502).json({ error: 'fetch_failed' }); }
 }
 
-module.exports = { serve, sign, verifySig, publicUrl, REC_DIR };
+module.exports = { serve, sign, verifySig, publicUrl, prefetch, REC_DIR };
