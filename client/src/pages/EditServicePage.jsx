@@ -5,6 +5,7 @@ import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import MultiSelect from '../components/MultiSelect';
 import RedirectConfig, { toRedirect, emptyRedirect } from '../components/RedirectConfig';
+import ChannelWebhookPanel from '../components/ChannelWebhookPanel';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const LINE_TYPES = [{ v: 'mobile', k: 'es.mobile' }, { v: 'landline', k: 'es.landline' }];
@@ -244,7 +245,8 @@ export default function EditServicePage() {
             <input value={form.service_ref} onChange={(e) => set('service_ref', e.target.value)} /></div></div>
 
           <div className="form-field"><label>{t('es.webhook')}</label><div className="form-field-control">
-            <input value={form.export_webhook_url} onChange={(e) => set('export_webhook_url', e.target.value)} placeholder="https://" /></div></div>
+            <input value={form.export_webhook_url} onChange={(e) => set('export_webhook_url', e.target.value)} placeholder="https://" />
+            <ChannelWebhookPanel serviceId={id} url={form.export_webhook_url} token={token} /></div></div>
 
           <div className="form-field"><label>{t('es.openHours')}</label><div className="form-field-control">
             <input type="checkbox" checked={hoursOn} onChange={(e) => setHoursOn(e.target.checked)} /></div></div>

@@ -175,6 +175,18 @@ async function ensureSchema() {
   await safe('subscriptions.link_expires_at', () => ensureColumn('subscriptions', 'link_expires_at', 'link_expires_at DATETIME NULL'));
   await safe('subscriptions.start_date', () => ensureColumn('subscriptions', 'start_date', 'start_date DATE NULL'));
   await safe('subscriptions.billing_phone', () => ensureColumn('subscriptions', 'billing_phone', 'billing_phone VARCHAR(20) NULL'));
+  // webhook log (also created lazily by public.js); service_id ties outgoing channel
+  // webhooks (source 'channel-out') to their channel
+  await safe('webhook_log.table', () => query(`CREATE TABLE IF NOT EXISTS webhook_log (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      source VARCHAR(30) NULL, method VARCHAR(10) NULL, path VARCHAR(255) NULL, ip VARCHAR(45) NULL,
+      query_data TEXT NULL, body_data TEXT NULL,
+      matched_number_id BIGINT UNSIGNED NULL, company_id BIGINT UNSIGNED NULL, lead_id BIGINT UNSIGNED NULL,
+      result VARCHAR(30) NULL, error VARCHAR(255) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_wl_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  await safe('webhook_log.service_id', () => ensureColumn('webhook_log', 'service_id', 'service_id BIGINT UNSIGNED NULL'));
+  await safe('webhook_log.service_idx', () => ensureIndex('webhook_log', 'idx_wl_service', 'service_id, created_at'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,
