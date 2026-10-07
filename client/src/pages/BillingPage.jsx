@@ -4,7 +4,7 @@ import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import * as Icons from '../icons';
 
-const thisMonth = () => new Date().toISOString().slice(0, 7);
+const thisMonth = () => new Date().toLocaleDateString('en-CA').slice(0, 7); // local month, not UTC
 
 export default function BillingPage() {
   const { token, user } = useAuth();
