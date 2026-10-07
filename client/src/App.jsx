@@ -1,7 +1,10 @@
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LangProvider } from './context/LangContext';
+import { api } from './api';
 import Layout from './components/Layout';
+import BillingSetupPage from './pages/BillingSetupPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import InvitePage from './pages/InvitePage';
@@ -45,6 +48,20 @@ function Protected() {
   if (!user) return <div className="loading-screen">טוען...</div>; // /me still resolving
   // mandatory phone verification before entering (unless disabled server-side, or impersonating)
   if (user.phone_verify_required !== false && !user.phone_verified_at && !impersonatorName) return <VerifyPhonePage />;
+  return <BillingGate />;
+}
+// Mandatory billing setup for self-registered companies (standing order via iCount)
+// before entering. Fails open: if the status can't be read, let them in.
+function BillingGate() {
+  const { token, user, impersonatorName } = useAuth();
+  const companyRole = user.role === 'company_admin' || user.role === 'company_user';
+  const [st, setSt] = useState(undefined);
+  const load = () => api.subscription(token).then(setSt).catch(() => setSt(null));
+  useEffect(() => {
+    if (companyRole && !impersonatorName) load(); else setSt(null);
+  }, [token, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (st === undefined) return <div className="loading-screen">טוען...</div>;
+  if (st && st.required) return <BillingSetupPage state={st} onDone={load} />;
   return <Layout />;
 }
 function Role({ roles, children }) {

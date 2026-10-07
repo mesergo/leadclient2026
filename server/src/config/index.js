@@ -44,6 +44,16 @@ module.exports = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',          // for verifying Google id_token (aud)
   },
+  // iCount billing (standing orders via a hosted PayPage). No token => mock mode (non-production only).
+  icount: {
+    token: process.env.ICOUNT_TOKEN || '',                 // API token (Bearer), from iCount > API Tokens
+    apiUrl: (process.env.ICOUNT_API_URL || 'https://api.icount.co.il/api/v3.php').replace(/\/$/, ''),
+    paypageId: Number(process.env.ICOUNT_PAYPAGE_ID || 0) || null, // optional; auto-created & stored if empty
+  },
+  billing: {
+    trialDays: Number(process.env.BILLING_TRIAL_DAYS || 14),
+    trialMinuteRate: Number(process.env.BILLING_TRIAL_MINUTE_RATE || 0.25), // ILS per call minute during trial, incl. VAT
+  },
   // mandatory phone verification before entering the app. Set PHONE_VERIFY_REQUIRED=false to lift the gate.
   requirePhoneVerify: process.env.PHONE_VERIFY_REQUIRED !== 'false',
   appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),  // public URL, for the Maskyoo callback_url

@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS companies (
   public_token          CHAR(36) NOT NULL,
   is_trial              TINYINT(1) NOT NULL DEFAULT 0,
   package_id            BIGINT UNSIGNED NULL,
+  billing_status        VARCHAR(16) NULL,
+  signup_package_locked TINYINT(1) NOT NULL DEFAULT 0,
   quota_users           INT NULL,
   quota_numbers         INT NULL,
   quota_leads           INT NULL,
@@ -385,6 +387,7 @@ CREATE TABLE IF NOT EXISTS leads (
   recording_url         VARCHAR(500) NULL,
   call_status           VARCHAR(12) NULL,
   call_uuid             VARCHAR(100) NULL,
+  call_duration_sec     INT NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   legacy_id             BIGINT UNSIGNED NULL,
@@ -684,5 +687,52 @@ CREATE TABLE IF NOT EXISTS phone_number_log (
   note            VARCHAR(255) NULL,
   created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_pnl_number (phone_number_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------- billing (iCount standing orders) ----------
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  company_id            BIGINT UNSIGNED NOT NULL,
+  package_id            BIGINT UNSIGNED NULL,
+  monthly_price         DECIMAL(10,2) NULL,
+  status                VARCHAR(16) NOT NULL DEFAULT 'pending',
+  billing_email         VARCHAR(150) NULL,
+  icount_sale_uniqid    VARCHAR(64) NULL,
+  icount_hk_id          BIGINT NULL,
+  icount_client_id      BIGINT NULL,
+  cc_last4              VARCHAR(4) NULL,
+  trial_started_at      DATETIME NULL,
+  trial_ends_at         DATETIME NULL,
+  trial_usage_charged   TINYINT(1) NOT NULL DEFAULT 0,
+  activated_at          DATETIME NULL,
+  cancelled_at          DATETIME NULL,
+  last_sync_at          DATETIME NULL,
+  last_debit_success    TINYINT(1) NULL,
+  next_debit            DATE NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_sub_company (company_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS billing_charges (
+  id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  company_id            BIGINT UNSIGNED NOT NULL,
+  subscription_id       BIGINT UNSIGNED NULL,
+  kind                  VARCHAR(20) NOT NULL,
+  minutes               INT NULL,
+  amount                DECIMAL(10,2) NOT NULL DEFAULT 0,
+  period_start          DATETIME NULL,
+  period_end            DATETIME NULL,
+  status                VARCHAR(12) NOT NULL DEFAULT 'pending',
+  icount_ref            VARCHAR(64) NULL,
+  error                 VARCHAR(255) NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_bc_company (company_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  k                     VARCHAR(64) PRIMARY KEY,
+  v                     TEXT NULL,
+  updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 SET FOREIGN_KEY_CHECKS = 1;

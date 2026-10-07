@@ -26,5 +26,7 @@ module.exports = function registerRoutes(app) {
   app.use('/api/language', require('./languages'));
   app.use('/api/import', require('./import'));
   app.use('/api/import-live', require('./importLive'));
+  app.use('/api/subscription', require('./subscription'));
+  app.use('/api/public/icount', require('./icountIpn')); // before /api/public
   app.use('/api/public', require('./public'));
 };

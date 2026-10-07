@@ -232,6 +232,8 @@ async function processCall(num, req, res, logId) {
   // Maskyoo params: CLI = caller, CALLSTATUS = STARTED/ENDED, DURATION, plus generic aliases.
   const caller = pick(req, 'CLI', 'cli', 'caller', 'from', 'phone', 'ani');
   const duration = pick(req, 'CALLDURATION', 'DURATION', 'duration', 'seconds', 'billsec');
+  // structured talk time (seconds), used for per-minute usage billing
+  const durSec = duration != null && Number(duration) > 0 ? Math.round(Number(duration)) : null;
   const recording = pick(req, 'download', 'RECORDING', 'recording', 'recording_url');
   const uuid = pick(req, 'UUID', 'uuid');
   const routedTo = pick(req, 'DEST', 'dest');
@@ -290,9 +292,9 @@ async function processCall(num, req, res, logId) {
         const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [num.company_id]);
         const knownName = await nameForPhone(num.company_id, targetLocal);
         const r = await query(
-          `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, ?, NOW(), NOW())`,
-          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid]);
+          `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, call_duration_sec, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, ?, ?, NOW(), NOW())`,
+          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid, durSec]);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
         announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal);
@@ -300,8 +302,8 @@ async function processCall(num, req, res, logId) {
       } else { // lead exists -> attach the recording as soon as any webhook carries it; finalize on end
         if (recStore) await query("UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '')", [recStore, leadId]);
         if (isEnd) await query(
-          'UPDATE leads SET call_status = ?, lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), updated_at = NOW() WHERE id = ?',
-          [answered ? 'answered' : 'missed', `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
+          'UPDATE leads SET call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec), lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), updated_at = NOW() WHERE id = ?',
+          [answered ? 'answered' : 'missed', durSec, `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: isEnd ? 'callback_end' : 'callback_rec' });
       }
       if (isEnd) fireChannelWebhook(num.service_id, { id: leadId, company_id: num.company_id, caller: targetLocal, duration, status: answered ? 'answered' : 'missed' });
@@ -338,8 +340,9 @@ async function processCall(num, req, res, logId) {
       const info = `\n[${label}] משך: ${duration || '?'} שנ׳${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
-           recording_url = COALESCE(?, recording_url), call_status = ?, updated_at = NOW() WHERE id = ?`,
-        [info, recStore, callStatus, recent[0].id]);
+           recording_url = COALESCE(?, recording_url), call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec),
+           updated_at = NOW() WHERE id = ?`,
+        [info, recStore, callStatus, durSec, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       fireChannelWebhook(num.service_id, { id: recent[0].id, company_id: num.company_id, caller, duration, status: callStatus });
       return reply(true, 'lead updated');
@@ -369,9 +372,9 @@ async function processCall(num, req, res, logId) {
   const statusId = st[0] ? st[0].id : null;
   const knownName = await nameForPhone(num.company_id, caller);
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, call_duration_sec, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, ?, NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');
