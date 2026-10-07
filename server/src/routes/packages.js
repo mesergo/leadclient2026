@@ -1,15 +1,22 @@
 const express = require('express');
 const { query } = require('../db/pool');
+const { uniqueCode } = require('../db/init');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
 const router = express.Router();
 router.use(requireAuth);
 
-const FIELDS = `id, name, monthly_price, quota_users, quota_numbers, quota_leads, quota_channels,
+const FIELDS = `id, name, code, monthly_price, quota_users, quota_numbers, quota_leads, quota_channels,
   overage_users, overage_numbers, overage_leads, overage_channels, is_trial_default, created_at`;
 
 const num = (v) => (v === '' || v == null ? null : Number(v));
+const normCode = (v) => String(v == null ? '' : v).trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+// returns an error message if `code` is already used by another package, else null
+async function codeTaken(code, exceptId) {
+  const r = await query('SELECT id FROM packages WHERE code = ? AND id <> ? LIMIT 1', [code, exceptId || 0]);
+  return !!r[0];
+}
 
 // anyone signed in can read packages (needed to show plan info); only super_admin writes
 router.get('/', asyncHandler(async (req, res) => {
@@ -20,11 +27,15 @@ router.get('/', asyncHandler(async (req, res) => {
 router.post('/', requireRole('super_admin'), asyncHandler(async (req, res) => {
   const b = req.body || {};
   if (!b.name || !b.name.trim()) return res.status(400).json({ error: 'חסר שם חבילה' });
+  // code: use the one provided (normalized + unique), else auto-generate a unique one
+  let code = normCode(b.code);
+  if (code) { if (await codeTaken(code)) return res.status(409).json({ error: 'קוד החבילה כבר בשימוש' }); }
+  else { code = await uniqueCode('packages', 'code'); }
   const r = await query(
-    `INSERT INTO packages (name, monthly_price, quota_users, quota_numbers, quota_leads, quota_channels,
+    `INSERT INTO packages (name, code, monthly_price, quota_users, quota_numbers, quota_leads, quota_channels,
        overage_users, overage_numbers, overage_leads, overage_channels, is_trial_default)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [b.name.trim(), num(b.monthly_price) || 0, num(b.quota_users), num(b.quota_numbers), num(b.quota_leads), num(b.quota_channels),
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [b.name.trim(), code, num(b.monthly_price) || 0, num(b.quota_users), num(b.quota_numbers), num(b.quota_leads), num(b.quota_channels),
      num(b.overage_users), num(b.overage_numbers), num(b.overage_leads), num(b.overage_channels), b.is_trial_default ? 1 : 0]);
   if (b.is_trial_default) await query('UPDATE packages SET is_trial_default = 0 WHERE id <> ?', [r.insertId]);
   const rows = await query(`SELECT ${FIELDS} FROM packages WHERE id = ?`, [r.insertId]);
@@ -37,6 +48,12 @@ router.patch('/:id', requireRole('super_admin'), asyncHandler(async (req, res) =
     'overage_users', 'overage_numbers', 'overage_leads', 'overage_channels'];
   const sets = [], params = [];
   for (const c of cols) if (b[c] !== undefined) { sets.push(`${c} = ?`); params.push(c === 'name' ? b[c] : num(b[c])); }
+  if (b.code !== undefined) {
+    const code = normCode(b.code);
+    if (!code) return res.status(400).json({ error: 'קוד חבילה לא יכול להיות ריק' });
+    if (await codeTaken(code, req.params.id)) return res.status(409).json({ error: 'קוד החבילה כבר בשימוש' });
+    sets.push('code = ?'); params.push(code);
+  }
   if (b.is_trial_default !== undefined) { sets.push('is_trial_default = ?'); params.push(b.is_trial_default ? 1 : 0); }
   if (sets.length) { params.push(req.params.id); await query(`UPDATE packages SET ${sets.join(', ')} WHERE id = ?`, params); }
   if (b.is_trial_default) await query('UPDATE packages SET is_trial_default = 0 WHERE id <> ?', [req.params.id]);

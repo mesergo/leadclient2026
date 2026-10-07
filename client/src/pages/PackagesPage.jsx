@@ -10,7 +10,7 @@ const QUOTAS = [
   ['quota_leads', 'overage_leads', 'quota.leads'],
   ['quota_channels', 'overage_channels', 'quota.channels'],
 ];
-const BLANK = { name: '', monthly_price: '', quota_users: '', quota_numbers: '', quota_leads: '', quota_channels: '', overage_users: '', overage_numbers: '', overage_leads: '', overage_channels: '', is_trial_default: false };
+const BLANK = { name: '', code: '', monthly_price: '', quota_users: '', quota_numbers: '', quota_leads: '', quota_channels: '', overage_users: '', overage_numbers: '', overage_leads: '', overage_channels: '', is_trial_default: false };
 
 export default function PackagesPage() {
   const { token } = useAuth();
@@ -37,7 +37,7 @@ export default function PackagesPage() {
   function edit(p) {
     setEditId(p.id);
     setForm({
-      name: p.name || '', monthly_price: p.monthly_price ?? '', is_trial_default: !!p.is_trial_default,
+      name: p.name || '', code: p.code || '', monthly_price: p.monthly_price ?? '', is_trial_default: !!p.is_trial_default,
       quota_users: p.quota_users ?? '', quota_numbers: p.quota_numbers ?? '', quota_leads: p.quota_leads ?? '', quota_channels: p.quota_channels ?? '',
       overage_users: p.overage_users ?? '', overage_numbers: p.overage_numbers ?? '', overage_leads: p.overage_leads ?? '', overage_channels: p.overage_channels ?? '',
     });
@@ -63,6 +63,8 @@ export default function PackagesPage() {
           <div className="filter-row">
             <label className="filter-item"><span>{t('pkg.name')}</span>
               <input value={form.name} onChange={(e) => set('name', e.target.value)} /></label>
+            <label className="filter-item"><span>{t('pkg.code')}</span>
+              <input value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} placeholder={t('pkg.codeAuto')} style={{ width: 140 }} /></label>
             <label className="filter-item"><span>{t('pkg.monthlyPrice')} (₪)</span>
               <input type="number" min="0" step="0.01" value={form.monthly_price} onChange={(e) => set('monthly_price', e.target.value)} /></label>
           </div>
@@ -94,13 +96,14 @@ export default function PackagesPage() {
       <div className="panel" style={{ marginTop: 16 }}>
         <div className="table-wrap"><table className="data-table">
           <thead><tr>
-            <th>{t('pkg.name')}</th><th>{t('pkg.monthlyPrice')}</th>
+            <th>{t('pkg.name')}</th><th>{t('pkg.code')}</th><th>{t('pkg.monthlyPrice')}</th>
             <th>{t('quota.users')}</th><th>{t('quota.numbers')}</th><th>{t('quota.leads')}</th><th>{t('quota.channels')}</th>
             <th></th><th></th>
           </tr></thead>
           <tbody>{rows.map((p) => (
             <tr key={p.id}>
               <td>{p.name} {p.is_trial_default ? <span className="tag-chip" style={{ background: '#4f46e522', color: '#4f46e5' }}>{t('pkg.trialTag')}</span> : null}</td>
+              <td><code>{p.code || '—'}</code></td>
               <td>{money(p.monthly_price)}</td>
               <td>{fmtQuota(p.quota_users)}</td><td>{fmtQuota(p.quota_numbers)}</td><td>{fmtQuota(p.quota_leads)}</td><td>{fmtQuota(p.quota_channels)}</td>
               <td><button type="button" className="btn btn-secondary btn-sm" onClick={() => edit(p)}><Icons.Pencil size={13} /> {t('common.edit')}</button></td>

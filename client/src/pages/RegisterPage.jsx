@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
@@ -17,11 +17,14 @@ function phoneOk(p) {
 // followed by a "complete details" step (company + phone) then phone verification.
 export default function RegisterPage() {
   const { token } = useParams();
+  const [sp] = useSearchParams();
+  const pkg = sp.get('pkg') || '';
   const { registerAccount, registerWithGoogle } = useAuth();
   const { t } = useLang();
   const nav = useNavigate();
 
   const [agency, setAgency] = useState(null);
+  const [pkgName, setPkgName] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [f, setF] = useState({ company_name: '', full_name: '', email: '', phone: '', password: '' });
   const [error, setError] = useState('');
@@ -32,8 +35,8 @@ export default function RegisterPage() {
   const [gForm, setGForm] = useState({ company_name: '', phone: '' });
 
   useEffect(() => {
-    api.registerInfo(token).then((d) => setAgency(d.agency)).catch(() => setInvalid(true));
-  }, [token]);
+    api.registerInfo(token, pkg).then((d) => { setAgency(d.agency); setPkgName(d.package ? d.package.name : ''); }).catch(() => setInvalid(true));
+  }, [token, pkg]);
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
@@ -54,7 +57,7 @@ export default function RegisterPage() {
     const v = validate();
     if (v) { setError(v); return; }
     setBusy(true); setError('');
-    try { await registerAccount(token, f); nav('/'); }
+    try { await registerAccount(token, { ...f, pkg }); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -75,7 +78,7 @@ export default function RegisterPage() {
     if (!gForm.phone.trim()) { setError(t('reg.errPhoneMissing')); return; }
     if (!phoneOk(gForm.phone)) { setError(t('reg.errPhoneInvalid')); return; }
     setBusy(true); setError('');
-    try { await registerWithGoogle(token, gCred, gForm); nav('/'); }
+    try { await registerWithGoogle(token, gCred, { ...gForm, pkg }); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -112,6 +115,11 @@ export default function RegisterPage() {
         <p className="muted" style={{ textAlign: 'center', marginTop: 2 }}>
           {agency ? `${t('reg.under')} ${agency.name}` : t('common.loading')}
         </p>
+        {pkgName && (
+          <p style={{ textAlign: 'center', marginTop: 2 }}>
+            <span className="tag-chip" style={{ background: '#4f46e522', color: '#4f46e5' }}>{t('reg.package')}: {pkgName}</span>
+          </p>
+        )}
         {error && <p className="error">{error}</p>}
         <div className="field"><label>{t('reg.companyName')}</label>
           <input value={f.company_name} onChange={(e) => set('company_name', e.target.value)} autoFocus /></div>

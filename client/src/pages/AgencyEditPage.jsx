@@ -17,8 +17,12 @@ export default function AgencyEditPage() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [packages, setPackages] = useState([]);
+  const [pkgCode, setPkgCode] = useState('');
 
-  const regLink = a && a.public_token ? `${window.location.origin}/register/${a.public_token}` : '';
+  const regLink = a && a.public_token
+    ? `${window.location.origin}/register/${a.public_token}${pkgCode ? `?pkg=${encodeURIComponent(pkgCode)}` : ''}`
+    : '';
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(regLink); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ }
   };
@@ -30,6 +34,7 @@ export default function AgencyEditPage() {
       setIcountOn(!!(d.agency.icount_cid || d.agency.icount_user || d.agency.icount_pass));
     }).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [id, token]);
+  useEffect(() => { api.packages(token).then((d) => setPackages(d.packages || [])).catch(() => {}); }, [token]);
 
   async function save(e) {
     e.preventDefault();
@@ -84,10 +89,17 @@ export default function AgencyEditPage() {
 
           {regLink && (
             <div className="form-field"><label>{t('agedit.regLink')}</label>
-              <div className="form-field-control" style={{ display: 'flex', gap: 8 }}>
-                <input readOnly value={regLink} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+              <div className="form-field-control" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <select value={pkgCode} onChange={(e) => setPkgCode(e.target.value)} style={{ maxWidth: 220 }}>
+                  <option value="">{t('agedit.regLinkNoPkg')}</option>
+                  {packages.filter((p) => p.code).map((p) => (
+                    <option key={p.id} value={p.code}>{p.name} ({p.code})</option>
+                  ))}
+                </select>
+                <input readOnly value={regLink} onFocus={(e) => e.target.select()} style={{ flex: 1, minWidth: 200 }} />
                 <button type="button" className="btn btn-secondary" onClick={copyLink}>{copied ? t('agedit.copied') : t('agedit.copy')}</button>
               </div>
+              <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('agedit.regLinkPkgHint')}</p>
             </div>
           )}
 

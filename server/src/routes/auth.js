@@ -82,7 +82,19 @@ const httpErr = (status, message) => Object.assign(new Error(message), { status 
 // Create a trial company + company_admin user under `agency`. For Google signup
 // pass google_id instead of password (company_name/phone still required — collected
 // in the "complete details" step).
-async function createTrialAccount(agency, { company_name, full_name, email, phone, password, google_id }) {
+// pick the package for a new signup: the one whose code is in the link (?pkg=), else
+// the trial-default package. Returns the row (with quotas) or null.
+async function pickSignupPackage(pkgCode) {
+  const cols = 'id, quota_users, quota_numbers, quota_leads, quota_channels';
+  if (pkgCode && String(pkgCode).trim()) {
+    const r = await query(`SELECT ${cols} FROM packages WHERE code = ? LIMIT 1`, [String(pkgCode).trim().toUpperCase()]);
+    if (r[0]) return r[0];
+  }
+  const d = await query(`SELECT ${cols} FROM packages WHERE is_trial_default = 1 LIMIT 1`);
+  return d[0] || null;
+}
+
+async function createTrialAccount(agency, { company_name, full_name, email, phone, password, google_id, pkg_code }) {
   if (!full_name || !String(full_name).trim()) throw httpErr(400, 'חסר שם מלא');
   if (!company_name || !String(company_name).trim()) throw httpErr(400, 'חסר שם חברה');
   if (!email || !String(email).trim()) throw httpErr(400, 'חסר אימייל');
@@ -100,11 +112,11 @@ async function createTrialAccount(agency, { company_name, full_name, email, phon
   const comp = await query(
     'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
     [compName, agency.id, crypto.randomUUID()]);
-  // apply the trial-default package's quotas to the new company, if one is set
-  const pkg = await query('SELECT id, quota_users, quota_numbers, quota_leads, quota_channels FROM packages WHERE is_trial_default = 1 LIMIT 1');
-  if (pkg[0]) {
+  // apply the package from the signup link (?pkg=code), else the trial-default package
+  const pkg = await pickSignupPackage(pkg_code);
+  if (pkg) {
     await query('UPDATE companies SET package_id = ?, quota_users = ?, quota_numbers = ?, quota_leads = ?, quota_channels = ? WHERE id = ?',
-      [pkg[0].id, pkg[0].quota_users, pkg[0].quota_numbers, pkg[0].quota_leads, pkg[0].quota_channels, comp.insertId]);
+      [pkg.id, pkg.quota_users, pkg.quota_numbers, pkg.quota_leads, pkg.quota_channels, comp.insertId]);
   }
   await query(
     `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES
@@ -126,7 +138,12 @@ async function infoHandler(req, res, next) {
   try {
     const agency = await resolveSignupAgency(req.params.token);
     if (!agency) return res.status(404).json({ error: req.params.token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
-    res.json({ agency: { name: agency.name } });
+    let pkg = null;
+    if (req.query.pkg) {
+      const r = await query('SELECT name FROM packages WHERE code = ? LIMIT 1', [String(req.query.pkg).trim().toUpperCase()]);
+      if (r[0]) pkg = { name: r[0].name };
+    }
+    res.json({ agency: { name: agency.name }, package: pkg });
   } catch (e) { next(e); }
 }
 
@@ -134,7 +151,8 @@ async function registerHandler(req, res, next) {
   try {
     const agency = await resolveSignupAgency(req.params.token);
     if (!agency) return res.status(404).json({ error: req.params.token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
-    res.status(201).json(await createTrialAccount(agency, req.body || {}));
+    const pkg_code = req.query.pkg || (req.body && req.body.pkg) || null;
+    res.status(201).json(await createTrialAccount(agency, { ...(req.body || {}), pkg_code }));
   } catch (e) { if (e.status) return res.status(e.status).json({ error: e.message }); next(e); }
 }
 
@@ -168,7 +186,7 @@ async function googleRegisterHandler(req, res, next) {
     const b = req.body || {};
     res.status(201).json(await createTrialAccount(agency, {
       full_name: p.name || p.email, email: p.email, google_id: p.sub,
-      company_name: b.company_name, phone: b.phone,
+      company_name: b.company_name, phone: b.phone, pkg_code: req.query.pkg || b.pkg || null,
     }));
   } catch (e) { if (e.status) return res.status(e.status).json({ error: e.message }); next(e); }
 }

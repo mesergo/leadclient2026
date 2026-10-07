@@ -35,7 +35,7 @@ export const api = {
   me: (token) => request('/api/auth/me', { token }),
   googleLogin: (credential) => request('/api/auth/google', { method: 'POST', body: { credential } }),
   // public trial registration (optional agency token; without one -> default agency)
-  registerInfo: (token) => request(token ? `/api/auth/register/${token}` : '/api/auth/register'),
+  registerInfo: (token, pkg) => request(`${token ? `/api/auth/register/${token}` : '/api/auth/register'}${pkg ? `?pkg=${encodeURIComponent(pkg)}` : ''}`),
   register: (token, body) => request(token ? `/api/auth/register/${token}` : '/api/auth/register', { method: 'POST', body }),
   googlePrecheck: (credential) => request('/api/auth/register/google/precheck', { method: 'POST', body: { credential } }),
   registerGoogle: (token, credential, extra) => request(token ? `/api/auth/register/${token}/google` : '/api/auth/register/google', { method: 'POST', body: { credential, ...(extra || {}) } }),
