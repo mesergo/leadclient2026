@@ -23,6 +23,9 @@ module.exports = {
   maskyoo: {
     token: process.env.MASKYOO_TOKEN || '',               // Bearer token for the Maskyoo API
     apiUrl: process.env.MASKYOO_API_URL || 'https://www.maskyoo.com/leadclient/api/',
+    // where Maskyoo reports calls (sent on EVERY number update, with callback_url_option=3)
+    callbackUrl: process.env.MASKYOO_CALLBACK_URL
+      || `${(process.env.APP_URL || 'https://app26.leadclient.net').replace(/\/$/, '')}/api/public/call`,
   },
   // MesserGO OTP / SMS (dedicated OTP endpoint: SMS with voice failover). No creds => mock.
   messergo: {

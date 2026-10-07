@@ -55,7 +55,9 @@ async function syncRouting(maskyooNumber, routing, extra = {}) {
   else p.dial_option = '2';
   if (ring >= 1 && ring <= 180) p.dial_timeout_in_sec = String(ring);
   if (!p.description || !String(p.description).trim()) p.description = `app26 ${num}`; // required, non-empty
-  if (config.appUrl) { p.callback_url = `${config.appUrl}/api/public/call`; p.callback_url_option = '3'; } // start + end
+  // every update must point the number's call reports at us, at call start AND end (3)
+  p.callback_url = config.maskyoo.callbackUrl;
+  p.callback_url_option = '3';
 
   // optional per-channel settings (only override when provided)
   const inRange = (v, lo, hi) => v != null && v !== '' && Number(v) >= lo && Number(v) <= hi;
@@ -69,7 +71,14 @@ async function syncRouting(maskyooNumber, routing, extra = {}) {
   if (extra.out_of_time_destination_phone) p.out_of_time_destination_phone = intl(extra.out_of_time_destination_phone);
 
   const u = await call('update_maskyoo', p, 'POST');
-  return { ok: u.status?.code === 200, u };
+  const ok = u.status?.code === 200;
+  // the response is the record after the update: make sure the callback really stuck
+  const saved = ok && Array.isArray(u.result) ? u.result[0] : (ok && u.result && typeof u.result === 'object' ? u.result : null);
+  const callbackOk = !saved || (String(saved.callback_url || '') === p.callback_url && String(saved.callback_url_option) === '3');
+  if (ok && !callbackOk) {
+    console.warn(`[maskyoo] ${num}: callback not saved as expected (url=${saved.callback_url}, option=${saved.callback_url_option})`);
+  }
+  return { ok, callbackOk, u };
 }
 
 // Place an outbound (click-to-call) call: ring `agent`, and on answer bridge to
