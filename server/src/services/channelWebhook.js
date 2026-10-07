@@ -141,36 +141,51 @@ async function send(serviceId, payload, opts = {}) {
 
 // --- resend (super admin) -----------------------------------------------------
 const MAX_RESEND = 500;
-const running = new Set(); // service ids with a bulk resend in progress
+const running = new Map(); // service id -> progress of its bulk resend { total, done, sent, skipped }
+const lastRun = new Map(); // service id -> final counts of the latest finished resend
 
 // Leads of the channel created in [from, to] (dates, Israel time). onlyFailed: skip
-// leads that already had a successful delivery to this channel.
-async function leadsToResend(service, { from, to, onlyFailed }) {
+// leads that already had a successful delivery to this channel. onlyWithRecording:
+// only calls that have a recording reference (verified for real when sending).
+async function leadsToResend(service, { from, to, onlyFailed, onlyWithRecording }) {
   return query(
     `SELECT ${LEAD_COLS} FROM leads l
       WHERE l.service_id = ? AND l.created_at >= ? AND l.created_at < (? + INTERVAL 1 DAY)
         ${onlyFailed ? `AND NOT EXISTS (SELECT 1 FROM webhook_log w WHERE w.source = 'channel-out' AND w.service_id = l.service_id
                           AND w.lead_id = l.id AND w.result LIKE 'ok\\_%')` : ''}
+        ${onlyWithRecording ? `AND l.lead_through IN ('call', 'call_out') AND l.recording_url IS NOT NULL AND l.recording_url <> ''` : ''}
       ORDER BY l.id ASC LIMIT ${MAX_RESEND + 1}`,
     [service.id, from, to]);
 }
 
 // Start a background resend; returns how many leads are queued. Each delivery is
 // logged like any other (payload flagged resent:true). One run per channel at a time.
+// With onlyWithRecording, a lead is sent only if its recording really exists (it is
+// fetched first) — older leads were marked as having one even for unanswered calls.
 async function startResend(service, opts) {
   if (running.has(service.id)) return { busy: true };
   const leads = await leadsToResend(service, opts);
   const capped = leads.length > MAX_RESEND;
   const list = leads.slice(0, MAX_RESEND);
   if (!list.length) return { queued: 0 };
-  running.add(service.id);
+  const prog = { total: list.length, done: 0, sent: 0, skipped: 0, onlyWithRecording: !!opts.onlyWithRecording };
+  running.set(service.id, prog);
   (async () => {
     try {
       for (let i = 0; i < list.length; i += 3) { // 3 at a time, in order
-        await Promise.all(list.slice(i, i + 3).map(async (l) =>
-          send(service.id, { ...(await payloadForLead(service, l)), resent: true }, { companyId: service.company_id, leadId: l.id })));
+        await Promise.all(list.slice(i, i + 3).map(async (l) => {
+          try {
+            const p = await payloadForLead(service, l);
+            if (opts.onlyWithRecording && !p.recording_ready) { prog.skipped++; return; }
+            await send(service.id, { ...p, resent: true }, { companyId: service.company_id, leadId: l.id });
+            prog.sent++;
+          } catch (e) { prog.skipped++; } finally { prog.done++; }
+        }));
       }
-    } finally { running.delete(service.id); }
+    } finally {
+      running.delete(service.id);
+      lastRun.set(service.id, { ...prog, finished: true, at: new Date().toISOString() });
+    }
   })();
   return { queued: list.length, capped };
 }
@@ -186,5 +201,5 @@ async function resendLog(service, logId) {
 
 module.exports = {
   send, sendCallEnded, callEndedPayload, leadCreatedPayload, payloadForLead, testPayload,
-  startResend, resendLog, isResending: (id) => running.has(id),
+  startResend, resendLog, isResending: (id) => running.has(id), resendProgress: (id) => running.get(id) || lastRun.get(id) || null,
 };

@@ -304,7 +304,7 @@ router.get('/:id/webhook-log', asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT id, path AS url, query_data, body_data, lead_id, result, error, created_at FROM webhook_log
       WHERE source = 'channel-out' AND service_id = ? ORDER BY id DESC LIMIT 50`, [sv.id]).catch(() => []);
-  res.json({ logs: rows, resending: channelWebhook.isResending(sv.id) });
+  res.json({ logs: rows, resending: channelWebhook.isResending(sv.id), progress: channelWebhook.resendProgress(sv.id) });
 }));
 
 // POST /api/services/:id/webhook-test { url? } — send the channel's latest lead (with
@@ -332,7 +332,9 @@ router.post('/:id/webhook-resend', requireRole('super_admin'), asyncHandler(asyn
   if (!String(sv.export_webhook_url || '').trim()) return res.status(400).json({ error: 'לא הוגדרה כתובת Webhook לערוץ' });
   const b = req.body || {};
   if (!isYmd(b.from) || !isYmd(b.to) || b.from > b.to) return res.status(400).json({ error: 'טווח תאריכים לא תקין' });
-  const r = await channelWebhook.startResend(sv, { from: b.from, to: b.to, onlyFailed: b.only_failed !== false });
+  const r = await channelWebhook.startResend(sv, {
+    from: b.from, to: b.to, onlyFailed: b.only_failed !== false, onlyWithRecording: b.only_with_recording === true,
+  });
   if (r.busy) return res.status(409).json({ error: 'שליחה מחדש כבר רצה לערוץ הזה' });
   res.json(r);
 }));
