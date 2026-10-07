@@ -35,14 +35,14 @@ router.all('/ipn', async (req, res) => {
 
     const wasActive = sub.status === 'active' || sub.status === 'past_due';
     await billing.activateSubscription(subId, { hk_id: b.hk_id, client_id: b.customer_id, cc_last4: b.cc_last4 });
-    if (wasActive && Number(b.sum) > 0) {
-      // a recurring debit reported on the same IPN URL
+    if (Number(b.sum) > 0) {
+      // money moved: the first debit (start date today) or a later recurring one on the same IPN URL
       await query(
         `INSERT INTO billing_charges (company_id, subscription_id, kind, amount, status, icount_ref)
-         VALUES (?, ?, 'monthly', ?, 'charged', ?)`,
-        [sub.company_id, subId, Number(b.sum), b.docnum ? String(b.docnum) : null]);
+         VALUES (?, ?, ?, ?, 'charged', ?)`,
+        [sub.company_id, subId, wasActive ? 'monthly' : 'first', Number(b.sum), b.docnum ? String(b.docnum) : null]);
       await query("UPDATE subscriptions SET status = 'active', last_debit_success = 1 WHERE id = ?", [subId]);
-      await query("UPDATE companies SET billing_status = 'active' WHERE id = ? AND billing_status = 'past_due'", [sub.company_id]);
+      if (wasActive) await query("UPDATE companies SET billing_status = 'active' WHERE id = ? AND billing_status = 'past_due'", [sub.company_id]);
     }
     await log(req, wasActive ? 'charge_recorded' : 'activated', { companyId: sub.company_id });
     res.send('OK');

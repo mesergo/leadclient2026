@@ -80,11 +80,14 @@ const ipnSigOk = (subId, sig) => {
 };
 
 // Start a standing-order sale for one subscription. Returns { sale_uniqid, sale_url }.
-// The card is captured now; the first monthly debit happens on `startDate` (trial end).
-async function generateSale({ subId, pkg, company, customer, startDate }) {
+// The card is captured now; the first monthly debit happens on `startDate`.
+// `returnTo` (e.g. "/pay/<token>") sends the customer back to that page with ?status=,
+// otherwise back into the app with ?billing=.
+async function generateSale({ subId, pkg, company, customer, startDate, returnTo }) {
   const base = config.appUrl || '';
+  const back = (s) => (returnTo ? `${base}${returnTo}?status=${s}` : `${base}/?billing=${s}&sub=${subId}`);
   if (isMock()) {
-    return { sale_uniqid: `mock-${subId}`, sale_url: `${base}/?billing=mock&sub=${subId}`, mock: true };
+    return { sale_uniqid: `mock-${subId}`, sale_url: back('mock'), mock: true };
   }
   const paypageId = await ensurePaypage();
   const r = await call('paypage/generate_sale', {
@@ -95,13 +98,13 @@ async function generateSale({ subId, pkg, company, customer, startDate }) {
     last_name: customer.last_name || undefined,
     email: customer.email || undefined,
     phone: customer.phone || undefined,
-    hk_start_date: startDate,     // YYYY-MM-DD — first monthly debit at trial end
+    hk_start_date: startDate,     // YYYY-MM-DD — first monthly debit
     hk_issue_every: 1,
     hk_payments: 0,
     page_lang: 'he',
-    success_url: `${base}/?billing=done&sub=${subId}`,
-    failure_url: `${base}/?billing=failed&sub=${subId}`,
-    cancel_url: `${base}/?billing=cancelled&sub=${subId}`,
+    success_url: back('done'),
+    failure_url: back('failed'),
+    cancel_url: back('cancelled'),
     ipn_url: `${base}/api/public/icount/ipn?sub=${subId}&k=${ipnSig(subId)}`,
   });
   if (!r.sale_url) throw new Error('iCount לא החזיר קישור תשלום');

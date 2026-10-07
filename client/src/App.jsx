@@ -5,6 +5,7 @@ import { LangProvider } from './context/LangContext';
 import { api } from './api';
 import Layout from './components/Layout';
 import BillingSetupPage from './pages/BillingSetupPage';
+import PayLinkPage from './pages/PayLinkPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import InvitePage from './pages/InvitePage';
@@ -76,6 +77,7 @@ function Routing() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/register/:token" element={<RegisterPage />} />
       <Route path="/invite/:token" element={<InvitePage />} />
+      <Route path="/pay/:token" element={<PayLinkPage />} />
       <Route element={<Protected />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />

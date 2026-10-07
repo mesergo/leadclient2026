@@ -164,6 +164,14 @@ async function ensureSchema() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_bc_company (company_id, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // admin-sent billing links: a public /pay/<token> page that starts a standing order
+  // for an existing company (no trial; first debit on start_date)
+  await safe('subscriptions.source', () => ensureColumn('subscriptions', 'source', "source VARCHAR(16) NULL"));
+  await safe('subscriptions.link_token', () => ensureColumn('subscriptions', 'link_token', 'link_token CHAR(40) NULL'));
+  await safe('subscriptions.link_token_idx', () => ensureIndex('subscriptions', 'idx_sub_link_token', 'link_token'));
+  await safe('subscriptions.link_expires_at', () => ensureColumn('subscriptions', 'link_expires_at', 'link_expires_at DATETIME NULL'));
+  await safe('subscriptions.start_date', () => ensureColumn('subscriptions', 'start_date', 'start_date DATE NULL'));
+  await safe('subscriptions.billing_phone', () => ensureColumn('subscriptions', 'billing_phone', 'billing_phone VARCHAR(20) NULL'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,

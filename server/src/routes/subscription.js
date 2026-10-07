@@ -91,14 +91,7 @@ router.post('/verify', asyncHandler(async (req, res) => {
   const cid = req.user.company_id;
   const sub = await latestSub(cid);
   if (!sub) return res.json({ status: null });
-  if (sub.status === 'pending' && !icount.isMock() && sub.billing_email) {
-    try {
-      const hks = await icount.findHkByEmail(sub.billing_email);
-      const since = new Date(sub.created_at).getTime() - 5 * 60000;
-      const hk = hks.find((h) => !h.is_deleted && (!h.ts_created || new Date(h.ts_created).getTime() >= since));
-      if (hk) await billing.activateSubscription(sub.id, { hk_id: hk.hk_id, client_id: hk.client_id, cc_last4: hk.cc_last4 });
-    } catch (e) { /* fall through: report current status; the IPN may still come */ }
-  }
+  await billing.verifyPendingByEmail(sub);
   const fresh = await latestSub(cid);
   res.json({ status: fresh.status, subscription: publicSub(fresh) });
 }));

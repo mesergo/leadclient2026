@@ -697,6 +697,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   monthly_price         DECIMAL(10,2) NULL,
   status                VARCHAR(16) NOT NULL DEFAULT 'pending',
   billing_email         VARCHAR(150) NULL,
+  billing_phone         VARCHAR(20) NULL,
+  source                VARCHAR(16) NULL,
+  link_token            CHAR(40) NULL,
+  link_expires_at       DATETIME NULL,
+  start_date            DATE NULL,
   icount_sale_uniqid    VARCHAR(64) NULL,
   icount_hk_id          BIGINT NULL,
   icount_client_id      BIGINT NULL,
@@ -711,7 +716,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   next_debit            DATE NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_sub_company (company_id, status)
+  INDEX idx_sub_company (company_id, status),
+  INDEX idx_sub_link_token (link_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS billing_charges (

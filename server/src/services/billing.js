@@ -31,10 +31,26 @@ async function activateSubscription(subId, info = {}) {
     } else {
       await query("UPDATE companies SET billing_status = 'active' WHERE id = ?", [s.company_id]);
     }
+    // an admin-sent billing link turns an existing company into a paying one
+    if (s.source === 'admin_link') await query('UPDATE companies SET is_trial = 0 WHERE id = ?', [s.company_id]);
     // any other half-finished checkout of this company is now moot
     await query("UPDATE subscriptions SET status = 'abandoned' WHERE company_id = ? AND id <> ? AND status = 'pending'", [s.company_id, subId]);
   }
   return (await query('SELECT * FROM subscriptions WHERE id = ?', [subId]))[0];
+}
+
+// After the customer returns from the PayPage: the IPN normally activates the
+// subscription; if it hasn't arrived (or isn't sent for a deferred first debit),
+// look the new standing order up in iCount by the billing email.
+async function verifyPendingByEmail(sub) {
+  if (!sub || sub.status !== 'pending' || icount.isMock() || !sub.billing_email) return sub;
+  try {
+    const hks = await icount.findHkByEmail(sub.billing_email);
+    const since = new Date(sub.created_at).getTime() - 5 * 60000;
+    const hk = hks.find((h) => !h.is_deleted && (!h.ts_created || new Date(h.ts_created).getTime() >= since));
+    if (hk) return activateSubscription(sub.id, { hk_id: hk.hk_id, client_id: hk.client_id, cc_last4: hk.cc_last4 });
+  } catch (e) { /* the IPN may still come */ }
+  return sub;
 }
 
 // Answered call minutes (each call rounded up to a whole minute) in [from, to).
@@ -94,4 +110,4 @@ async function syncSubscription(sub) {
   return status;
 }
 
-module.exports = { activateSubscription, callMinutes, chargeTrialUsage, syncSubscription, ymd, addDays };
+module.exports = { activateSubscription, verifyPendingByEmail, callMinutes, chargeTrialUsage, syncSubscription, ymd, addDays };
