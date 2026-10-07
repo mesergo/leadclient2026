@@ -10,6 +10,13 @@ const icount = require('./icount');
 const ymd = (d) => new Date(d).toISOString().slice(0, 10);
 const addDays = (d, n) => new Date(new Date(d).getTime() + n * 86400000);
 
+// first iCount customer number we learn for a company sticks (auto-fill)
+async function rememberClient(companyId, clientId) {
+  if (companyId && clientId) await query('UPDATE companies SET icount_client_id = COALESCE(icount_client_id, ?) WHERE id = ?', [clientId, companyId]);
+}
+const companyClientId = async (companyId) =>
+  ((await query('SELECT icount_client_id FROM companies WHERE id = ?', [companyId]))[0] || {}).icount_client_id || null;
+
 // Mark a subscription active, apply its package to the company and lift the billing
 // gate. Idempotent (a repeated IPN / verify just refreshes the iCount ids).
 async function activateSubscription(subId, info = {}) {
@@ -21,6 +28,7 @@ async function activateSubscription(subId, info = {}) {
        cc_last4 = COALESCE(?, cc_last4), activated_at = COALESCE(activated_at, NOW())
      WHERE id = ?`,
     [info.hk_id || null, info.client_id || null, info.cc_last4 || null, subId]);
+  await rememberClient(s.company_id, info.client_id);
   if (s.status !== 'active') {
     const p = s.package_id ? (await query('SELECT id, quota_users, quota_numbers, quota_leads, quota_channels FROM packages WHERE id = ?', [s.package_id]))[0] : null;
     if (p) {
@@ -120,13 +128,61 @@ async function applyHkInfo(sub, h) {
 // the profile by the billing email and remember it.
 async function ensureHkId(sub) {
   if (sub.icount_hk_id) return sub.icount_hk_id;
-  if (icount.isMock() || !sub.billing_email) return null;
-  const hks = await icount.findHkByEmail(sub.billing_email);
-  const since = new Date(sub.created_at).getTime() - 5 * 60000;
-  const hk = hks.find((h) => !h.is_deleted && (!h.ts_created || new Date(h.ts_created).getTime() >= since));
+  if (icount.isMock()) return null;
+  let hk = null;
+  // 1) by the iCount customer number (exact), 2) by the billing email (recent profile)
+  const clientId = sub.icount_client_id || await companyClientId(sub.company_id);
+  if (clientId) hk = (await icount.findHk({ client_id: clientId })).find((h) => !h.is_deleted) || null;
+  if (!hk && sub.billing_email) {
+    const since = new Date(sub.created_at).getTime() - 5 * 60000;
+    hk = (await icount.findHkByEmail(sub.billing_email))
+      .find((h) => !h.is_deleted && (!h.ts_created || new Date(h.ts_created).getTime() >= since)) || null;
+  }
   if (!hk) return null;
-  await query('UPDATE subscriptions SET icount_hk_id = ?, cc_last4 = COALESCE(?, cc_last4) WHERE id = ?', [hk.hk_id, hk.cc_last4 || null, sub.id]);
+  await query(
+    'UPDATE subscriptions SET icount_hk_id = ?, icount_client_id = COALESCE(icount_client_id, ?), cc_last4 = COALESCE(?, cc_last4) WHERE id = ?',
+    [hk.hk_id, hk.client_id || null, hk.cc_last4 || null, sub.id]);
+  await rememberClient(sub.company_id, hk.client_id);
   return hk.hk_id;
+}
+
+// Manager links a company to its iCount customer number (or clears it). If that
+// customer has a live standing order, the company's subscription is tied to it —
+// created as an active subscription when none exists (e.g. set up in iCount by hand).
+async function linkIcountClient(companyId, clientId) {
+  await query('UPDATE companies SET icount_client_id = ? WHERE id = ?', [clientId || null, companyId]);
+  if (!clientId) return { linked: false, hk_id: null };
+  if (icount.isMock()) return { linked: true, hk_id: null, mock: true };
+  const hk = (await icount.findHk({ client_id: clientId })).find((h) => !h.is_deleted && !h.is_finished) || null;
+  if (!hk) return { linked: true, hk_id: null };
+  let sub = (await query(
+    "SELECT * FROM subscriptions WHERE company_id = ? AND status IN ('active', 'past_due') ORDER BY id DESC LIMIT 1", [companyId]))[0];
+  if (sub) {
+    await query('UPDATE subscriptions SET icount_hk_id = ?, icount_client_id = ?, cc_last4 = COALESCE(?, cc_last4) WHERE id = ?',
+      [hk.hk_id, clientId, hk.cc_last4 || null, sub.id]);
+  } else {
+    const c = (await query('SELECT package_id FROM companies WHERE id = ?', [companyId]))[0] || {};
+    const ins = await query(
+      `INSERT INTO subscriptions (company_id, package_id, monthly_price, status, source, icount_hk_id, icount_client_id,
+         cc_last4, activated_at, start_date, trial_usage_charged)
+       VALUES (?, ?, ?, 'active', 'icount', ?, ?, ?, NOW(), ?, 1)`,
+      [companyId, c.package_id || null, itemsTotal(hk.items) || null, hk.hk_id, clientId, hk.cc_last4 || null, hk.start_date || null]);
+    await query("UPDATE companies SET billing_status = 'active' WHERE id = ?", [companyId]);
+    await query("UPDATE subscriptions SET status = 'abandoned' WHERE company_id = ? AND status = 'pending'", [companyId]);
+    sub = (await query('SELECT * FROM subscriptions WHERE id = ?', [ins.insertId]))[0];
+  }
+  await applyHkInfo({ ...sub, icount_hk_id: hk.hk_id }, hk); // same iCountHKInfo shape as hk/info
+  return { linked: true, hk_id: hk.hk_id };
+}
+
+const DOC_KEYS = ['doctype', 'docnum', 'dateissued', 'totalwithvat', 'paid', 'doc_url'];
+async function companyDocs(clientId) {
+  if (!clientId || icount.isMock()) return [];
+  const docs = await icount.searchDocs(clientId, 20);
+  return docs.map((d) => {
+    const o = {}; for (const k of DOC_KEYS) o[k] = d[k] ?? null;
+    return o;
+  });
 }
 
 const itemsTotal = (items) => (Array.isArray(items) ? items : []).reduce((t, i) =>
@@ -138,11 +194,17 @@ async function liveStatus(sub) {
   if (icount.isMock()) {
     return {
       mock: true, state: 'ok', hk_id: sub.icount_hk_id, start_date: sub.start_date || sub.trial_ends_at || sub.activated_at,
-      next_debit: sub.next_debit, cc_last4: sub.cc_last4, amount: Number(sub.monthly_price), transactions: [],
+      next_debit: sub.next_debit, cc_last4: sub.cc_last4, amount: Number(sub.monthly_price), transactions: [], documents: [],
+      client_id: sub.icount_client_id || await companyClientId(sub.company_id),
     };
   }
   const hkId = await ensureHkId(sub);
-  if (!hkId) return { state: 'not_found' };
+  if (!hkId) {
+    const cid = sub.icount_client_id || await companyClientId(sub.company_id);
+    let documents = [];
+    try { documents = await companyDocs(cid); } catch (e) { documents = []; }
+    return { state: 'not_found', client_id: cid, documents };
+  }
   const r = await icount.hkInfo(hkId, { get_transactions: true });
   const h = r.hk_info || {};
   await applyHkInfo({ ...sub, icount_hk_id: hkId }, h);
@@ -153,8 +215,12 @@ async function liveStatus(sub) {
   else if (h.last_debit_success === false && h.last_debit) state = 'failing';
   const txs = Array.isArray(r.hk_transactions) ? r.hk_transactions : [];
   const last = h.last_transaction || txs[txs.length - 1] || null;
+  const clientId = h.client_id || sub.icount_client_id || await companyClientId(sub.company_id);
+  await rememberClient(sub.company_id, h.client_id);
+  let documents = [];
+  try { documents = await companyDocs(clientId); } catch (e) { documents = []; }
   return {
-    state, hk_id: hkId,
+    state, hk_id: hkId, client_id: clientId || null, documents,
     start_date: h.start_date || null, next_debit: h.next_debit || null,
     last_debit: h.last_debit || null, last_debit_success: h.last_debit_success ?? null,
     last_error: last && last.debit_status === 'FAILURE' ? (last.more_info || null) : null,
@@ -167,4 +233,7 @@ async function liveStatus(sub) {
   };
 }
 
-module.exports = { activateSubscription, verifyPendingByEmail, callMinutes, chargeTrialUsage, syncSubscription, liveStatus, ymd, addDays };
+module.exports = {
+  activateSubscription, verifyPendingByEmail, callMinutes, chargeTrialUsage, syncSubscription, liveStatus,
+  linkIcountClient, companyDocs, ymd, addDays,
+};

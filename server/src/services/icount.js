@@ -116,10 +116,22 @@ async function generateSale({ subId, pkg, company, customer, startDate, returnTo
   return { sale_uniqid: r.sale_uniqid || null, sale_url: r.sale_url };
 }
 
-// recurring-billing profiles for a customer email (newest first)
-async function findHkByEmail(email) {
-  const r = await call('hk/get_list', { email, show_all: true, list_type: 'array' });
+// recurring-billing profiles matching a filter ({client_id} or {email}), newest first
+async function findHk(filter) {
+  const r = await call('hk/get_list', { ...filter, show_all: true, list_type: 'array' });
   return listOf(r.hks_list).sort((a, b) => String(b.ts_created || '').localeCompare(String(a.ts_created || '')));
+}
+const findHkByEmail = (email) => findHk({ email });
+
+// the customer's documents in iCount (invoices/receipts…), newest first
+async function searchDocs(clientId, max = 20) {
+  try {
+    const r = await call('doc/search', { client_id: clientId, max_results: max, sort_order: 'DESC', detail_level: 1, get_doc_url: true });
+    return listOf(r.results_list);
+  } catch (e) {
+    if (e.reason === 'no_results_found') return [];
+    throw e;
+  }
 }
 
 const hkInfo = (hkId, extra = {}) => call('hk/info', { hk_id: hkId, ...extra });
@@ -128,6 +140,6 @@ const hkAddOneTimePayment = (hkId, sum, description) =>
   call('hk/add_one_time_payment', { hk_id: hkId, payment_sum: Number(sum), payment_description: description });
 
 module.exports = {
-  isMock, billingEnabled, call, ensurePaypage, generateSale, findHkByEmail,
+  isMock, billingEnabled, call, ensurePaypage, generateSale, findHk, findHkByEmail, searchDocs,
   hkInfo, hkCancel, hkAddOneTimePayment, ipnSig, ipnSigOk, getSetting, setSetting,
 };

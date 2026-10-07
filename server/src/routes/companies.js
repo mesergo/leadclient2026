@@ -157,7 +157,7 @@ router.post('/:id/impersonate', requireRole('super_admin', 'agency_admin'), asyn
 async function scopedCompany(req) {
   const s = companyScope(req.user, 'c.id');
   const r = await query(
-    `SELECT c.id, c.name, c.billing_status, c.package_id, c.is_trial FROM companies c WHERE c.id = ? AND (${s.sql})`,
+    `SELECT c.id, c.name, c.billing_status, c.package_id, c.is_trial, c.icount_client_id FROM companies c WHERE c.id = ? AND (${s.sql})`,
     [req.params.id, ...s.params]);
   return r[0] || null;
 }
@@ -177,7 +177,7 @@ router.get('/:id/billing', requireRole('super_admin', 'agency_admin'), asyncHand
     && new Date(s.link_expires_at) > new Date()) || null;
   const admin = await companyAdminContact(c.id);
   res.json({
-    billing_status: c.billing_status, is_trial: !!c.is_trial,
+    billing_status: c.billing_status, is_trial: !!c.is_trial, icount_client_id: c.icount_client_id,
     enabled: icount.billingEnabled(), mock: icount.isMock(),
     subscription: current && {
       id: current.id, status: current.status, source: current.source, package_id: current.package_id,
@@ -202,11 +202,29 @@ router.get('/:id/billing/live', requireRole('super_admin', 'agency_admin'), asyn
   const charges = await query(
     `SELECT kind, minutes, amount, status, icount_ref, error, created_at FROM billing_charges
       WHERE company_id = ? ORDER BY id DESC LIMIT 20`, [c.id]);
-  if (!sub) return res.json({ live: null, charges });
+  if (!sub) {
+    let documents = [];
+    try { documents = await billing.companyDocs(c.icount_client_id); } catch (e) { documents = []; }
+    return res.json({ live: null, charges, documents });
+  }
   try {
     res.json({ live: await billing.liveStatus(sub), charges });
   } catch (e) {
     res.json({ live: { state: 'error', error: e.message }, charges });
+  }
+}));
+
+// POST /api/companies/:id/billing/icount-client { client_id } — link (or clear) the
+// company's iCount customer number and pick up its standing order, if any
+router.post('/:id/billing/icount-client', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const c = await scopedCompany(req);
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  const raw = String((req.body && req.body.client_id) ?? '').trim();
+  if (raw && !/^\d{1,12}$/.test(raw)) return res.status(400).json({ error: 'מספר לקוח לא תקין' });
+  try {
+    res.json(await billing.linkIcountClient(c.id, raw ? Number(raw) : null));
+  } catch (e) {
+    res.status(502).json({ error: `iCount: ${e.message}` });
   }
 }));
 
