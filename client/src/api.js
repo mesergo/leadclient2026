@@ -141,6 +141,7 @@ export const api = {
   subscriptionVerify: (token) => request('/api/subscription/verify', { method: 'POST', token, body: {} }),
   subscriptionMockComplete: (token) => request('/api/subscription/mock-complete', { method: 'POST', token, body: {} }),
   companyBilling: (id, token) => request(`/api/companies/${id}/billing`, { token }),
+  companyBillingLive: (id, token) => request(`/api/companies/${id}/billing/live`, { token }),
   createBillingLink: (id, body, token) => request(`/api/companies/${id}/billing-link`, { method: 'POST', token, body }),
   revokeBillingLink: (id, token) => request(`/api/companies/${id}/billing-link`, { method: 'DELETE', token }),
   payLink: (t) => request(`/api/public/pay/${t}`),

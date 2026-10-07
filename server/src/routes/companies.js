@@ -192,6 +192,24 @@ router.get('/:id/billing', requireRole('super_admin', 'agency_admin'), asyncHand
   });
 }));
 
+// GET /api/companies/:id/billing/live — the standing order's health straight from
+// iCount (refreshes our record too) + the charges we recorded
+router.get('/:id/billing/live', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const c = await scopedCompany(req);
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  const sub = (await query(
+    "SELECT * FROM subscriptions WHERE company_id = ? AND status IN ('active', 'past_due') ORDER BY id DESC LIMIT 1", [c.id]))[0];
+  const charges = await query(
+    `SELECT kind, minutes, amount, status, icount_ref, error, created_at FROM billing_charges
+      WHERE company_id = ? ORDER BY id DESC LIMIT 20`, [c.id]);
+  if (!sub) return res.json({ live: null, charges });
+  try {
+    res.json({ live: await billing.liveStatus(sub), charges });
+  } catch (e) {
+    res.json({ live: { state: 'error', error: e.message }, charges });
+  }
+}));
+
 // POST /api/companies/:id/billing-link { package_id, start_date?, email?, phone? }
 // Creates a public /pay/<token> page (valid 30 days) the manager sends to the customer.
 // No trial: the standing order's first debit is on start_date (default today).

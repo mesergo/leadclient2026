@@ -122,7 +122,7 @@ async function findHkByEmail(email) {
   return listOf(r.hks_list).sort((a, b) => String(b.ts_created || '').localeCompare(String(a.ts_created || '')));
 }
 
-const hkInfo = (hkId) => call('hk/info', { hk_id: hkId });
+const hkInfo = (hkId, extra = {}) => call('hk/info', { hk_id: hkId, ...extra });
 const hkCancel = (hkId) => call('hk/cancel', { hk_id: hkId });
 const hkAddOneTimePayment = (hkId, sum, description) =>
   call('hk/add_one_time_payment', { hk_id: hkId, payment_sum: Number(sum), payment_description: description });
