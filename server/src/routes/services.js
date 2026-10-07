@@ -303,8 +303,8 @@ router.get('/:id/webhook-log', asyncHandler(async (req, res) => {
   if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
   const rows = await query(
     `SELECT id, path AS url, query_data, body_data, lead_id, result, error, created_at FROM webhook_log
-      WHERE source = 'channel-out' AND service_id = ? ORDER BY id DESC LIMIT 30`, [sv.id]).catch(() => []);
-  res.json({ logs: rows });
+      WHERE source = 'channel-out' AND service_id = ? ORDER BY id DESC LIMIT 50`, [sv.id]).catch(() => []);
+  res.json({ logs: rows, resending: channelWebhook.isResending(sv.id) });
 }));
 
 // POST /api/services/:id/webhook-test { url? } — send the channel's latest lead (with
@@ -319,6 +319,32 @@ router.post('/:id/webhook-test', requireRole('super_admin', 'agency_admin', 'com
   const payload = await channelWebhook.testPayload(sv);
   const r = await channelWebhook.send(sv.id, payload, { url, companyId: sv.company_id, leadId: payload.lead_id || null });
   res.json({ ...r, payload });
+}));
+
+const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+
+// POST /api/services/:id/webhook-resend { from, to, only_failed } — super admin:
+// resend the channel's leads created in [from, to] (in the background; results land
+// in the delivery log). only_failed (default) skips leads already delivered OK.
+router.post('/:id/webhook-resend', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const sv = await scopedService(req);
+  if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  if (!String(sv.export_webhook_url || '').trim()) return res.status(400).json({ error: 'לא הוגדרה כתובת Webhook לערוץ' });
+  const b = req.body || {};
+  if (!isYmd(b.from) || !isYmd(b.to) || b.from > b.to) return res.status(400).json({ error: 'טווח תאריכים לא תקין' });
+  const r = await channelWebhook.startResend(sv, { from: b.from, to: b.to, onlyFailed: b.only_failed !== false });
+  if (r.busy) return res.status(409).json({ error: 'שליחה מחדש כבר רצה לערוץ הזה' });
+  res.json(r);
+}));
+
+// POST /api/services/:id/webhook-resend-log { log_id } — super admin: resend one logged delivery
+router.post('/:id/webhook-resend-log', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const sv = await scopedService(req);
+  if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  if (!String(sv.export_webhook_url || '').trim()) return res.status(400).json({ error: 'לא הוגדרה כתובת Webhook לערוץ' });
+  const r = await channelWebhook.resendLog(sv, Number(req.body && req.body.log_id));
+  if (!r) return res.status(404).json({ error: 'שליחה לא נמצאה' });
+  res.json(r);
 }));
 
 module.exports = router;
