@@ -39,13 +39,18 @@ async function setSetting(k, v) {
 // first value of a list-ish response (object keyed by id, or array)
 const listOf = (x) => (Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.values(x) : []));
 
+// iCount's internal id of ILS: currency/info {currency_code} -> {currency_id};
+// fallback currency/get_list -> currencies_list keyed by currency code.
 async function ilsCurrencyId() {
+  try {
+    const r = await call('currency/info', { currency_code: 'ILS' });
+    if (r.currency_id != null && String(r.currency_code || 'ILS').toUpperCase() === 'ILS') return Number(r.currency_id);
+  } catch (e) { /* try the list */ }
   const r = await call('currency/get_list', {});
-  const all = listOf(r.currencies || r.currency_list || r.list || r.data);
-  const ils = all.find((c) => String(c.code || c.currency_code || c.currency || '').toUpperCase() === 'ILS');
-  const id = ils && (ils.currency_id ?? ils.id);
-  if (id == null) throw new Error('לא נמצא מטבע ILS ב-iCount — הגדר ICOUNT_PAYPAGE_ID ידנית');
-  return Number(id);
+  const list = r.currencies_list || {};
+  const ils = list.ILS || list.ils || listOf(list).find((c) => String(c.currency_code || '').toUpperCase() === 'ILS');
+  if (!ils || ils.currency_id == null) throw new Error('לא נמצא מטבע ILS ב-iCount — הגדר ICOUNT_PAYPAGE_ID ידנית');
+  return Number(ils.currency_id);
 }
 
 // The one recurring-billing PayPage all subscriptions go through. Taken from
