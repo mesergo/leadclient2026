@@ -122,6 +122,9 @@ async function ensureSchema() {
   // company billing gate: NULL = not required (legacy/admin-created), 'pending' = must
   // fill billing details before entering, 'active', 'past_due', 'cancelled'
   await safe('companies.billing_status', () => ensureColumn('companies', 'billing_status', 'billing_status VARCHAR(16) NULL'));
+  // the company's customer number in iCount: auto-filled on the first billing connection,
+  // or entered by a manager to link an existing iCount customer; billing syncs through it
+  await safe('companies.icount_client_id', () => ensureColumn('companies', 'icount_client_id', 'icount_client_id BIGINT NULL'));
   // signup link carried ?pkg= -> the package screen offers only that package
   await safe('companies.signup_package_locked', () => ensureColumn('companies', 'signup_package_locked', 'signup_package_locked TINYINT(1) NOT NULL DEFAULT 0'));
   // structured call length (seconds) for usage billing (trial per-minute charges)

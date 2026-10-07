@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS companies (
   is_trial              TINYINT(1) NOT NULL DEFAULT 0,
   package_id            BIGINT UNSIGNED NULL,
   billing_status        VARCHAR(16) NULL,
+  icount_client_id      BIGINT NULL,
   signup_package_locked TINYINT(1) NOT NULL DEFAULT 0,
   quota_users           INT NULL,
   quota_numbers         INT NULL,

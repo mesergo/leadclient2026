@@ -9,6 +9,29 @@ const todayYmd = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.g
 const STATE_CLASS = { ok: 'ok', paused: 'warn', not_found: 'warn', error: 'warn', failing: 'bad', cancelled: 'bad', finished: 'bad' };
 const TX_LABEL = { SUCCESS: 'cb.txOk', FAILURE: 'cb.txFail', PENDING: 'cb.txPending' };
 const CHARGE_KIND = { first: 'cb.kFirst', monthly: 'cb.kMonthly', trial_usage: 'cb.kTrial', overage: 'cb.kOverage' };
+const DOC_TYPE = { invrec: 'cb.dInvrec', receipt: 'cb.dReceipt', invoice: 'cb.dInvoice', refund: 'cb.dRefund', deal: 'cb.dDeal', offer: 'cb.dOffer' };
+
+// The customer's documents in iCount (invoices / receipts), with links.
+function IcountDocs({ docs }) {
+  const { t } = useLang();
+  if (!docs || !docs.length) return null;
+  return (<>
+    <h4 style={{ margin: '14px 0 6px' }}>{t('cb.docsTitle')}</h4>
+    <table className="data-table"><thead><tr><th>{t('cb.txDate')}</th><th>{t('cb.kind')}</th><th>{t('cb.txDoc')}</th><th>{t('cb.amount')}</th></tr></thead>
+      <tbody>{docs.map((x, i) => (
+        <tr key={i}><td>{dt(x.dateissued)}</td><td>{DOC_TYPE[x.doctype] ? t(DOC_TYPE[x.doctype]) : x.doctype}</td>
+          <td>{x.doc_url ? <a href={x.doc_url} target="_blank" rel="noreferrer">{x.docnum}</a> : x.docnum}</td>
+          <td>{money(x.totalwithvat ?? x.paid)}</td></tr>
+      ))}</tbody></table>
+  </>);
+}
+
+// iCount documents of a linked customer that has no active subscription with us.
+function ClientDocs({ companyId, token }) {
+  const [docs, setDocs] = useState(null);
+  useEffect(() => { api.companyBillingLive(companyId, token).then((d) => setDocs(d.documents || [])).catch(() => setDocs([])); }, [companyId, token]);
+  return docs ? <IcountDocs docs={docs} /> : null;
+}
 
 // Live health of the company's standing order, read from iCount on open / refresh.
 function StandingOrderStatus({ companyId, token }) {
@@ -35,6 +58,7 @@ function StandingOrderStatus({ companyId, token }) {
       {L.state !== 'not_found' && L.state !== 'error' && (
         <table className="data-table" style={{ marginTop: 10 }}><tbody>
           <tr><th>{t('cb.hkId')}</th><td>{L.hk_id || '—'}</td></tr>
+          <tr><th>{t('cb.clientId')}</th><td>{L.client_id || '—'}</td></tr>
           <tr><th>{t('cb.startDate')}</th><td>{dt(L.start_date)}</td></tr>
           <tr><th>{t('cb.nextDebit')}</th><td>{dt(L.next_debit)}</td></tr>
           <tr><th>{t('cb.lastDebit')}</th><td>{L.last_debit ? `${dt(L.last_debit)} · ${L.last_debit_success ? '✓' : '✗'}` : '—'}</td></tr>
@@ -52,6 +76,7 @@ function StandingOrderStatus({ companyId, token }) {
               <td>{x.docnum || '—'}</td></tr>
           ))}</tbody></table>
       </>)}
+      <IcountDocs docs={L.documents} />
       {d.charges && d.charges.length > 0 && (<>
         <h4 style={{ margin: '14px 0 6px' }}>{t('cb.chargesTitle')}</h4>
         <table className="data-table"><thead><tr><th>{t('cb.txDate')}</th><th>{t('cb.kind')}</th><th>{t('cb.amount')}</th><th>{t('cb.txStatus')}</th></tr></thead>
@@ -75,9 +100,13 @@ export default function CompanyBillingPanel({ companyId, token }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [clientId, setClientId] = useState('');
+  const [clientMsg, setClientMsg] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const load = () => api.companyBilling(companyId, token).then((d) => {
     setSt(d);
+    setClientId(d.icount_client_id ? String(d.icount_client_id) : '');
     setForm((f) => ({ ...f, email: f.email || d.defaults.email, phone: f.phone || d.defaults.phone,
       package_id: f.package_id || (d.defaults.package_id ? String(d.defaults.package_id) : '') }));
   }).catch((e) => setError(e.message));
@@ -95,6 +124,15 @@ export default function CompanyBillingPanel({ companyId, token }) {
     if (!window.confirm(t('cb.confirmRevoke'))) return;
     try { await api.revokeBillingLink(companyId, token); await load(); } catch (e) { setError(e.message); }
   }
+  async function saveClient() {
+    setBusy(true); setError(''); setClientMsg('');
+    try {
+      const r = await api.setIcountClient(companyId, clientId.trim(), token);
+      setClientMsg(!r.linked ? t('cb.clientCleared') : r.hk_id ? t('cb.clientLinkedHk').replace('{id}', r.hk_id) : t('cb.clientLinkedNoHk'));
+      await load(); setReloadKey((k) => k + 1);
+    } catch (e) { setError(e.message); }
+    setBusy(false);
+  }
 
   if (!st) return error ? <p className="error">{error}</p> : <p className="muted">{t('common.loading')}</p>;
   const linkUrl = st.link ? `${window.location.origin}${st.link.path}` : '';
@@ -107,6 +145,15 @@ export default function CompanyBillingPanel({ companyId, token }) {
     <div>
       {error && <p className="error">{error}</p>}
 
+      <div className="form-field"><label>{t('cb.clientId')}</label><div className="form-field-control">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input value={clientId} onChange={(e) => setClientId(e.target.value.replace(/\D/g, ''))} inputMode="numeric" style={{ maxWidth: 200 }} placeholder="—" />
+          <button type="button" className="btn btn-secondary" disabled={busy} onClick={saveClient}>{t('cb.clientSave')}</button>
+        </div>
+        <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('cb.clientHint')}</div>
+        {clientMsg && <div className="success-note" style={{ marginTop: 6 }}>{clientMsg}</div>}
+      </div></div>
+
       {sub ? (
         <>
           <div className="billing-trial-note">
@@ -114,11 +161,12 @@ export default function CompanyBillingPanel({ companyId, token }) {
             <div>{t('cb.package')}: {sub.package_name || '—'} · {money(sub.monthly_price)} {t('bill.perMonth')} ({t('bill.inclVat')})</div>
             <div>{t('cb.activated')}: {dt(sub.activated_at)}</div>
           </div>
-          <StandingOrderStatus companyId={companyId} token={token} />
+          <StandingOrderStatus key={reloadKey} companyId={companyId} token={token} />
         </>
       ) : (
         <>
           <p className="muted" style={{ marginTop: 0 }}>{st.is_trial ? t('cb.noneTrial') : t('cb.none')}</p>
+          {st.icount_client_id && <ClientDocs key={reloadKey} companyId={companyId} token={token} />}
 
           {st.link && (
             <div className="billing-trial-note">
