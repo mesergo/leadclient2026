@@ -292,7 +292,7 @@ router.delete('/:id', requireRole('super_admin', 'agency_admin', 'company_admin'
 async function scopedService(req) {
   const s = companyScope(req.user, 'sv.company_id');
   const r = await query(
-    `SELECT sv.id, sv.company_id, sv.name, sv.export_webhook_url FROM services sv WHERE sv.id = ? AND (${s.sql})`,
+    `SELECT sv.id, sv.company_id, sv.name, sv.service_type, sv.export_webhook_url FROM services sv WHERE sv.id = ? AND (${s.sql})`,
     [req.params.id, ...s.params]);
   return r[0] || null;
 }
@@ -307,18 +307,18 @@ router.get('/:id/webhook-log', asyncHandler(async (req, res) => {
   res.json({ logs: rows });
 }));
 
-// POST /api/services/:id/webhook-test { url? } — send a sample payload now (to the given,
-// possibly unsaved, URL or the saved one) and report what the receiver answered
+// POST /api/services/:id/webhook-test { url? } — send the channel's latest lead (with
+// its recording link) in the real event format, flagged test:true — or a sample when
+// the channel has no leads — to the given (possibly unsaved) or saved URL, and report
+// what the receiver answered
 router.post('/:id/webhook-test', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
   const sv = await scopedService(req);
   if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
   const url = String((req.body && req.body.url) || sv.export_webhook_url || '').trim();
   if (!url) return res.status(400).json({ error: 'לא הוגדרה כתובת Webhook' });
-  const r = await channelWebhook.send(sv.id, {
-    event: 'test', company_id: sv.company_id, service_id: sv.id, channel_name: sv.name,
-    message: 'LeadClient webhook test', at: new Date().toISOString(),
-  }, { url, companyId: sv.company_id });
-  res.json(r);
+  const payload = await channelWebhook.testPayload(sv);
+  const r = await channelWebhook.send(sv.id, payload, { url, companyId: sv.company_id, leadId: payload.lead_id || null });
+  res.json({ ...r, payload });
 }));
 
 module.exports = router;

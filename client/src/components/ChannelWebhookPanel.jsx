@@ -42,6 +42,12 @@ export default function ChannelWebhookPanel({ serviceId, url, token }) {
           {test.ok
             ? t('wh.testOk').replace('{status}', test.status).replace('{ms}', test.ms)
             : `${t('wh.testFail')}: ${test.error || `HTTP ${test.status}`}`}
+          {test.payload && (
+            <div style={{ fontSize: 12 }}>
+              {test.payload.sample ? t('wh.sentSample') : t('wh.sentLead').replace('{id}', test.payload.lead_id).replace('{event}', test.payload.event)}
+            </div>
+          )}
+          {(test.status === 401 || test.status === 403) && <div style={{ fontSize: 12 }}>{t('wh.authHint')}</div>}
           {test.response ? <div className="muted" style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{String(test.response).slice(0, 300)}</div> : null}
         </div>
       )}
