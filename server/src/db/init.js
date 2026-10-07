@@ -23,6 +23,16 @@ async function safe(label, fn) {
   try { await fn(); } catch (e) { console.error(`ensureSchema[${label}]:`, e.message); }
 }
 
+// short, human-friendly, DB-unique code (used in signup links, e.g. packages)
+async function uniqueCode(table, column, len = 6) {
+  for (let i = 0; i < 20; i++) {
+    const code = Array.from({ length: len }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');
+    const ex = await query(`SELECT 1 FROM \`${table}\` WHERE \`${column}\` = ? LIMIT 1`, [code]);
+    if (!ex[0]) return code;
+  }
+  return null;
+}
+
 async function ensureSchema() {
   // call lifecycle for phone leads: active -> answered | missed
   await safe('leads.call_status', () => ensureColumn('leads', 'call_status', "call_status VARCHAR(12) NULL"));
@@ -58,6 +68,13 @@ async function ensureSchema() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('packages.seed', seedPackages);
+  // each package carries a short code, usable in a signup link (?pkg=<code>)
+  await safe('packages.code', async () => {
+    await ensureColumn('packages', 'code', "code VARCHAR(20) NULL");
+    const rows = await query("SELECT id FROM packages WHERE code IS NULL OR code = ''");
+    for (const r of rows) await query('UPDATE packages SET code = ? WHERE id = ?', [await uniqueCode('packages', 'code'), r.id]);
+  });
+  await safe('packages.code_idx', () => ensureIndex('packages', 'idx_packages_code', 'code'));
   // which languages appear in the UI language picker
   await safe('languages.in_menu', () => ensureColumn('languages', 'in_menu', "in_menu TINYINT(1) NOT NULL DEFAULT 1"));
   // Maskyoo per-channel settings synced on save (recording, prompts, caller-id exposure)
@@ -122,4 +139,4 @@ async function seedPackages() {
   console.log('seeded starter packages');
 }
 
-module.exports = { ensureSchema, ensureColumn };
+module.exports = { ensureSchema, ensureColumn, uniqueCode };
