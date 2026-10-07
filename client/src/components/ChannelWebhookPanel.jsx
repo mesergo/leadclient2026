@@ -19,11 +19,12 @@ export default function ChannelWebhookPanel({ serviceId, url, token, isSuper }) 
   const [row, setRow] = useState(null);
   const [busy, setBusy] = useState(false);
   const [test, setTest] = useState(null);
-  const [rs, setRs] = useState({ from: ymd(new Date(Date.now() - 7 * 86400000)), to: ymd(new Date()), only_failed: true });
+  const [rs, setRs] = useState({ from: ymd(new Date(Date.now() - 7 * 86400000)), to: ymd(new Date()), only_failed: true, only_with_recording: false });
   const [rsMsg, setRsMsg] = useState(null);
+  const [progress, setProgress] = useState(null);
 
   const load = () => api.serviceWebhookLog(serviceId, token)
-    .then((d) => { setLogs(d.logs || []); setResending(!!d.resending); return d; })
+    .then((d) => { setLogs(d.logs || []); setResending(!!d.resending); setProgress(d.progress || null); return d; })
     .catch(() => { setLogs([]); return {}; });
   useEffect(() => { load(); }, [serviceId, token]); // eslint-disable-line react-hooks/exhaustive-deps
   // while a bulk resend runs, refresh the log every few seconds
@@ -91,10 +92,21 @@ export default function ChannelWebhookPanel({ serviceId, url, token, isSuper }) 
             <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={rs.only_failed} onChange={(e) => setRs({ ...rs, only_failed: e.target.checked })} /> {t('wh.rsOnlyFailed')}
             </label>
+            <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input type="checkbox" checked={rs.only_with_recording} onChange={(e) => setRs({ ...rs, only_with_recording: e.target.checked })} /> {t('wh.rsOnlyRec')}
+            </label>
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy || resending || !String(url || '').trim()} onClick={resendRange}>{t('wh.rsSend')}</button>
           </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('wh.rsHint')}</div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('wh.rsHint')}{rs.only_with_recording ? ` ${t('wh.rsRecHint')}` : ''}</div>
           {rsMsg && <div className={rsMsg.ok ? 'success-note' : 'error'} style={{ marginTop: 6 }}>{rsMsg.text}</div>}
+          {progress && (
+            <div className={'bill-status ' + (progress.finished ? 'ok' : 'warn')} style={{ marginTop: 6, fontSize: 13 }}>
+              {t(progress.finished ? 'wh.rsDone' : 'wh.rsProgress')
+                .replace('{done}', progress.done).replace('{total}', progress.total)
+                .replace('{sent}', progress.sent).replace('{skipped}', progress.skipped)}
+              {progress.onlyWithRecording && progress.skipped > 0 ? ` ${t('wh.rsSkippedNoRec')}` : ''}
+            </div>
+          )}
         </div>
       )}
 
