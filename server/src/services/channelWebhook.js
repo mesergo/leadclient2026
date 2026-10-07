@@ -4,8 +4,52 @@
 // Events: call_ended (phone channels, at call end) | lead_created (form/widget
 // leads) | test (manual "send test" from the channel page).
 const { query } = require('../db/pool');
+const recording = require('./recording');
 
 const TIMEOUT_MS = 10000;
+
+// Payload builders — shared by real events and the channel page's "send test",
+// so a test looks exactly like what the receiver will get in production.
+function callEndedPayload({ leadId, companyId, serviceId, caller, duration, status, withRecording = true }) {
+  return {
+    event: 'call_ended', lead_id: leadId, company_id: companyId, service_id: serviceId,
+    caller: caller || null,
+    duration: duration == null || duration === '' ? null : String(duration),
+    status: status || null,                    // 'answered' | 'missed'
+    recording_url: withRecording && leadId ? recording.publicUrl(leadId) : null,
+    at: new Date().toISOString(),
+  };
+}
+function leadCreatedPayload({ leadId, companyId, serviceId, name, phone, email, source }) {
+  return {
+    event: 'lead_created', lead_id: leadId, company_id: companyId, service_id: serviceId,
+    name: name || null, phone: phone || null, email: email || null, source: source || null,
+    at: new Date().toISOString(),
+  };
+}
+
+// "Send test": the channel's latest lead (preferring one with a recording) in the
+// same shape as the real event, flagged test:true; a sample if it has no leads yet.
+async function testPayload(service) {
+  const base = { companyId: service.company_id, serviceId: service.id };
+  const rows = await query(
+    `SELECT id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url
+       FROM leads WHERE service_id = ?
+      ORDER BY (recording_url IS NOT NULL AND recording_url <> '') DESC, id DESC LIMIT 1`, [service.id]);
+  const l = rows[0];
+  let p;
+  if (l && (l.lead_through === 'call' || l.lead_through === 'call_out')) {
+    p = callEndedPayload({ ...base, leadId: l.id, caller: l.lead_phone, duration: l.call_duration_sec,
+      status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url });
+  } else if (l) {
+    p = leadCreatedPayload({ ...base, leadId: l.id, name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_through });
+  } else if (service.service_type === 'phone') {
+    p = { ...callEndedPayload({ ...base, leadId: 0, caller: '0501234567', duration: 42, status: 'answered', withRecording: false }), sample: true };
+  } else {
+    p = { ...leadCreatedPayload({ ...base, leadId: 0, name: 'ישראל ישראלי', phone: '0501234567', email: 'test@example.com', source: 'widget' }), sample: true };
+  }
+  return { ...p, test: true };
+}
 
 async function log({ url, payload, serviceId, companyId, leadId, result, error, meta }) {
   try {
@@ -57,4 +101,4 @@ async function send(serviceId, payload, opts = {}) {
   return { ok, status, error, ms, response };
 }
 
-module.exports = { send };
+module.exports = { send, callEndedPayload, leadCreatedPayload, testPayload };
