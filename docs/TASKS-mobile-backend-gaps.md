@@ -95,6 +95,13 @@
 ### 10. הרשאות נציגים (אכיפה בשרת)
 כל `company_user` רואה/עורך את כל לידי החברה ומקבל התראה על כל ליד חדש. אם רוצים שנציג יראה רק את שלו — **האכיפה חייבת להיות בשרת** (לא רק סינון UI), כולל ב-`notifyCompany`.
 
+### 12. עדכון `last_interaction_at` / `last_interaction_type`
+**מצב נוכחי (מאומת):** השרת החדש **אף פעם לא כותב** את השדות האלה — הם מתמלאים רק ב-ETL מהמערכת הישנה. לכן ליד שטופל (הערה/טיפול/הודעה/שיחה) נראה "לא טופל", ו-`last_interaction_*` ברשימה תקוע על ערכי המיגרציה.
+**לבצע:** לעדכן `last_interaction_at = NOW()` + `last_interaction_type` (`note` / `treatment` / `sms` / `whatsapp` / `email` / `call` / `call_out`) ב:
+`POST /api/leads/:id/notes`, `/treatment`, `/message` (`routes/leads.js`), וב-webhook השיחה (`routes/public.js`) כשמתקבלת שיחה על ליד קיים.
+**Acceptance:** אחרי הערה/טיפול/שיחה — `GET /api/leads` מחזיר `last_interaction_at` עדכני והסוג הנכון.
+> האפליקציה משתמשת בזה לסינון "לא טופלו" (אין נציג + אין אינטראקציה).
+
 ### 11. שליחת הודעות (וואטסאפ / SMS)
 **ממתין להחלטת מוצר.** כרגע `services/integrations` = MOCK.
 
