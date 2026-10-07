@@ -10,6 +10,14 @@ async function ensureColumn(table, column, ddl) {
   if (!r[0]) await query(`ALTER TABLE \`${table}\` ADD COLUMN ${ddl}`);
 }
 
+async function ensureIndex(table, indexName, columns) {
+  const r = await query(
+    `SELECT 1 FROM information_schema.statistics
+       WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1`,
+    [table, indexName]);
+  if (!r[0]) await query(`ALTER TABLE \`${table}\` ADD INDEX \`${indexName}\` (${columns})`);
+}
+
 // run a step independently so one failure never blocks the rest
 async function safe(label, fn) {
   try { await fn(); } catch (e) { console.error(`ensureSchema[${label}]:`, e.message); }
@@ -18,6 +26,10 @@ async function safe(label, fn) {
 async function ensureSchema() {
   // call lifecycle for phone leads: active -> answered | missed
   await safe('leads.call_status', () => ensureColumn('leads', 'call_status', "call_status VARCHAR(12) NULL"));
+  // Maskyoo per-call UUID: correlates a call's start/end webhooks to the same lead
+  // (exact identity, instead of guessing by caller phone + time window).
+  await safe('leads.call_uuid', () => ensureColumn('leads', 'call_uuid', "call_uuid VARCHAR(100) NULL"));
+  await safe('leads.call_uuid_idx', () => ensureIndex('leads', 'idx_leads_call_uuid', 'call_uuid'));
   // when a user's phone was verified via OTP (enables phone login)
   await safe('users.phone_verified_at', () => ensureColumn('users', 'phone_verified_at', "phone_verified_at DATETIME NULL"));
   // public self-registration: a per-agency signup token

@@ -234,17 +234,25 @@ async function processCall(num, req, res, logId) {
   const duration = pick(req, 'CALLDURATION', 'DURATION', 'duration', 'seconds', 'billsec');
   const recording = pick(req, 'download', 'RECORDING', 'recording', 'recording_url');
   const uuid = pick(req, 'UUID', 'uuid');
-  // prefer the call UUID (fetched later via get_record_by_call_uuid) over the download URL
-  const recStore = uuid ? 'maskyoo-uuid:' + uuid : (recording || null);
   const routedTo = pick(req, 'DEST', 'dest');
   const status = String(pick(req, 'CALLSTATUS', 'callstatus', 'status', 'event', 'type') || '').toLowerCase();
   // Maskyoo end event is CALLSTATUS=ANSWER (answered, with CALLDURATION); also hangup-like words
   const isEnd = duration != null || /end|hangup|finish|complete|done|answer|noanswer|busy/.test(status);
-  // call outcome: answered (picked up: duration>0 / ANSWER / has recording) vs missed (ended, never answered).
-  // note: Maskyoo's no-answer status is "NOANSWER", which contains "answer" — exclude it explicitly.
-  const answered = !!recStore || (duration != null && Number(duration) > 0)
-    || (status.includes('answer') && !status.includes('noanswer')) || status.includes('connected');
+  // call outcome: answered (picked up) vs missed. Do NOT infer "answered" from the UUID —
+  // every webhook carries a UUID (it is the call id, not proof of a recording). Use the real
+  // signals: a positive duration, an ANSWER/CONNECTED status, or an explicit recording URL.
+  // Maskyoo's no-answer status is "NOANSWER" (contains "answer") — exclude it explicitly.
+  const answered = (duration != null && Number(duration) > 0)
+    || (status.includes('answer') && !status.includes('noanswer')) || status.includes('connected')
+    || !!recording;
   const callStatus = isEnd ? (answered ? 'answered' : 'missed') : 'active';
+  // call identity: the Maskyoo UUID is stable across a call's start/end webhooks — use it
+  // to correlate them to the same lead (exact), instead of guessing by caller phone + window.
+  const callUuid = uuid || null;
+  // recording pointer: only when the call was answered (Maskyoo records answered calls only).
+  // Missed/cancelled calls get no recording, so recording_url stays empty (no false icon).
+  // prefer the UUID handle (fetched later via get_record_by_call_uuid) over the download URL.
+  const recStore = answered ? (uuid ? 'maskyoo-uuid:' + uuid : (recording || null)) : (recording || null);
 
   // Maskyoo reads the destination to route the call to from the START of the response
   // body (destination number), followed by JSON (as the legacy system returned).
@@ -282,9 +290,9 @@ async function processCall(num, req, res, logId) {
         const st = await query('SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [num.company_id]);
         const knownName = await nameForPhone(num.company_id, targetLocal);
         const r = await query(
-          `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, NOW(), NOW())`,
-          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active']);
+          `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, ?, NOW(), NOW())`,
+          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid]);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
         announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal);
@@ -302,11 +310,23 @@ async function processCall(num, req, res, logId) {
   }
 
   if (isEnd) {
-    // call end — pair with the recent call lead (wide window to cover call length)
-    const recent = await query(
-      `SELECT id, recording_url, call_status FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
-         AND created_at >= (NOW() - INTERVAL 6 HOUR) ORDER BY id DESC LIMIT 1`,
-      [num.company_id, caller]);
+    // call end — pair with THIS call's lead. Prefer the exact UUID match (robust even when
+    // the caller is anonymous/empty); fall back to caller + recent window only for legacy
+    // leads that carry no UUID, so two different anonymous calls never collide.
+    let recent = [];
+    if (callUuid) {
+      recent = await query(
+        `SELECT id, recording_url, call_status FROM leads WHERE company_id = ? AND call_uuid = ?
+           ORDER BY id DESC LIMIT 1`, [num.company_id, callUuid]);
+    }
+    if (!recent[0] && !callUuid) {
+      // legacy / non-UUID webhook only: guess by caller + window. When we DO have a UUID
+      // and it matched nothing, this is a new call — never fuzzy-match it to another lead.
+      recent = await query(
+        `SELECT id, recording_url, call_status FROM leads WHERE company_id = ? AND lead_through = 'call'
+           AND call_uuid IS NULL AND (lead_phone <=> ?) AND created_at >= (NOW() - INTERVAL 6 HOUR)
+           ORDER BY id DESC LIMIT 1`, [num.company_id, caller]);
+    }
     if (recent[0]) {
       // a prior end already finalized this call (answered/missed, or recording set) -> retry
       if (recent[0].recording_url || recent[0].call_status === 'answered' || recent[0].call_status === 'missed') {
@@ -325,11 +345,18 @@ async function processCall(num, req, res, logId) {
       return reply(true, 'lead updated');
     }
   } else {
-    // call start — Maskyoo fires this several times per call; de-dupe within 2 min
-    const dup = await query(
-      `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND (lead_phone <=> ?)
-         AND created_at >= (NOW() - INTERVAL 2 MINUTE) ORDER BY id DESC LIMIT 1`,
-      [num.company_id, caller]);
+    // call start — Maskyoo fires this several times per call. De-dupe by the exact call UUID
+    // (so repeated starts of the SAME call collapse, but a different call never does). Only
+    // when there is no UUID do we fall back to the caller + 2-minute window heuristic.
+    let dup = [];
+    if (callUuid) {
+      dup = await query('SELECT id FROM leads WHERE company_id = ? AND call_uuid = ? LIMIT 1', [num.company_id, callUuid]);
+    } else {
+      dup = await query(
+        `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'call' AND call_uuid IS NULL AND (lead_phone <=> ?)
+           AND created_at >= (NOW() - INTERVAL 2 MINUTE) ORDER BY id DESC LIMIT 1`,
+        [num.company_id, caller]);
+    }
     if (dup[0]) {
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: dup[0].id, result: 'duplicate' });
       return reply(true, 'duplicate');
@@ -342,9 +369,9 @@ async function processCall(num, req, res, logId) {
   const statusId = st[0] ? st[0].id : null;
   const knownName = await nameForPhone(num.company_id, caller);
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
   reply(true, 'lead saved');

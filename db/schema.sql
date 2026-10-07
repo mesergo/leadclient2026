@@ -382,6 +382,7 @@ CREATE TABLE IF NOT EXISTS leads (
   last_interaction_type VARCHAR(30) NULL,
   recording_url         VARCHAR(500) NULL,
   call_status           VARCHAR(12) NULL,
+  call_uuid             VARCHAR(100) NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   legacy_id             BIGINT UNSIGNED NULL,
@@ -394,7 +395,8 @@ CREATE TABLE IF NOT EXISTS leads (
   INDEX idx_leads_company_date (company_id, created_at),
   INDEX idx_leads_service (service_id),
   INDEX idx_leads_status (status_id),
-  INDEX idx_leads_phone (lead_phone)
+  INDEX idx_leads_phone (lead_phone),
+  INDEX idx_leads_call_uuid (call_uuid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lead_tags (
