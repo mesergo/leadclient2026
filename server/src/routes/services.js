@@ -6,6 +6,7 @@ const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
 const { logPhone } = require('../services/phoneLog');
 const maskyoo = require('../services/maskyoo');
+const channelWebhook = require('../services/channelWebhook');
 // push a number's routing to Maskyoo (only Maskyoo numbers; best-effort, non-blocking)
 async function syncMaskyoo(phoneNumberId) {
   try {
@@ -285,6 +286,39 @@ router.delete('/:id', requireRole('super_admin', 'agency_admin', 'company_admin'
   const r = await query(`DELETE FROM services WHERE id = ? AND (${sc.sql})`, [req.params.id, ...sc.params]);
   if (!r.affectedRows) return res.status(404).json({ error: 'ערוץ לא נמצא' });
   res.json({ ok: true });
+}));
+
+// --- the channel's outgoing webhook: delivery log + manual test ---------------
+async function scopedService(req) {
+  const s = companyScope(req.user, 'sv.company_id');
+  const r = await query(
+    `SELECT sv.id, sv.company_id, sv.name, sv.export_webhook_url FROM services sv WHERE sv.id = ? AND (${s.sql})`,
+    [req.params.id, ...s.params]);
+  return r[0] || null;
+}
+
+// GET /api/services/:id/webhook-log — last outgoing webhook attempts of this channel
+router.get('/:id/webhook-log', asyncHandler(async (req, res) => {
+  const sv = await scopedService(req);
+  if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  const rows = await query(
+    `SELECT id, path AS url, query_data, body_data, lead_id, result, error, created_at FROM webhook_log
+      WHERE source = 'channel-out' AND service_id = ? ORDER BY id DESC LIMIT 30`, [sv.id]).catch(() => []);
+  res.json({ logs: rows });
+}));
+
+// POST /api/services/:id/webhook-test { url? } — send a sample payload now (to the given,
+// possibly unsaved, URL or the saved one) and report what the receiver answered
+router.post('/:id/webhook-test', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
+  const sv = await scopedService(req);
+  if (!sv) return res.status(404).json({ error: 'ערוץ לא נמצא' });
+  const url = String((req.body && req.body.url) || sv.export_webhook_url || '').trim();
+  if (!url) return res.status(400).json({ error: 'לא הוגדרה כתובת Webhook' });
+  const r = await channelWebhook.send(sv.id, {
+    event: 'test', company_id: sv.company_id, service_id: sv.id, channel_name: sv.name,
+    message: 'LeadClient webhook test', at: new Date().toISOString(),
+  }, { url, companyId: sv.company_id });
+  res.json(r);
 }));
 
 module.exports = router;

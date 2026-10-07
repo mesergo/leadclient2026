@@ -4,6 +4,7 @@ const { query } = require('../db/pool');
 const { asyncHandler } = require('../utils/http');
 const notify = require('../services/notify');
 const recording = require('../services/recording');
+const channelWebhook = require('../services/channelWebhook');
 const messergo = require('../services/messergo');
 const config = require('../config');
 const { issueToken } = require('../services/authService');
@@ -71,25 +72,25 @@ router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
 
 // Push end-of-call details to the channel's own webhook (export_webhook_url), with
 // a signed recording link served by us (Maskyoo is never exposed). Fire-and-forget.
-async function fireChannelWebhook(serviceId, lead) {
+// Channel's outgoing webhook (logged per attempt; never blocks the inbound request).
+// call_ended: phone channels at call end; lead_created: form / widget leads.
+function fireChannelWebhook(serviceId, lead, event = 'call_ended') {
   if (!serviceId) return;
-  try {
-    const rows = await query('SELECT export_webhook_url FROM services WHERE id = ?', [serviceId]);
-    const url = rows[0] && rows[0].export_webhook_url;
-    if (!url || !/^https?:\/\//i.test(url)) return;
-    const payload = {
-      event: 'call_ended',
-      lead_id: lead.id,
-      company_id: lead.company_id,
-      service_id: serviceId,
-      caller: lead.caller || null,
-      duration: lead.duration || null,
-      status: lead.status || null,            // 'answered' | 'missed'
-      recording_url: recording.publicUrl(lead.id),
-      at: new Date().toISOString(),
-    };
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
-  } catch (e) { /* never block the call webhook */ }
+  const at = new Date().toISOString();
+  const payload = event === 'call_ended' ? {
+    event, lead_id: lead.id, company_id: lead.company_id, service_id: serviceId,
+    caller: lead.caller || null,
+    duration: lead.duration || null,
+    status: lead.status || null,              // 'answered' | 'missed'
+    recording_url: recording.publicUrl(lead.id),
+    at,
+  } : {
+    event, lead_id: lead.id, company_id: lead.company_id, service_id: serviceId,
+    name: lead.name || null, phone: lead.phone || null, email: lead.email || null,
+    source: lead.source || null,
+    at,
+  };
+  channelWebhook.send(serviceId, payload, { companyId: lead.company_id, leadId: lead.id }).catch(() => {});
 }
 
 // Public, signed recording download for channel webhooks (no login; no Maskyoo).
@@ -131,6 +132,7 @@ router.post('/leads/service/:hash', asyncHandler(async (req, res) => {
     [svc[0].company_id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'widget', { companyId: svc[0].company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(svc[0].company_id, r.insertId, name, phone);
+  fireChannelWebhook(svc[0].id, { id: r.insertId, company_id: svc[0].company_id, name: leadName, phone, email, source: 'widget' }, 'lead_created');
   res.status(201).json({ ok: true });
 }));
 
@@ -147,6 +149,7 @@ router.post('/leads/company/:token', asyncHandler(async (req, res) => {
     [co[0].id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'company-token', { companyId: co[0].id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(co[0].id, r.insertId, name, phone);
+  fireChannelWebhook(svc[0].id, { id: r.insertId, company_id: co[0].id, name: leadName, phone, email, source: 'form' }, 'lead_created');
   res.status(201).json({ ok: true });
 }));
 
@@ -377,6 +380,8 @@ async function processCall(num, req, res, logId) {
     [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
+  // a call reported only at its end (e.g. a missed call) still ends here
+  if (isEnd) fireChannelWebhook(num.service_id, { id: r.insertId, company_id: num.company_id, caller, duration, status: callStatus });
   reply(true, 'lead saved');
 }
 

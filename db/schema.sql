@@ -667,12 +667,14 @@ CREATE TABLE IF NOT EXISTS webhook_log (
   query_data         TEXT NULL,
   body_data          TEXT NULL,
   matched_number_id  BIGINT UNSIGNED NULL,
+  service_id         BIGINT UNSIGNED NULL,
   company_id         BIGINT UNSIGNED NULL,
   lead_id            BIGINT UNSIGNED NULL,
   result             VARCHAR(30) NULL,
   error              VARCHAR(255) NULL,
   created_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_wl_created (created_at)
+  INDEX idx_wl_created (created_at),
+  INDEX idx_wl_service (service_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- per-number change log (assignments / transfers between companies)
