@@ -117,6 +117,59 @@ async function ensureSchema() {
       used_at DATETIME NULL,
       INDEX idx_cb_from (from_number, status, created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+
+  // --- billing (iCount standing orders) ---
+  // company billing gate: NULL = not required (legacy/admin-created), 'pending' = must
+  // fill billing details before entering, 'active', 'past_due', 'cancelled'
+  await safe('companies.billing_status', () => ensureColumn('companies', 'billing_status', 'billing_status VARCHAR(16) NULL'));
+  // signup link carried ?pkg= -> the package screen offers only that package
+  await safe('companies.signup_package_locked', () => ensureColumn('companies', 'signup_package_locked', 'signup_package_locked TINYINT(1) NOT NULL DEFAULT 0'));
+  // structured call length (seconds) for usage billing (trial per-minute charges)
+  await safe('leads.call_duration_sec', () => ensureColumn('leads', 'call_duration_sec', 'call_duration_sec INT NULL'));
+  await safe('subscriptions.table', () => query(`CREATE TABLE IF NOT EXISTS subscriptions (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      company_id BIGINT UNSIGNED NOT NULL,
+      package_id BIGINT UNSIGNED NULL,
+      monthly_price DECIMAL(10,2) NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'pending',
+      billing_email VARCHAR(150) NULL,
+      icount_sale_uniqid VARCHAR(64) NULL,
+      icount_hk_id BIGINT NULL,
+      icount_client_id BIGINT NULL,
+      cc_last4 VARCHAR(4) NULL,
+      trial_started_at DATETIME NULL,
+      trial_ends_at DATETIME NULL,
+      trial_usage_charged TINYINT(1) NOT NULL DEFAULT 0,
+      activated_at DATETIME NULL,
+      cancelled_at DATETIME NULL,
+      last_sync_at DATETIME NULL,
+      last_debit_success TINYINT(1) NULL,
+      next_debit DATE NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_sub_company (company_id, status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  await safe('billing_charges.table', () => query(`CREATE TABLE IF NOT EXISTS billing_charges (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      company_id BIGINT UNSIGNED NOT NULL,
+      subscription_id BIGINT UNSIGNED NULL,
+      kind VARCHAR(20) NOT NULL,
+      minutes INT NULL,
+      amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+      period_start DATETIME NULL,
+      period_end DATETIME NULL,
+      status VARCHAR(12) NOT NULL DEFAULT 'pending',
+      icount_ref VARCHAR(64) NULL,
+      error VARCHAR(255) NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_bc_company (company_id, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // small key/value store (e.g. the auto-created iCount PayPage id)
+  await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
+      k VARCHAR(64) PRIMARY KEY,
+      v TEXT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
 }
 
 // Seed starter packages once (only when the table is empty). NULL quota = unlimited.

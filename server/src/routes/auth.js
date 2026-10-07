@@ -7,6 +7,7 @@ const { issueToken } = require('../services/authService');
 const otp = require('../services/otp');
 const messergo = require('../services/messergo');
 const googleAuth = require('../services/googleAuth');
+const icount = require('../services/icount');
 const config = require('../config');
 
 const router = express.Router();
@@ -88,7 +89,7 @@ async function pickSignupPackage(pkgCode) {
   const cols = 'id, quota_users, quota_numbers, quota_leads, quota_channels';
   if (pkgCode && String(pkgCode).trim()) {
     const r = await query(`SELECT ${cols} FROM packages WHERE code = ? LIMIT 1`, [String(pkgCode).trim().toUpperCase()]);
-    if (r[0]) return r[0];
+    if (r[0]) return { ...r[0], fromCode: true };
   }
   const d = await query(`SELECT ${cols} FROM packages WHERE is_trial_default = 1 LIMIT 1`);
   return d[0] || null;
@@ -109,14 +110,16 @@ async function createTrialAccount(agency, { company_name, full_name, email, phon
   if (exists[0]) throw httpErr(409, 'כבר קיים משתמש עם אימייל זה');
 
   const compName = (company_name && company_name.trim()) || String(full_name).trim();
+  // billing_status 'pending' = must fill standing-order details before entering the app
   const comp = await query(
-    'INSERT INTO companies (name, agency_id, public_token, is_trial, created_at) VALUES (?, ?, ?, 1, NOW())',
-    [compName, agency.id, crypto.randomUUID()]);
-  // apply the package from the signup link (?pkg=code), else the trial-default package
+    'INSERT INTO companies (name, agency_id, public_token, is_trial, billing_status, created_at) VALUES (?, ?, ?, 1, ?, NOW())',
+    [compName, agency.id, crypto.randomUUID(), icount.billingEnabled() ? 'pending' : null]);
+  // apply the package from the signup link (?pkg=code), else the trial-default package.
+  // A link package is locked: the billing screen then offers only that one.
   const pkg = await pickSignupPackage(pkg_code);
   if (pkg) {
-    await query('UPDATE companies SET package_id = ?, quota_users = ?, quota_numbers = ?, quota_leads = ?, quota_channels = ? WHERE id = ?',
-      [pkg.id, pkg.quota_users, pkg.quota_numbers, pkg.quota_leads, pkg.quota_channels, comp.insertId]);
+    await query('UPDATE companies SET package_id = ?, signup_package_locked = ?, quota_users = ?, quota_numbers = ?, quota_leads = ?, quota_channels = ? WHERE id = ?',
+      [pkg.id, pkg.fromCode ? 1 : 0, pkg.quota_users, pkg.quota_numbers, pkg.quota_leads, pkg.quota_channels, comp.insertId]);
   }
   await query(
     `INSERT INTO lead_statuses (company_id, text, color, sort_order, is_waiting, is_finished) VALUES

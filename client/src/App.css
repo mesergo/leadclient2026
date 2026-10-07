@@ -457,3 +457,21 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .dialer-call { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .dialer-done { text-align: center; }
 .dialer-via-big { font-size: 26px; font-weight: 700; letter-spacing: 1px; margin: 8px 0; color: var(--accent, #0a7); }
+
+/* ---------- billing setup (standing order) ---------- */
+.billing-trial-note {
+  border: 1px solid var(--accent); border-radius: var(--radius-lg); background: #e0f2f1;
+  padding: 10px 14px; margin: 12px 0; font-size: 14px; line-height: 1.6;
+}
+.billing-pkgs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+.billing-pkg {
+  text-align: start; background: var(--surface); border: 2px solid var(--border); border-radius: var(--radius-lg);
+  padding: 12px 14px; cursor: pointer; font: inherit; color: var(--text); transition: border-color .15s, box-shadow .15s;
+}
+.billing-pkg:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.billing-pkg.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 131, 143, 0.15); }
+.billing-pkg-name { font-weight: 700; font-size: 16px; }
+.billing-pkg-price { font-size: 22px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.billing-pkg-price span { font-size: 13px; font-weight: 400; color: var(--text-dim); }
+.billing-pkg-vat { font-size: 12px; color: var(--text-dim); }
+.billing-pkg ul { margin: 8px 0 0; padding-inline-start: 18px; font-size: 13px; color: var(--text-dim); }
