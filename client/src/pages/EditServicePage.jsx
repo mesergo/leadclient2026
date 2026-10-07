@@ -26,7 +26,7 @@ const serializeHours = (arr) => arr.map((b) => (b ? '1' : '0')).join('');
 export default function EditServicePage() {
   const [sp] = useSearchParams();
   const id = sp.get('id');
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t, lang } = useLang();
   const nav = useNavigate();
 
@@ -246,7 +246,7 @@ export default function EditServicePage() {
 
           <div className="form-field"><label>{t('es.webhook')}</label><div className="form-field-control">
             <input value={form.export_webhook_url} onChange={(e) => set('export_webhook_url', e.target.value)} placeholder="https://" />
-            <ChannelWebhookPanel serviceId={id} url={form.export_webhook_url} token={token} /></div></div>
+            <ChannelWebhookPanel serviceId={id} url={form.export_webhook_url} token={token} isSuper={user?.role === 'super_admin'} /></div></div>
 
           <div className="form-field"><label>{t('es.openHours')}</label><div className="form-field-control">
             <input type="checkbox" checked={hoursOn} onChange={(e) => setHoursOn(e.target.checked)} /></div></div>

@@ -28,21 +28,29 @@ function leadCreatedPayload({ leadId, companyId, serviceId, name, phone, email, 
   };
 }
 
+const LEAD_COLS = 'id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url';
+
+// A stored lead in the real event format (call -> call_ended, otherwise lead_created).
+function payloadForLead(service, l) {
+  const base = { companyId: service.company_id, serviceId: service.id, leadId: l.id };
+  if (l.lead_through === 'call' || l.lead_through === 'call_out') {
+    return callEndedPayload({ ...base, caller: l.lead_phone, duration: l.call_duration_sec,
+      status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url });
+  }
+  return leadCreatedPayload({ ...base, name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_through });
+}
+
 // "Send test": the channel's latest lead (preferring one with a recording) in the
 // same shape as the real event, flagged test:true; a sample if it has no leads yet.
 async function testPayload(service) {
   const base = { companyId: service.company_id, serviceId: service.id };
   const rows = await query(
-    `SELECT id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url
-       FROM leads WHERE service_id = ?
+    `SELECT ${LEAD_COLS} FROM leads WHERE service_id = ?
       ORDER BY (recording_url IS NOT NULL AND recording_url <> '') DESC, id DESC LIMIT 1`, [service.id]);
   const l = rows[0];
   let p;
-  if (l && (l.lead_through === 'call' || l.lead_through === 'call_out')) {
-    p = callEndedPayload({ ...base, leadId: l.id, caller: l.lead_phone, duration: l.call_duration_sec,
-      status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url });
-  } else if (l) {
-    p = leadCreatedPayload({ ...base, leadId: l.id, name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_through });
+  if (l) {
+    p = payloadForLead(service, l);
   } else if (service.service_type === 'phone') {
     p = { ...callEndedPayload({ ...base, leadId: 0, caller: '0501234567', duration: 42, status: 'answered', withRecording: false }), sample: true };
   } else {
@@ -101,4 +109,49 @@ async function send(serviceId, payload, opts = {}) {
   return { ok, status, error, ms, response };
 }
 
-module.exports = { send, callEndedPayload, leadCreatedPayload, testPayload };
+// --- resend (super admin) -----------------------------------------------------
+const MAX_RESEND = 500;
+const running = new Set(); // service ids with a bulk resend in progress
+
+// Leads of the channel created in [from, to] (dates, Israel time). onlyFailed: skip
+// leads that already had a successful delivery to this channel.
+async function leadsToResend(service, { from, to, onlyFailed }) {
+  return query(
+    `SELECT ${LEAD_COLS} FROM leads l
+      WHERE l.service_id = ? AND l.created_at >= ? AND l.created_at < (? + INTERVAL 1 DAY)
+        ${onlyFailed ? `AND NOT EXISTS (SELECT 1 FROM webhook_log w WHERE w.source = 'channel-out' AND w.service_id = l.service_id
+                          AND w.lead_id = l.id AND w.result LIKE 'ok\\_%')` : ''}
+      ORDER BY l.id ASC LIMIT ${MAX_RESEND + 1}`,
+    [service.id, from, to]);
+}
+
+// Start a background resend; returns how many leads are queued. Each delivery is
+// logged like any other (payload flagged resent:true). One run per channel at a time.
+async function startResend(service, opts) {
+  if (running.has(service.id)) return { busy: true };
+  const leads = await leadsToResend(service, opts);
+  const capped = leads.length > MAX_RESEND;
+  const list = leads.slice(0, MAX_RESEND);
+  if (!list.length) return { queued: 0 };
+  running.add(service.id);
+  (async () => {
+    try {
+      for (let i = 0; i < list.length; i += 3) { // 3 at a time, in order
+        await Promise.all(list.slice(i, i + 3).map((l) =>
+          send(service.id, { ...payloadForLead(service, l), resent: true }, { companyId: service.company_id, leadId: l.id })));
+      }
+    } finally { running.delete(service.id); }
+  })();
+  return { queued: list.length, capped };
+}
+
+// Resend one logged delivery exactly as it was sent (to the channel's current URL).
+async function resendLog(service, logId) {
+  const r = await query("SELECT body_data, lead_id FROM webhook_log WHERE id = ? AND source = 'channel-out' AND service_id = ?", [logId, service.id]);
+  if (!r[0]) return null;
+  let payload;
+  try { payload = JSON.parse(r[0].body_data || '{}'); } catch { payload = {}; }
+  return send(service.id, { ...payload, resent: true }, { companyId: service.company_id, leadId: r[0].lead_id });
+}
+
+module.exports = { send, callEndedPayload, leadCreatedPayload, payloadForLead, testPayload, startResend, resendLog, isResending: (id) => running.has(id) };
