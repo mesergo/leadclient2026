@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import QuotaPanel from '../components/QuotaPanel';
+import CompanyBillingPanel from '../components/CompanyBillingPanel';
 
 const INDUSTRIES = ['תיירות', 'שירותים', 'חינוך ולימודים', 'עמותות', 'אירועים', 'מסחר ותעשיה', 'מקצועות חופשיים', 'פרסום', 'אחר'];
 
@@ -63,7 +64,11 @@ export default function CompanyEditPage() {
         <button className={'tab' + (tab === 'details' ? ' active' : '')} onClick={() => setTab('details')}>{t('cop.tabDetails')}</button>
         <button className={'tab' + (tab === 'settings' ? ' active' : '')} onClick={() => setTab('settings')}>{t('cop.tabSettings')}</button>
         <button className={'tab' + (tab === 'quota' ? ' active' : '')} onClick={() => setTab('quota')}>{t('quota.tab')}</button>
+        {isManager && <button className={'tab' + (tab === 'billing' ? ' active' : '')} onClick={() => setTab('billing')}>{t('cb.tab')}</button>}
       </div>
+      {tab === 'billing' ? (
+        <div className="form-panel"><div className="form-panel-body"><CompanyBillingPanel companyId={id} token={token} /></div></div>
+      ) : (
       <form className="form-panel" onSubmit={save}>
         <div className="form-panel-body">
           {tab === 'details' && (<>
@@ -108,6 +113,7 @@ export default function CompanyEditPage() {
         </div>
         <div className="form-actions">{(tab !== 'quota' || isManager) && <button className="btn btn-primary">{t('common.save')}</button>}</div>
       </form>
+      )}
     </div>
   );
 }

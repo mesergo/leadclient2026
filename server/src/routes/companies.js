@@ -1,10 +1,13 @@
 const express = require('express');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const { query, companyScope, getPool } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
+const icount = require('../services/icount');
+const billing = require('../services/billing');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -148,6 +151,84 @@ router.post('/:id/impersonate', requireRole('super_admin', 'agency_admin'), asyn
     { sub: t.id, role: t.role, company_id: t.company_id, agency_id: t.agency_id, name: t.display_name || t.username, impersonated_by: req.user.id },
     config.jwt.secret, { expiresIn: '1h' });
   res.json({ token, user: { id: t.id, name: t.display_name || t.username, role: t.role } });
+}));
+
+// --- billing (managers): subscription state + admin-sent billing links ---------
+async function scopedCompany(req) {
+  const s = companyScope(req.user, 'c.id');
+  const r = await query(
+    `SELECT c.id, c.name, c.billing_status, c.package_id, c.is_trial FROM companies c WHERE c.id = ? AND (${s.sql})`,
+    [req.params.id, ...s.params]);
+  return r[0] || null;
+}
+const companyAdminContact = async (companyId) => (await query(
+  "SELECT email, username, phone FROM users WHERE company_id = ? AND role = 'company_admin' AND is_active = 1 ORDER BY id LIMIT 1",
+  [companyId]))[0] || {};
+
+// GET /api/companies/:id/billing
+router.get('/:id/billing', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const c = await scopedCompany(req);
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  const subs = await query(
+    `SELECT s.*, p.name AS package_name FROM subscriptions s LEFT JOIN packages p ON p.id = s.package_id
+      WHERE s.company_id = ? ORDER BY s.id DESC LIMIT 20`, [c.id]);
+  const current = subs.find((s) => s.status === 'active' || s.status === 'past_due') || null;
+  const link = subs.find((s) => s.status === 'pending' && s.source === 'admin_link' && s.link_token
+    && new Date(s.link_expires_at) > new Date()) || null;
+  const admin = await companyAdminContact(c.id);
+  res.json({
+    billing_status: c.billing_status, is_trial: !!c.is_trial,
+    enabled: icount.billingEnabled(), mock: icount.isMock(),
+    subscription: current && {
+      id: current.id, status: current.status, source: current.source, package_id: current.package_id,
+      package_name: current.package_name, monthly_price: current.monthly_price, cc_last4: current.cc_last4,
+      next_debit: current.next_debit, last_debit_success: current.last_debit_success, activated_at: current.activated_at,
+    },
+    link: link && {
+      path: `/pay/${link.link_token}`, package_name: link.package_name, monthly_price: link.monthly_price,
+      start_date: link.start_date, expires_at: link.link_expires_at, created_at: link.created_at, billing_email: link.billing_email,
+    },
+    defaults: { email: admin.email || admin.username || '', phone: admin.phone || '', package_id: c.package_id },
+  });
+}));
+
+// POST /api/companies/:id/billing-link { package_id, start_date?, email?, phone? }
+// Creates a public /pay/<token> page (valid 30 days) the manager sends to the customer.
+// No trial: the standing order's first debit is on start_date (default today).
+router.post('/:id/billing-link', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const c = await scopedCompany(req);
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  if (!icount.billingEnabled()) return res.status(503).json({ error: 'הסליקה אינה מוגדרת כרגע' });
+  const active = await query("SELECT id FROM subscriptions WHERE company_id = ? AND status IN ('active', 'past_due') LIMIT 1", [c.id]);
+  if (active[0]) return res.status(409).json({ error: 'לחברה כבר יש מנוי פעיל' });
+  const b = req.body || {};
+  const pkg = (await query('SELECT id, name, monthly_price FROM packages WHERE id = ?', [Number(b.package_id) || 0]))[0];
+  if (!pkg) return res.status(400).json({ error: 'יש לבחור חבילה' });
+  if (!(Number(pkg.monthly_price) > 0)) return res.status(400).json({ error: 'לחבילה זו אין מחיר חודשי' });
+  const today = billing.ymd(new Date());
+  const start = b.start_date ? String(b.start_date).slice(0, 10) : today;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || start < today) return res.status(400).json({ error: 'תאריך התחלה לא תקין' });
+  const admin = await companyAdminContact(c.id);
+  const email = String(b.email || admin.email || admin.username || '').trim() || null;
+  const phone = String(b.phone || admin.phone || '').trim() || null;
+
+  // one open link per company: a new one supersedes the previous
+  await query("UPDATE subscriptions SET status = 'abandoned' WHERE company_id = ? AND status = 'pending' AND source = 'admin_link'", [c.id]);
+  const tok = crypto.randomBytes(20).toString('hex');
+  await query(
+    `INSERT INTO subscriptions (company_id, package_id, monthly_price, status, source, billing_email, billing_phone,
+       start_date, link_token, link_expires_at, trial_usage_charged)
+     VALUES (?, ?, ?, 'pending', 'admin_link', ?, ?, ?, ?, NOW() + INTERVAL 30 DAY, 1)`,
+    [c.id, pkg.id, pkg.monthly_price, email, phone, start, tok]);
+  res.status(201).json({ path: `/pay/${tok}` });
+}));
+
+// DELETE /api/companies/:id/billing-link — revoke the open link
+router.delete('/:id/billing-link', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  const c = await scopedCompany(req);
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  await query("UPDATE subscriptions SET status = 'abandoned' WHERE company_id = ? AND status = 'pending' AND source = 'admin_link'", [c.id]);
+  res.json({ ok: true });
 }));
 
 module.exports = router;
