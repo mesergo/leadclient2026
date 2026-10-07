@@ -135,6 +135,7 @@ export const api = {
   virtualLog: (id, token) => request(`/api/virtual/${id}/log`, { token }),
   webhookLog: (token, f) => request(`/api/webhook-log${qs(f)}`, { token }),
   clearWebhookLog: (token) => request('/api/webhook-log', { method: 'DELETE', token }),
+  recoverCallDups: (token, body) => request('/api/webhook-log/recover-call-dups', { method: 'POST', token, body }),
   notifications: (token) => request('/api/notifications', { token }),
   notificationsRead: (token, id) => request('/api/notifications/read', { method: 'POST', body: id ? { id } : {}, token }),
   notifyTest: (token) => request('/api/notifications/test', { method: 'POST', token }),

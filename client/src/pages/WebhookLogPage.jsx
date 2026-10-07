@@ -21,6 +21,15 @@ export default function WebhookLogPage() {
   useEffect(() => { load(); const iv = setInterval(() => load(), 15000); return () => clearInterval(iv); }, [token]);
 
   const clear = async () => { if (!window.confirm(t('wl.confirmClear'))) return; try { await api.clearWebhookLog(token); load(); } catch (e) { setError(e.message); } };
+  const recover = async () => {
+    try {
+      const dry = await api.recoverCallDups(token, { hours: 24 });
+      if (!dry.candidates || !dry.candidates.length) { window.alert(t('wl.recNone')); return; }
+      if (!window.confirm(t('wl.recConfirm').replace('{n}', dry.candidates.length))) return;
+      const done = await api.recoverCallDups(token, { hours: 24, apply: true });
+      window.alert(t('wl.recDone').replace('{n}', done.created)); load();
+    } catch (e) { setError(e.message); }
+  };
   const setF = (k, v) => { const f = { ...filters, [k]: v }; setFilters(f); load(f); };
 
   return (
@@ -29,6 +38,7 @@ export default function WebhookLogPage() {
         <h1>{t('nav.webhookLog')}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => load()}>{t('wl.refresh')}</button>
+          {isSuper && <button className="btn btn-secondary" onClick={recover}>{t('wl.recover')}</button>}
           {isSuper && <button className="btn btn-danger" onClick={clear}>{t('wl.clear')}</button>}
         </div>
       </div>
