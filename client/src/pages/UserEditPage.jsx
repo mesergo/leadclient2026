@@ -66,7 +66,8 @@ export default function UserEditPage() {
     else if (suspension === 'permanent') { body.is_active = 0; body.suspended_until = null; }
     else if (suspension !== 'custom') {
       const until = new Date(Date.now() + Number(suspension) * 86400000);
-      body.is_active = 0; body.suspended_until = until.toISOString().slice(0, 19).replace('T', ' ');
+      // local (Israel) wall time, like everything the server stores — not UTC
+      body.is_active = 0; body.suspended_until = until.toLocaleString('sv-SE').slice(0, 19);
     }
     save(body);
   };

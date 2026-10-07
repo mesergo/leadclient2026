@@ -7,7 +7,10 @@ const config = require('../config');
 const { query } = require('../db/pool');
 const icount = require('./icount');
 
-const ymd = (d) => new Date(d).toISOString().slice(0, 10);
+// calendar date (YYYY-MM-DD) in Israel time — not the UTC date
+const ymd = (d) => new Intl.DateTimeFormat('en-CA', {
+  timeZone: config.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date(d));
 const addDays = (d, n) => new Date(new Date(d).getTime() + n * 86400000);
 
 // first iCount customer number we learn for a company sticks (auto-fill)

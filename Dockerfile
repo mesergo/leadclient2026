@@ -20,6 +20,8 @@ FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4000
+# the app runs on Israel time (the DB session is set per connection in server/src/db/pool.js)
+ENV TZ=Asia/Jerusalem
 # bring the built app over, then drop dev-only deps to slim the image
 COPY --from=build /app ./
 RUN npm prune --omit=dev && mkdir -p /app/uploads

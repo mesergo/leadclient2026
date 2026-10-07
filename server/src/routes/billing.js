@@ -8,7 +8,7 @@ router.use(requireAuth, requireRole('super_admin', 'agency_admin', 'company_admi
 
 // Per-company usage summary for a month: numbers, calls, minutes, SMS, leads.
 router.get('/', asyncHandler(async (req, res) => {
-  const month = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toISOString().slice(0, 7);
+  const month = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Date().toLocaleDateString('en-CA').slice(0, 7); // Israel month (process TZ)
   const start = `${month}-01 00:00:00`;
 
   const extraFor = (col) => {

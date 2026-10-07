@@ -1,6 +1,13 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
 
+// The whole system runs on Israel time: Node's local time here, and every DB
+// session (see db/pool.js) — so NOW(), stored datetimes and "today" all match
+// what users see, and match the legacy data (stored in Israel wall time).
+const APP_TZ = process.env.APP_TZ || 'Asia/Jerusalem';
+process.env.TZ = APP_TZ;
+
 module.exports = {
+  timezone: APP_TZ,
   env: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
   db: {
