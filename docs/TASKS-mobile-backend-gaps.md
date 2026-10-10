@@ -75,7 +75,7 @@
 - תזכורת שסומנה כבוצעה לא נשלחת ע"י `reminderPoller`.
 - תיקון הבאג: למלא `lead_name` גם ב-`POST /api/leads/:id/reminders`.
 
-### 7. תוקף התחברות
+### 7. תוקף התחברות ✅ בוצע (3c48f98 — `client: "mobile"` → 90 יום, "זכור אותי" → 30 יום)
 **מצב נוכחי:** `services/authService.js:13` — `jwt.sign(..., { expiresIn: extra.expiresIn || config.jwt.expiresIn })` (ברירת מחדל 7 ימים). אין refresh token → אחרי שבוע הנציג נזרק.
 **לבצע (חוזה):** האפליקציה שולחת `client: "mobile"` בגוף הבקשה בכל נתיבי הכניסה: `POST /api/auth/login`, `/api/auth/phone/verify`, `/api/auth/google`. רק כשהשדה הזה קיים — להנפיק טוקן ארוך (90 יום, `MOBILE_JWT_EXPIRES_IN` ב-env). בלעדיו — כמו היום.
 > **שים לב:** `issueToken(user, extra)` פורס את `extra` לתוך ה-payload — אם מעבירים `expiresIn` דרך `extra` הוא ייכנס גם לתוכן הטוקן. עדיף פרמטר שלישי נפרד: `issueToken(user, extra, { expiresIn })`.
