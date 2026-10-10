@@ -20,11 +20,12 @@ export default function LoginPage() {
   const [hint, setHint] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(false); // "remember me on this computer"
 
   async function submitPassword(e) {
     e.preventDefault();
     setBusy(true); setError('');
-    try { await login(username, password); nav('/'); }
+    try { await login(username, password, remember); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -43,14 +44,14 @@ export default function LoginPage() {
   async function verifyCode(e) {
     e.preventDefault();
     setBusy(true); setError('');
-    try { await loginWithPhone(phone, code); nav('/'); }
+    try { await loginWithPhone(phone, code, remember); nav('/'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
 
   async function onGoogle(credential) {
     setError('');
-    try { await loginWithGoogle(credential); nav('/'); }
+    try { await loginWithGoogle(credential, remember); nav('/'); }
     catch (err) { setError(err.message); }
   }
 
@@ -97,6 +98,11 @@ export default function LoginPage() {
               onClick={() => { setSent(false); setCode(''); setHint(''); setError(''); }}>{t('login.changePhone')}</button>
           </form>
         )}
+
+        <label className="remember-me">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          {t('login.remember')}
+        </label>
 
         <div className="google-slot" style={{ marginTop: 18 }}>
           <GoogleButton onCredential={onGoogle} onError={() => setError(t('login.googleError'))} />

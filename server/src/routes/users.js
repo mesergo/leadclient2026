@@ -4,6 +4,7 @@ const { query, companyScope, canAccessCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { issueToken } = require('../services/authService');
+const passwordPolicy = require('../services/passwordPolicy');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('super_admin', 'agency_admin', 'company_admin'));
@@ -66,6 +67,8 @@ router.post('/', asyncHandler(async (req, res) => {
   const { username, password, email, first_name, last_name, display_name, role, company_id, phone } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
   if (company_id && canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const pol = passwordPolicy.check(password, { username, email, display_name });
+  if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
   const hash = await bcrypt.hash(password, 10);
   const r = await query(
     `INSERT INTO users (username, password_hash, email, first_name, last_name, display_name, role, company_id, phone, created_at)
@@ -100,7 +103,14 @@ router.patch('/:id', asyncHandler(async (req, res) => {
       sets.push('agency_id = ?'); params.push(c[0] ? c[0].agency_id : null);
     }
   }
-  if (req.body.password) { sets.push('password_hash = ?'); params.push(await bcrypt.hash(req.body.password, 10)); }
+  if (req.body.password) {
+    const cur = (await query('SELECT username, email, display_name FROM users WHERE id = ?', [req.params.id]))[0] || {};
+    const pol = passwordPolicy.check(req.body.password, {
+      username: req.body.username ?? cur.username, email: req.body.email ?? cur.email, display_name: req.body.display_name ?? cur.display_name,
+    });
+    if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
+    sets.push('password_hash = ?', 'must_change_password = 0'); params.push(await bcrypt.hash(req.body.password, 10));
+  }
   if (sets.length) { params.push(req.params.id); await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params); }
   const rows = await query(`SELECT ${FIELDS} FROM users u WHERE u.id = ?`, [req.params.id]);
   res.json({ user: rows[0] });

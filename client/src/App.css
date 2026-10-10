@@ -128,6 +128,14 @@ label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
 
 /* ---------- misc ---------- */
 .error { color: #c5221f; background: #fce8e6; padding: 0.6rem 1rem; border-radius: var(--radius); font-size: 13px; }
+/* password rules checklist + remember-me */
+.pw-rules { list-style: none; margin: 0.4rem 0 0.8rem; padding: 0; font-size: 12.5px; color: var(--text-dim); }
+.pw-rules li { padding: 1px 0; }
+.pw-rules li.ok { color: #137333; }
+.pw-rules li.bad { color: #c5221f; }
+.pw-rule-mark { display: inline-block; width: 1em; text-align: center; font-weight: 700; }
+.remember-me { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13.5px; color: var(--text); cursor: pointer; user-select: none; }
+.remember-me input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .success-note { color: #137333; font-size: 13px; }
 .loading-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; color: var(--text-dim); }
 .muted { color: var(--text-dim); }

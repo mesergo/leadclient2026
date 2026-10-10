@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash         VARCHAR(255) NULL,
   google_id             VARCHAR(255) NULL,
   phone_verified_at     DATETIME NULL,
+  must_change_password  TINYINT(1) NOT NULL DEFAULT 0,
   language              VARCHAR(5) NULL DEFAULT 'he',
   notifications         JSON NULL,
   email_notifications   JSON NULL,

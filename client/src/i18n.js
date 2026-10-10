@@ -10,6 +10,12 @@ export const LANGS = [
 const DICT = {
   he: {
     brand: 'LeadClient',
+    'login.remember': 'זכור אותי במחשב הזה',
+    'pw.rule.length': 'לפחות 8 תווים', 'pw.rule.letter': 'לפחות אות אחת (עברית או אנגלית)', 'pw.rule.digit': 'לפחות ספרה אחת',
+    'pw.rule.personal': 'לא מכילה את שם המשתמש או כתובת המייל', 'pw.rule.common': 'לא סיסמה נפוצה (כמו 12345678 או password1)',
+    'pw.title': 'כללי סיסמה', 'pw.weak': 'הסיסמה לא עומדת בכללים',
+    'pw.force.title': 'יש לעדכן סיסמה', 'pw.force.text': 'הסיסמה הנוכחית שלך לא עומדת בכללי האבטחה החדשים. כדי להמשיך, יש לבחור סיסמה חדשה.',
+    'pw.force.submit': 'עדכון סיסמה והמשך', 'pw.force.logout': 'יציאה',
     'nav.dashboard': 'מרכז שליטה', 'nav.agencies': 'סוכנויות', 'nav.companies': 'חברות', 'nav.channels': 'ערוצים',
     'nav.leads': 'לידים', 'nav.import': 'ייבוא לידים', 'nav.virtual': 'מספרים וירטואליים',
     'nav.reports': 'דוחות', 'nav.contacts': 'אנשי קשר', 'nav.users': 'משתמשים',
@@ -132,6 +138,12 @@ const DICT = {
   },
   en: {
     brand: 'LeadClient',
+    'login.remember': 'Remember me on this computer',
+    'pw.rule.length': 'At least 8 characters', 'pw.rule.letter': 'At least one letter', 'pw.rule.digit': 'At least one digit',
+    'pw.rule.personal': 'Does not contain your username or email', 'pw.rule.common': 'Not a common password (like 12345678 or password1)',
+    'pw.title': 'Password rules', 'pw.weak': 'The password does not meet the rules',
+    'pw.force.title': 'Please update your password', 'pw.force.text': 'Your current password does not meet the new security rules. Choose a new password to continue.',
+    'pw.force.submit': 'Update password and continue', 'pw.force.logout': 'Sign out',
     'nav.dashboard': 'Dashboard', 'nav.agencies': 'Agencies', 'nav.companies': 'Companies', 'nav.channels': 'Channels',
     'nav.leads': 'Leads', 'nav.import': 'Import Leads', 'nav.virtual': 'Virtual Numbers',
     'nav.reports': 'Reports', 'nav.contacts': 'Contacts', 'nav.users': 'Users',

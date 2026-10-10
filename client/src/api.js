@@ -31,9 +31,9 @@ const qs = (p) => {
 
 export const API_ORIGIN = API_URL;
 export const api = {
-  login: (username, password) => request('/api/auth/login', { method: 'POST', body: { username, password } }),
+  login: (username, password, remember) => request('/api/auth/login', { method: 'POST', body: { username, password, remember: !!remember } }),
   me: (token) => request('/api/auth/me', { token }),
-  googleLogin: (credential) => request('/api/auth/google', { method: 'POST', body: { credential } }),
+  googleLogin: (credential, remember) => request('/api/auth/google', { method: 'POST', body: { credential, remember: !!remember } }),
   // public trial registration (optional agency token; without one -> default agency)
   registerInfo: (token, pkg) => request(`${token ? `/api/auth/register/${token}` : '/api/auth/register'}${pkg ? `?pkg=${encodeURIComponent(pkg)}` : ''}`),
   register: (token, body) => request(token ? `/api/auth/register/${token}` : '/api/auth/register', { method: 'POST', body }),
@@ -41,7 +41,7 @@ export const api = {
   registerGoogle: (token, credential, extra) => request(token ? `/api/auth/register/${token}/google` : '/api/auth/register/google', { method: 'POST', body: { credential, ...(extra || {}) } }),
   // phone OTP login
   phoneRequest: (phone) => request('/api/auth/phone/request', { method: 'POST', body: { phone } }),
-  phoneVerify: (phone, code) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code } }),
+  phoneVerify: (phone, code, remember) => request('/api/auth/phone/verify', { method: 'POST', body: { phone, code, remember: !!remember } }),
   // verify the logged-in user's own phone
   phoneVerifyRequest: (token, phone) => request('/api/auth/phone/verify-request', { method: 'POST', body: { phone }, token }),
   phoneVerifyConfirm: (token, code) => request('/api/auth/phone/verify-confirm', { method: 'POST', body: { code }, token }),

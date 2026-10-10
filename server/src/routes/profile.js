@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
+const passwordPolicy = require('../services/passwordPolicy');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -40,12 +41,16 @@ router.patch('/', asyncHandler(async (req, res) => {
 router.patch('/password', asyncHandler(async (req, res) => {
   const { current_password, new_password } = req.body || {};
   if (!new_password) return res.status(400).json({ error: 'חסרה סיסמה חדשה' });
-  const rows = await query('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
+  const rows = await query('SELECT password_hash, username, email, display_name FROM users WHERE id = ?', [req.user.id]);
   if (rows[0] && rows[0].password_hash) {
     const ok = await bcrypt.compare(current_password || '', rows[0].password_hash);
     if (!ok) return res.status(400).json({ error: 'סיסמה נוכחית שגויה' });
+    if (current_password === new_password) return res.status(400).json({ error: 'הסיסמה החדשה חייבת להיות שונה מהנוכחית' });
   }
-  await query('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(new_password, 10), req.user.id]);
+  const pol = passwordPolicy.check(new_password, rows[0] || {});
+  if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
+  // a compliant new password clears the forced-change flag
+  await query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [await bcrypt.hash(new_password, 10), req.user.id]);
   res.json({ ok: true });
 }));
 

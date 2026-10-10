@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import PasswordRules from '../components/PasswordRules';
 import GoogleButton from '../components/GoogleButton';
 import logo from '../assets/logo.png';
 
@@ -131,6 +132,7 @@ export default function RegisterPage() {
           <input type="tel" inputMode="tel" placeholder="05X-XXXXXXX" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
         <div className="field"><label>{t('login.password')}</label>
           <input type="password" value={f.password} onChange={(e) => set('password', e.target.value)} /></div>
+        <PasswordRules password={f.password} ctx={{ username: f.email, email: f.email, display_name: f.full_name }} />
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || !agency}>
           {busy ? t('reg.creating') : t('reg.create')}
         </button>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import PasswordRules from '../components/PasswordRules';
 import logo from '../assets/logo.png';
 
 // Employee accepts a company invite. The email/phone the manager set are locked;
@@ -74,6 +75,7 @@ export default function InvitePage() {
 
         <div className="field"><label>{t('login.password')}</label>
           <input type="password" value={f.password} onChange={(e) => set('password', e.target.value)} /></div>
+        <PasswordRules password={f.password} ctx={{ username: info?.email || f.email, email: info?.email || f.email, display_name: f.full_name }} />
 
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy || !info}>
           {busy ? t('reg.creating') : t('inv.join')}

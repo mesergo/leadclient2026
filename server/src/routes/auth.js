@@ -3,7 +3,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
-const { issueToken } = require('../services/authService');
+const { issueToken, sessionTtl } = require('../services/authService');
+const passwordPolicy = require('../services/passwordPolicy');
 const otp = require('../services/otp');
 const messergo = require('../services/messergo');
 const googleAuth = require('../services/googleAuth');
@@ -11,27 +12,29 @@ const icount = require('../services/icount');
 const config = require('../config');
 
 const router = express.Router();
-const USER_COLS = 'id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at';
+const USER_COLS = 'id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at, must_change_password';
 
 // Find an active user by phone (format-agnostic: match on the last 9 digits).
 async function findUserByPhone(phone) {
   const key = messergo.digits(phone).slice(-9);
   if (key.length < 9) return null;
   const rows = await query(
-    `SELECT id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at
+    `SELECT id, username, display_name, role, company_id, agency_id, is_active, phone, phone_verified_at, must_change_password
        FROM users WHERE is_active = 1 AND phone IS NOT NULL
          AND REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?) LIMIT 1`, [key]);
   return rows[0] || null;
 }
 
-function sessionPayload(user) {
+// body = the login request body: decides the session length (remember me / mobile app).
+function sessionPayload(user, body) {
   return {
-    token: issueToken(user),
+    token: issueToken(user, {}, { expiresIn: sessionTtl(body) }),
     user: {
       id: user.id, name: user.display_name || user.username, role: user.role,
       company_id: user.company_id, agency_id: user.agency_id,
       phone: user.phone || null, phone_verified_at: user.phone_verified_at || null,
       phone_verify_required: config.requirePhoneVerify,
+      must_change_password: !!user.must_change_password,
     },
   };
 }
@@ -40,7 +43,7 @@ router.post('/login', async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
-    const cols = 'id, username, display_name, role, company_id, agency_id, password_hash, is_active, phone, phone_verified_at';
+    const cols = 'id, username, email, display_name, role, company_id, agency_id, password_hash, is_active, phone, phone_verified_at, must_change_password';
     let rows = await query(`SELECT ${cols} FROM users WHERE username = ? LIMIT 1`, [username]);
     let user = rows[0];
     // fall back to email — but only when it resolves to exactly one active, password user
@@ -53,12 +56,18 @@ router.post('/login', async (req, res, next) => {
     }
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: 'פרטי התחברות שגויים' });
+    // Only at login do we see the plain password: if it no longer meets the policy,
+    // flag the account so the client forces a password change before entering.
+    if (!user.must_change_password && !passwordPolicy.check(password, user).ok) {
+      await query('UPDATE users SET must_change_password = 1 WHERE id = ?', [user.id]);
+      user.must_change_password = 1;
+    }
     // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
     if ((user.role === 'agency_admin' || user.role === 'sales_manager') && !user.agency_id && user.company_id) {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
-    res.json(sessionPayload(user));
+    res.json(sessionPayload(user, req.body));
   } catch (e) {
     next(e);
   }
@@ -104,7 +113,7 @@ async function createTrialAccount(agency, { company_name, full_name, email, phon
   if (!/^972\d{8,9}$/.test(messergo.digits(messergo.toE164(phone)))) throw httpErr(400, 'מספר נייד לא תקין');
   if (!google_id) {
     if (!password) throw httpErr(400, 'חסרה סיסמה');
-    if (String(password).length < 6) throw httpErr(400, 'הסיסמה חייבת לפחות 6 תווים');
+    passwordPolicy.assertStrong(password, { username: email, email, display_name: full_name });
   }
   const exists = await query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', [email, email]);
   if (exists[0]) throw httpErr(409, 'כבר קיים משתמש עם אימייל זה');
@@ -182,7 +191,7 @@ async function googleRegisterHandler(req, res, next) {
         const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
         if (c[0]) user.agency_id = c[0].agency_id;
       }
-      return res.json(sessionPayload(user));
+      return res.json(sessionPayload(user, req.body));
     }
     const agency = await resolveSignupAgency(token);
     if (!agency) return res.status(404).json({ error: token ? 'קישור הרשמה לא תקין' : 'הרשמה אינה זמינה כרגע' });
@@ -243,7 +252,7 @@ router.post('/google', async (req, res, next) => {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
-    res.json(sessionPayload(user));
+    res.json(sessionPayload(user, req.body));
   } catch (e) { next(e); }
 });
 
@@ -275,7 +284,7 @@ router.post('/phone/verify', async (req, res, next) => {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [user.company_id]);
       if (c[0]) user.agency_id = c[0].agency_id;
     }
-    res.json(sessionPayload(user));
+    res.json(sessionPayload(user, req.body));
   } catch (e) { next(e); }
 });
 
@@ -310,13 +319,13 @@ router.post('/phone/verify-confirm', requireAuth, async (req, res, next) => {
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const rows = await query(
-      'SELECT id, username, display_name, first_name, last_name, email, phone, phone_verified_at, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
+      'SELECT id, username, display_name, first_name, last_name, email, phone, phone_verified_at, must_change_password, role, company_id, agency_id, language FROM users WHERE id = ? LIMIT 1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
     const u = rows[0];
     const name = u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
-    res.json({ user: { ...rows[0], name, impersonated_by: req.user.impersonated_by, phone_verify_required: config.requirePhoneVerify } });
+    res.json({ user: { ...rows[0], must_change_password: !!u.must_change_password, name, impersonated_by: req.user.impersonated_by, phone_verify_required: config.requirePhoneVerify } });
   } catch (e) {
     next(e);
   }

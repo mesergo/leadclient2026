@@ -42,6 +42,8 @@ async function ensureSchema() {
   await safe('leads.call_uuid_idx', () => ensureIndex('leads', 'idx_leads_call_uuid', 'call_uuid'));
   // when a user's phone was verified via OTP (enables phone login)
   await safe('users.phone_verified_at', () => ensureColumn('users', 'phone_verified_at', "phone_verified_at DATETIME NULL"));
+  // set at login when the user's password no longer meets the policy -> forced change
+  await safe('users.must_change_password', () => ensureColumn('users', 'must_change_password', "must_change_password TINYINT(1) NOT NULL DEFAULT 0"));
   // public self-registration: a per-agency signup token
   await safe('agencies.public_token', async () => {
     await ensureColumn('agencies', 'public_token', "public_token CHAR(36) NULL");

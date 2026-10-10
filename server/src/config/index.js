@@ -19,7 +19,12 @@ module.exports = {
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev_insecure_secret_change_me',
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    // regular web session (no "remember me") — the browser also drops it on close (sessionStorage)
+    expiresIn: process.env.JWT_EXPIRES_IN || '12h',
+    // "remember me on this computer"
+    rememberExpiresIn: process.env.REMEMBER_ME_EXPIRES_IN || '30d',
+    // native mobile app (login body has client: "mobile")
+    mobileExpiresIn: process.env.MOBILE_JWT_EXPIRES_IN || '90d',
   },
   uploadDir: process.env.UPLOAD_DIR || require('path').resolve(__dirname, '../../public/uploads'),
   vapid: {

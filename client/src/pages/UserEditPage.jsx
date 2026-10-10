@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
+import PasswordRules from '../components/PasswordRules';
 
 const ROLES = ['super_admin', 'agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'];
 const ROLE_LABELS = {
@@ -146,6 +147,7 @@ export default function UserEditPage() {
           {tab === 'password' && (<>
             <div className="form-field"><label>{t('ue.newPassword')}</label><div className="form-field-control">
               <input type="password" value={pw.new_password} onChange={(e) => setPw({ ...pw, new_password: e.target.value })} /></div></div>
+            <PasswordRules password={pw.new_password} ctx={{ username: form.username || u?.username, email: form.email || u?.email, display_name: form.display_name || u?.display_name }} />
             <div className="form-field"><label>{t('ue.confirmPassword')}</label><div className="form-field-control">
               <input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></div></div>
           </>)}

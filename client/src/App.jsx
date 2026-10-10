@@ -27,6 +27,7 @@ import ContactsPage from './pages/ContactsPage';
 import ContactDetailPage from './pages/ContactDetailPage';
 import UsersPage from './pages/UsersPage';
 import UserEditPage from './pages/UserEditPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import ImportPage from './pages/ImportPage';
 import VirtualPage from './pages/VirtualPage';
 import ReportsPage from './pages/ReportsPage';
@@ -49,6 +50,8 @@ function Protected() {
   if (!user) return <div className="loading-screen">טוען...</div>; // /me still resolving
   // mandatory phone verification before entering (unless disabled server-side, or impersonating)
   if (user.phone_verify_required !== false && !user.phone_verified_at && !impersonatorName) return <VerifyPhonePage />;
+  // password no longer meets the policy (flagged by the server at login) -> forced change
+  if (user.must_change_password && !impersonatorName) return <ChangePasswordPage />;
   return <BillingGate />;
 }
 // Mandatory billing setup for self-registered companies (standing order via iCount)

@@ -8,6 +8,7 @@ const channelWebhook = require('../services/channelWebhook');
 const messergo = require('../services/messergo');
 const config = require('../config');
 const { issueToken } = require('../services/authService');
+const passwordPolicy = require('../services/passwordPolicy');
 
 const router = express.Router();
 
@@ -38,7 +39,9 @@ router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
   const email = inv.email || (req.body.email || null);
   const phone = inv.phone || (req.body.phone ? messergo.toE164(req.body.phone) : null);
   if (!full_name || !String(full_name).trim()) return res.status(400).json({ error: 'חסר שם מלא' });
-  if (!password || String(password).length < 6) return res.status(400).json({ error: 'הסיסמה חייבת לפחות 6 תווים' });
+  if (!password) return res.status(400).json({ error: 'חסרה סיסמה' });
+  const pol = passwordPolicy.check(password, { username: inv.email || req.body.email, email: inv.email || req.body.email, display_name: full_name });
+  if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
   if (!email && !phone) return res.status(400).json({ error: 'יש להזין אימייל או נייד' });
   if (email && !emailOk(email)) return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
   if (phone && !/^972\d{8,9}$/.test(messergo.digits(phone))) return res.status(400).json({ error: 'מספר נייד לא תקין' });
