@@ -573,3 +573,10 @@ button.channel-name.link-name:hover { text-decoration: underline; }
   .table-wrap .data-table td { white-space: nowrap; }
   .table-wrap { -webkit-overflow-scrolling: touch; }
 }
+/* logo -> dashboard (sidebar on desktop, header on phones where the sidebar is hidden) */
+a.sidebar-logo { display: block; }
+a.sidebar-logo:hover { text-decoration: none; background: rgba(0,131,143,0.04); }
+.header-logo { display: none; flex: none; }
+.header-logo img { height: 26px; display: block; }
+@media (max-width: 860px) { .header-logo { display: inline-flex; } }
+@media (max-width: 520px) { .header-user-text { display: none; } .header-logo img { height: 24px; } }

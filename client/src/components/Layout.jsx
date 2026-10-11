@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
-import { LANGS } from '../i18n';
 import * as Icons from '../icons';
 import NotificationBell from './NotificationBell';
 import Dialer from './Dialer';
@@ -36,7 +35,7 @@ const CRUMB_KEY = {
 
 export default function Layout() {
   const { user, logout, impersonatorName, stopImpersonation } = useAuth();
-  const { t, lang, setLang, langs } = useLang();
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [dialer, setDialer] = useState(false);
   const loc = useLocation();
@@ -52,7 +51,7 @@ export default function Layout() {
     <div className="app-shell">
       <div className={'nav-backdrop' + (open ? ' show' : '')} onClick={() => setOpen(false)} />
       <aside className={'sidebar' + (open ? ' open' : '')}>
-        <div className="sidebar-logo"><img src={logo} alt="LeadClient" className="sidebar-logo-img" /></div>
+        <NavLink to="/" className="sidebar-logo" title={t('nav.dashboard')} onClick={() => setOpen(false)}><img src={logo} alt="LeadClient" className="sidebar-logo-img" /></NavLink>
         <nav className="nav" onClick={() => setOpen(false)}>
           {items.map(({ to, key, Icon, end }) => (
             <NavLink key={to} to={to} end={end}><Icon size={18} /> {t(key)}</NavLink>
@@ -68,18 +67,13 @@ export default function Layout() {
         )}
         <header className="header">
           <button className="hamburger" onClick={() => setOpen((v) => !v)} aria-label="menu"><Icons.Menu /></button>
+          <NavLink to="/" className="header-logo" title={t('nav.dashboard')}><img src={logo} alt="LeadClient" /></NavLink>
           <NavLink to="/profile" className="header-user" title={t('nav.profile')}>
             <Icons.User size={18} /> <span className="header-user-text"><span className="header-welcome">{t('header.welcome')}, </span><strong>{user?.name || user?.display_name || user?.username || ''}</strong></span>
           </NavLink>
           <div className="header-actions">
             <button className="icon-btn" title={t('dial.title')} onClick={() => setDialer(true)}><Icons.Phone size={18} /></button>
             <NotificationBell />
-            <label className="lang-picker" title={t('nav.language')}>
-              <Icons.Globe size={16} />
-              <select value={lang} onChange={(e) => setLang(e.target.value)}>
-                {langs.map((l) => <option key={l.slug} value={l.slug}>{l.language}</option>)}
-              </select>
-            </label>
             <a href="#" className="header-logout" title={t('header.logout')} onClick={(e) => { e.preventDefault(); logout(); }}><Icons.Logout size={18} /><span>{t('header.logout')}</span></a>
           </div>
         </header>
