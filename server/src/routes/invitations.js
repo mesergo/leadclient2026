@@ -42,7 +42,11 @@ router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), as
     `INSERT INTO employee_invites (company_id, invited_by, email, phone, token, role, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, (NOW() + INTERVAL 14 DAY))`,
     [companyId, req.user.id, email || null, phoneE164, token, role === 'company_admin' ? 'company_admin' : 'company_user']);
-  const link = `${config.appUrl || ''}/invite/${token}`;
+  // always an absolute link (it is also sent by SMS): APP_URL, else the local dev
+  // origin the request came from, else the production public URL
+  const origin = String(req.get('origin') || '');
+  const base = config.appUrl || (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ? origin : config.publicUrl);
+  const link = `${base}/invite/${token}`;
 
   // best-effort SMS of the link (if a phone was given and it is not a duplicate)
   if (phoneE164 && dup !== 'other') messergo.sendSms({ phone: phoneE164, text: `הוזמנת להצטרף ל-${ok[0].name} בלידקליינט: ${link}` }).catch(() => {});
