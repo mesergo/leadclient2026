@@ -48,7 +48,7 @@
 **חוזה:** `POST /api/callbacks` — גוף `{ from_number, via_number, target_number, lead_id?: number }`. אם `lead_id` נשלח — לוודא שהליד שייך לחברה של המשתמש (אחרת 403). בלי `lead_id` — התנהגות כמו היום.
 **Acceptance:** חיוג מכרטיס ליד קיים → ההקלטה וה-call_status נרשמים על **הליד המקורי**, לא נוצר ליד כפול.
 
-### 3. סינון "הלידים שלי"
+### 3. סינון "הלידים שלי" ✅ בוצע (`mine` / `unassigned` / `agent_id` מעל `leadScope`)
 **מצב נוכחי:** `GET /api/leads` (`routes/leads.js:31`) — אין סינון לפי נציג. יש `extra` (בניית WHERE) כנקודת הרחבה. השדה הרלוונטי: `l.current_agent_id`.
 **לבצע (חוזה — שלושתם):** `mine=1` (→ `current_agent_id = req.user.id`), `unassigned=1` (→ `current_agent_id IS NULL`), `agent_id=<n>`.
 **Acceptance:** כל אחד מהפרמטרים מצמצם נכון; בלעדיהם התנהגות כמו היום.

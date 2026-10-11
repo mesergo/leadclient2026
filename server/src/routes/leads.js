@@ -32,13 +32,17 @@ router.get('/', asyncHandler(async (req, res) => {
   const s = leadScope(req.user, 'l');
   const params = [...s.params];
   let extra = '';
-  const { company_id, service_id, status_id, start, end, q, agency } = req.query;
+  const { company_id, service_id, status_id, start, end, q, agency, mine, unassigned, agent_id } = req.query;
   if (agency) { extra += ' AND l.company_id IN (SELECT id FROM companies WHERE agency_id = ?)'; params.push(agency); }
   if (company_id) { extra += ' AND l.company_id = ?'; params.push(company_id); }
   if (service_id) { extra += ' AND l.service_id = ?'; params.push(service_id); }
   if (status_id) { extra += ' AND l.status_id = ?'; params.push(status_id); }
   if (start) { extra += ' AND l.created_at >= ?'; params.push(start + ' 00:00:00'); }
   if (end) { extra += ' AND l.created_at <= ?'; params.push(end + ' 23:59:59'); }
+  // "my leads" filters — narrow on top of leadScope (a restricted agent's unassigned is always empty)
+  if (mine === '1' || mine === 'true') { extra += ' AND l.current_agent_id = ?'; params.push(req.user.id); }
+  if (unassigned === '1' || unassigned === 'true') extra += ' AND l.current_agent_id IS NULL';
+  if (agent_id) { extra += ' AND l.current_agent_id = ?'; params.push(Number(agent_id)); }
   if (q) { extra += ' AND (l.lead_name LIKE ? OR l.lead_phone LIKE ? OR l.lead_email LIKE ?)'; params.push('%' + q + '%', '%' + q + '%', '%' + q + '%'); }
   const rows = await query(
     `SELECT l.id, l.lead_name, l.lead_phone, l.lead_email, l.lead_rating, l.lead_through, l.company_id, l.service_id, l.status_id,
