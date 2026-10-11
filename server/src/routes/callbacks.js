@@ -1,12 +1,12 @@
 const express = require('express');
-const { query, companyScope } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { query, companyScope, leadScope } = require('../db/pool');
+const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const messergo = require('../services/messergo');
 const maskyoo = require('../services/maskyoo');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth, loadLeadRestriction);
 
 // Options for the dialer dropdowns, scoped to what the user may see (super_admin →
 // all, agency_admin → their agencies, company roles → their company): the agents'
@@ -31,20 +31,29 @@ router.get('/options', asyncHandler(async (req, res) => {
 // a dedicated outbound call (create_maskyoo_call_v2). This does NOT touch the
 // virtual number's general routing — it is specific to this call only.
 router.post('/', asyncHandler(async (req, res) => {
-  const { from_number, via_number, target_number } = req.body || {};
+  const { from_number, via_number, target_number, lead_id } = req.body || {};
   if (!from_number || !target_number) return res.status(400).json({ error: 'חסר מספר מוצא או יעד' });
   if (!via_number) return res.status(400).json({ error: 'חסר מספר וירטואלי לחיוג דרכו' });
   const from = messergo.toE164(from_number);
   const target = messergo.toE164(target_number);
   const via = messergo.toE164(via_number);
   const companyId = req.user.company_id || null;
+  // optional: dialing from an existing lead's card -> the call is recorded on THAT lead
+  // (no new call_out lead). Must be a lead the user may see (restricted agent -> own only).
+  let leadId = null;
+  if (lead_id) {
+    const s = leadScope(req.user);
+    const own = await query(`SELECT id FROM leads WHERE id = ? AND (${s.sql})`, [lead_id, ...s.params]);
+    if (!own[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
+    leadId = own[0].id;
+  }
 
   // Record the intent BEFORE placing the call, so the inbound webhook can match it
   // by the customer (DEST) and build the single call_out lead. No dial-time lead.
   await query("UPDATE callbacks SET status = 'expired' WHERE user_id = ? AND status = 'pending'", [req.user.id]);
   const cb = await query(
-    "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-    [companyId, req.user.id, from, via, target]);
+    "INSERT INTO callbacks (company_id, user_id, from_number, via_number, target_number, lead_id, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')",
+    [companyId, req.user.id, from, via, target, leadId]);
 
   // place the dedicated bridged call (does NOT change call_destination_phone)
   const placed = await maskyoo.createCall({ maskyooNumber: via, agent: from, customer: target });

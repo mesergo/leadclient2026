@@ -311,7 +311,21 @@ async function processCall(num, req, res, logId) {
         announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal, agent);
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: 'callback_out' });
       } else { // lead exists -> attach the recording as soon as any webhook carries it; finalize on end
-        if (recStore) await query("UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '')", [recStore, leadId]);
+        if (cb.status === 'pending') {
+          // first webhook of a dial placed from an existing lead's card (callbacks.lead_id set at
+          // dial time): mark this call on that lead. Keep its agent; only fill one if it has none.
+          await query("UPDATE callbacks SET status = 'used', used_at = NOW() WHERE id = ?", [cb.id]);
+          await query(
+            `UPDATE leads SET call_status = 'active', call_uuid = COALESCE(?, call_uuid),
+               current_agent_id = COALESCE(current_agent_id, ?),
+               lead_info = CONCAT(COALESCE(lead_info, ''), '
+[שיחה יוצאת] חיוג מהחייגן'), updated_at = NOW() WHERE id = ?`,
+            [callUuid, cb.user_id, leadId]);
+        }
+        // the recording belongs to THIS call: fill an empty one, or replace one from this same call
+        if (recStore) await query(
+          "UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '' OR (? IS NOT NULL AND call_uuid = ?))",
+          [recStore, leadId, callUuid, callUuid]);
         if (isEnd) await query(
           'UPDATE leads SET call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec), lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), last_interaction_at = NOW(), last_interaction_type = \'call_out\', updated_at = NOW() WHERE id = ?',
           [answered ? 'answered' : 'missed', durSec, `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
