@@ -316,6 +316,18 @@ router.post('/phone/verify-confirm', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /api/auth/handoff { client: "mobile" } — the web app at /m (same origin) trades the
+// logged-in web session for its own app-length session, so the user isn't asked to log in again.
+// Not for impersonation sessions (those stay short and web-only).
+router.post('/handoff', requireAuth, async (req, res, next) => {
+  try {
+    if (req.user.impersonated_by) return res.status(403).json({ error: 'לא זמין בהתחזות' });
+    const rows = await query(`SELECT ${USER_COLS} FROM users WHERE id = ? AND is_active = 1 LIMIT 1`, [req.user.id]);
+    if (!rows[0]) return res.status(401).json({ error: 'משתמש לא פעיל' });
+    res.json(sessionPayload(rows[0], { client: 'mobile' }));
+  } catch (e) { next(e); }
+});
+
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const rows = await query(
