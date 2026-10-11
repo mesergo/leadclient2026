@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LangProvider } from './context/LangContext';
 import { api } from './api';
 import Layout from './components/Layout';
+import MobileAppBanner from './components/MobileAppBanner';
 import BillingSetupPage from './pages/BillingSetupPage';
 import PayLinkPage from './pages/PayLinkPage';
 import LoginPage from './pages/LoginPage';
@@ -119,5 +120,5 @@ function Routing() {
 }
 
 export default function App() {
-  return (<BrowserRouter><LangProvider><AuthProvider><Routing /></AuthProvider></LangProvider></BrowserRouter>);
+  return (<BrowserRouter><LangProvider><MobileAppBanner /><AuthProvider><Routing /></AuthProvider></LangProvider></BrowserRouter>);
 }

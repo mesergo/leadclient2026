@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#00838F" />
+    <meta name="description" content="ניהול לידים מהנייד: רשימת לידים, חיוג מהיר, תזכורות והתראות." />
+    <!-- התקנה כאפליקציה (PWA): אנדרואיד דרך manifest, אייפון דרך "הוסף למסך הבית" -->
+    <link rel="manifest" href="/m/manifest.json" />
+    <link rel="apple-touch-icon" href="/m/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="LeadClient" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>LeadClient</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+        background: #00838F; /* מאחורי ה-notch באייפון במצב standalone */
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+        background: #F4F6F8;
+      }
+      /* ספארי מגדיל אוטומטית שדות עם פונט קטן מ-16px — מונעים קפיצת זום */
+      input, textarea, select { font-size: 16px; }
+    </style>
+  <meta name="theme-color" content="#00838F">
+<link rel="icon" href="/m/favicon.ico"/></head>
+
+  <body>
+    <noscript>יש להפעיל JavaScript כדי להשתמש באפליקציה.</noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script src="/m/_expo/static/js/web/index-4136d75f7c1ecf3c5848cd47e81ba2f0.js" defer></script>
+</body>
+</html>

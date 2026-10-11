@@ -14,3 +14,5 @@ db/prod-*.sql
 *.png
 *.log
 npm-debug.log*
+# the mobile web app (served at /m) needs its icons
+!mobile-web/**

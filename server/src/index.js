@@ -29,6 +29,14 @@ require('./routes')(app);
 
 app.use('/api', notFound);
 
+// mobile app as an installable web app (PWA for iPhone) — built from leadclient-mobile (build-web.sh)
+const mobileDist = path.resolve(__dirname, '../../mobile-web');
+if (fs.existsSync(mobileDist)) {
+  app.get(/^\/m$/, (req, res) => res.redirect(301, '/m/')); // exact /m only (non-strict routing would loop on /m/)
+  app.use('/m', express.static(mobileDist));
+  app.get('/m/*', (req, res) => res.sendFile(path.join(mobileDist, 'index.html')));
+}
+
 // serve built client (production) with SPA fallback
 const clientDist = path.resolve(__dirname, '../../client/dist');
 if (fs.existsSync(clientDist)) {
