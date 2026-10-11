@@ -437,6 +437,7 @@ CREATE TABLE IF NOT EXISTS reminders (
   reminder_at           DATETIME NOT NULL,
   comment               TEXT NULL,
   notified              TINYINT(1) NOT NULL DEFAULT 0,
+  done_at               DATETIME NULL,
   CONSTRAINT fk_reminder_lead FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE,
   INDEX idx_reminder_user_date (user_id, reminder_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

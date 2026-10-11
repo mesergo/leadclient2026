@@ -8,7 +8,7 @@ async function tick() {
     const due = await query(
       `SELECT r.id, r.user_id, r.comment, r.lead_id, l.lead_name, l.lead_phone
        FROM reminders r JOIN leads l ON l.id = r.lead_id
-       WHERE r.notified = 0 AND r.reminder_at <= NOW() AND r.user_id IS NOT NULL
+       WHERE r.notified = 0 AND r.done_at IS NULL AND r.reminder_at <= NOW() AND r.user_id IS NOT NULL
        ORDER BY r.reminder_at ASC LIMIT 100`);
     for (const r of due) {
       await notify.notifyUser({

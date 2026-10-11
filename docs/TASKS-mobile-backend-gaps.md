@@ -68,7 +68,7 @@
 ### 5. הפעלת החיוג בפרודקשן *(devops — לא קוד)*
 לוודא ב-Coolify: `MASKYOO_TOKEN` + `APP_URL` נכונים; לנציגים יש מספר וירטואלי משויך + נייד בפרופיל. **Redeploy** (גם כדי להעלות את מחזור הערוצים האחרון — ראו `HANDOFF-2026-10-channels-telephony.md`).
 
-### 6. תזכורות
+### 6. תזכורות ✅ בוצע (`mine`/`from`/`to`/`include_done`, `done_at` + `PATCH {done}`, הפולר מדלג על בוצעו, `lead_name` מתמלא)
 **מצב נוכחי:** `GET /api/reminders` מחזיר את כל תזכורות החברה (עד 200), בלי סינון. אין סימון "בוצעה" — מוחקים ב-DELETE.
 **באג מאומת:** `POST /api/leads/:id/reminders` (`routes/leads.js:183`) **לא** ממלא `reminders.lead_name`, בניגוד ל-`POST /api/reminders` (`routes/reminders.js:25` שכן ממלא).
 **לבצע:**

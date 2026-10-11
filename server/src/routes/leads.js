@@ -98,7 +98,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const conversations = await query(
     'SELECT id, user_id, content, send_by, comment, from_me, created_at FROM lead_conversations WHERE lead_id = ? ORDER BY created_at DESC', [req.params.id]);
   const tags = await query('SELECT t.id, t.label FROM lead_tags lt JOIN tags t ON t.id = lt.tag_id WHERE lt.lead_id = ?', [req.params.id]);
-  const reminders = await query('SELECT id, reminder_at, comment, user_id FROM reminders WHERE lead_id = ? ORDER BY reminder_at ASC', [req.params.id]);
+  const reminders = await query('SELECT id, reminder_at, comment, user_id, done_at FROM reminders WHERE lead_id = ? ORDER BY reminder_at ASC', [req.params.id]);
   const statuses = await query('SELECT id, text, color FROM lead_statuses WHERE company_id = ? ORDER BY sort_order', [lead.company_id]);
   const agents = await query(
     "SELECT id, display_name FROM users WHERE company_id = ? AND is_active = 1 AND role IN ('company_admin','company_user') ORDER BY display_name", [lead.company_id]);
@@ -204,8 +204,8 @@ router.post('/:id/reminders', asyncHandler(async (req, res) => {
   if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
   const { reminder_at, comment } = req.body || {};
   if (!reminder_at) return res.status(400).json({ error: 'חסר תאריך' });
-  await query('INSERT INTO reminders (lead_id, user_id, reminder_at, comment) VALUES (?, ?, ?, ?)',
-    [req.params.id, req.user.id, reminder_at, comment || null]);
+  await query('INSERT INTO reminders (lead_id, user_id, lead_name, reminder_at, comment) VALUES (?, ?, ?, ?, ?)',
+    [req.params.id, req.user.id, lead.lead_name || null, reminder_at, comment || null]);
   await touchLead(req.params.id);
   res.status(201).json({ ok: true });
 }));
