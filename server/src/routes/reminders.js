@@ -24,6 +24,7 @@ router.post('/', asyncHandler(async (req, res) => {
   if (!lead[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
   const r = await query('INSERT INTO reminders (lead_id, user_id, lead_name, reminder_at, comment) VALUES (?, ?, ?, ?, ?)',
     [lead_id, req.user.id, lead[0].lead_name, reminder_at, comment || null]);
+  await query('UPDATE leads SET updated_at = NOW() WHERE id = ?', [lead_id]);
   res.status(201).json({ reminder: { id: r.insertId } });
 }));
 

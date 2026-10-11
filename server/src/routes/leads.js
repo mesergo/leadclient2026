@@ -32,7 +32,7 @@ router.get('/', asyncHandler(async (req, res) => {
   const s = leadScope(req.user, 'l');
   const params = [...s.params];
   let extra = '';
-  const { company_id, service_id, status_id, start, end, q, agency, mine, unassigned, agent_id } = req.query;
+  const { company_id, service_id, status_id, start, end, q, agency, mine, unassigned, agent_id, updated_since } = req.query;
   if (agency) { extra += ' AND l.company_id IN (SELECT id FROM companies WHERE agency_id = ?)'; params.push(agency); }
   if (company_id) { extra += ' AND l.company_id = ?'; params.push(company_id); }
   if (service_id) { extra += ' AND l.service_id = ?'; params.push(service_id); }
@@ -43,11 +43,14 @@ router.get('/', asyncHandler(async (req, res) => {
   if (mine === '1' || mine === 'true') { extra += ' AND l.current_agent_id = ?'; params.push(req.user.id); }
   if (unassigned === '1' || unassigned === 'true') extra += ' AND l.current_agent_id IS NULL';
   if (agent_id) { extra += ' AND l.current_agent_id = ?'; params.push(Number(agent_id)); }
+  if (updated_since) { extra += ' AND l.updated_at > ?'; params.push(updated_since); } // Israel time, like every API date
   if (q) { extra += ' AND (l.lead_name LIKE ? OR l.lead_phone LIKE ? OR l.lead_email LIKE ?)'; params.push('%' + q + '%', '%' + q + '%', '%' + q + '%'); }
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 500);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   const rows = await query(
     `SELECT l.id, l.lead_name, l.lead_phone, l.lead_email, l.lead_rating, l.lead_through, l.company_id, l.service_id, l.status_id,
             l.call_status, l.recording_url,
-            l.current_agent_id, l.is_converted, l.created_at, l.last_interaction_at, l.last_interaction_type,
+            l.current_agent_id, l.is_converted, l.created_at, l.updated_at, l.last_interaction_at, l.last_interaction_type,
             c.name AS company_name, a.name AS agency_name, sv.name AS service_name, sv.service_type,
             st.text AS status_text, st.color AS status_color,
             u.display_name AS agent_name, u.current_status AS agent_status
@@ -57,7 +60,11 @@ router.get('/', asyncHandler(async (req, res) => {
      LEFT JOIN services sv ON sv.id = l.service_id
      LEFT JOIN lead_statuses st ON st.id = l.status_id
      LEFT JOIN users u ON u.id = l.current_agent_id
-     WHERE (${s.sql})${extra} ORDER BY l.created_at DESC LIMIT 500`, params);
+     WHERE (${s.sql})${extra} ORDER BY l.created_at DESC, l.id DESC LIMIT ${limit} OFFSET ${offset}`, params);
+  // total under the same scope + filters (no limit) — cheap path when the page isn't full
+  const total = offset === 0 && rows.length < limit
+    ? rows.length
+    : (await query(`SELECT COUNT(*) AS n FROM leads l WHERE (${s.sql})${extra}`, params))[0].n;
 
   // batch tags for the returned leads
   if (rows.length) {
@@ -70,7 +77,7 @@ router.get('/', asyncHandler(async (req, res) => {
     for (const tr of tagRows) (byLead[tr.lead_id] = byLead[tr.lead_id] || []).push({ id: tr.id, label: tr.label });
     for (const r of rows) r.tags = byLead[r.id] || [];
   }
-  res.json({ leads: rows });
+  res.json({ leads: rows, total: Number(total) });
 }));
 
 // ---- single lead (card) ----
@@ -111,6 +118,9 @@ router.post('/', asyncHandler(async (req, res) => {
   notify.notifyCompany({ companyId: company_id, event: 'new_lead', title: 'ליד חדש', body: `${lead_name || 'ללא שם'} · ${lead_phone}`, leadId: r.insertId, excludeUserId: req.user.id }).catch(() => {});
   res.status(201).json({ lead: { id: r.insertId } });
 }));
+
+// any activity on a lead bumps updated_at (drives ?updated_since= sync in the mobile app)
+const touchLead = (id) => query('UPDATE leads SET updated_at = NOW() WHERE id = ?', [id]);
 
 async function ownLead(req) {
   const s = leadScope(req.user);
@@ -157,6 +167,7 @@ router.post('/:id/notes', asyncHandler(async (req, res) => {
   const { content, comment } = req.body || {};
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content || null, comment || null, 'note']);
+  await touchLead(req.params.id);
   res.status(201).json({ ok: true });
 }));
 
@@ -167,6 +178,7 @@ router.post('/:id/treatment', asyncHandler(async (req, res) => {
   if (!action_type) return res.status(400).json({ error: 'חסר סוג פעולה' });
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content || null, action_type, 'treatment']);
+  await touchLead(req.params.id);
   res.status(201).json({ ok: true });
 }));
 
@@ -182,6 +194,7 @@ router.post('/:id/message', asyncHandler(async (req, res) => {
   else result = await integrations.sms.send({ to: lead.lead_phone, text: content });
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content, null, channel || 'sms']);
+  await touchLead(req.params.id);
   res.status(201).json({ ok: true, delivery: result });
 }));
 
@@ -193,6 +206,7 @@ router.post('/:id/reminders', asyncHandler(async (req, res) => {
   if (!reminder_at) return res.status(400).json({ error: 'חסר תאריך' });
   await query('INSERT INTO reminders (lead_id, user_id, reminder_at, comment) VALUES (?, ?, ?, ?)',
     [req.params.id, req.user.id, reminder_at, comment || null]);
+  await touchLead(req.params.id);
   res.status(201).json({ ok: true });
 }));
 
@@ -200,12 +214,14 @@ router.post('/:id/reminders', asyncHandler(async (req, res) => {
 router.post('/:id/tags', asyncHandler(async (req, res) => {
   if (!(await ownLead(req))) return res.status(404).json({ error: 'ליד לא נמצא' });
   await query('INSERT IGNORE INTO lead_tags (lead_id, tag_id) VALUES (?, ?)', [req.params.id, req.body.tag_id]);
+  await touchLead(req.params.id);
   res.status(201).json({ ok: true });
 }));
 
 router.delete('/:id/tags/:tagId', asyncHandler(async (req, res) => {
   if (!(await ownLead(req))) return res.status(404).json({ error: 'ליד לא נמצא' });
   await query('DELETE FROM lead_tags WHERE lead_id = ? AND tag_id = ?', [req.params.id, req.params.tagId]);
+  await touchLead(req.params.id);
   res.json({ ok: true });
 }));
 

@@ -53,7 +53,7 @@
 **לבצע (חוזה — שלושתם):** `mine=1` (→ `current_agent_id = req.user.id`), `unassigned=1` (→ `current_agent_id IS NULL`), `agent_id=<n>`.
 **Acceptance:** כל אחד מהפרמטרים מצמצם נכון; בלעדיהם התנהגות כמו היום.
 
-### 4. עימוד ברשימת הלידים
+### 4. עימוד ברשימת הלידים ✅ בוצע (`limit`/`offset` → `{ leads, total }`, `updated_since`; פעילות על ליד מעדכנת `updated_at`)
 **מצב נוכחי:** `routes/leads.js:56` — `ORDER BY l.created_at DESC LIMIT 500`, בלי עימוד/total/מיון לבחירה.
 **לבצע (חוזה):**
 - `limit` (ברירת מחדל 500, מקסימום 500) + `offset` (ברירת מחדל 0).
