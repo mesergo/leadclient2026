@@ -1,10 +1,10 @@
 const express = require('express');
 const { query, companyScope, canAccessCompany } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth, loadLeadRestriction);
 
 const digits9 = (s) => String(s ?? '').replace(/\D/g, '').slice(-9);
 
@@ -48,8 +48,9 @@ router.get('/:id', asyncHandler(async (req, res) => {
        AND ( (? <> '' AND RIGHT(REGEXP_REPLACE(l.lead_phone, '[^0-9]', ''), 9) = ?)
           OR (? <> '' AND RIGHT(REGEXP_REPLACE(l.lead_phone, '[^0-9]', ''), 9) = ?)
           OR (? <> '' AND l.lead_email = ?) )
+       ${req.user.ownLeadsOnly ? 'AND l.current_agent_id = ?' : ''}
      ORDER BY l.created_at DESC LIMIT 500`,
-    [contact.company_id, ph, ph, ph2, ph2, em, em]);
+    [contact.company_id, ph, ph, ph2, ph2, em, em, ...(req.user.ownLeadsOnly ? [req.user.id] : [])]);
   res.json({ contact, leads });
 }));
 

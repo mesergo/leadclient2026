@@ -1,14 +1,14 @@
 const express = require('express');
-const { query, companyScope, agencyScope } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { query, companyScope, agencyScope, leadScope } = require('../db/pool');
+const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth, loadLeadRestriction);
 
 // build a leads WHERE fragment from filters (date + agency/company/service) within scope
 function leadFilter(req) {
-  const s = companyScope(req.user, 'l.company_id');
+  const s = leadScope(req.user, 'l');
   const params = [...s.params];
   let sql = s.sql;
   const { start, end, agency, company, service } = req.query;
@@ -68,7 +68,7 @@ router.get('/by-agency', asyncHandler(async (req, res) => {
   );
 
   // 2) leads per agency in date range (single indexed scan, grouped)
-  const cs = companyScope(req.user, 'l.company_id');
+  const cs = leadScope(req.user, 'l');
   const lParams = [...cs.params];
   let lWhere = cs.sql;
   if (start) { lWhere += ' AND l.created_at >= ?'; lParams.push(start + ' 00:00:00'); }

@@ -40,6 +40,7 @@ export default function UserEditPage() {
         username: user.username || '', first_name: user.first_name || '', last_name: user.last_name || '',
         display_name: user.display_name || '', role: user.role, email: user.email || '', phone: user.phone || '',
         language: user.language || 'he',
+        restrict_own_leads: !!Number(user.restrict_own_leads),
       });
       setSuspension(user.is_active ? 'none' : (user.suspended_until ? 'custom' : 'permanent'));
       setNotif(user.notifications || {});
@@ -63,6 +64,7 @@ export default function UserEditPage() {
     e.preventDefault();
     const body = { username: form.username, first_name: form.first_name, last_name: form.last_name, display_name: form.display_name };
     if (isSuper) body.role = form.role;
+    body.restrict_own_leads = form.restrict_own_leads ? 1 : 0;
     if (suspension === 'none') { body.is_active = 1; body.suspended_at = null; body.suspended_until = null; }
     else if (suspension === 'permanent') { body.is_active = 0; body.suspended_until = null; }
     else if (suspension !== 'custom') {
@@ -136,6 +138,11 @@ export default function UserEditPage() {
                 {suspension === 'custom' && <option value="custom">{t('ue.suspPermanent')} ({u.suspended_until})</option>}
                 {SUSP.map((s) => <option key={s} value={s}>{t('ue.susp' + (s === 'none' ? 'None' : s === 'permanent' ? 'Permanent' : s))}</option>)}
               </select></div></div>
+            {form.role === 'company_user' && (
+              <div className="form-field"><label>{t('ue.restrictOwn')}</label><div className="form-field-control">
+                <input type="checkbox" checked={!!form.restrict_own_leads} onChange={(e) => set('restrict_own_leads', e.target.checked)} />
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('ue.restrictOwnHint')}</div></div></div>
+            )}
             {isSuper && (
               <div className="form-field"><label>{t('ue.role')}</label><div className="form-field-control">
                 <select value={form.role} onChange={(e) => set('role', e.target.value)}>

@@ -1,10 +1,10 @@
 const express = require('express');
 const { query, companyScope } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
 const router = express.Router();
-router.use(requireAuth);
+router.use(requireAuth, loadLeadRestriction);
 
 // Company-activity report: leads per channel, a channel×status matrix,
 // device breakdown, and a (currently empty) campaigns table — mirroring the
@@ -19,6 +19,8 @@ router.get('/', asyncHandler(async (req, res) => {
 
   const dateParams = [];
   let dateSql = '';
+  // an agent limited to own leads reports only on them
+  if (req.user.ownLeadsOnly) { dateSql += ' AND current_agent_id = ?'; dateParams.push(req.user.id); }
   if (start) { dateSql += ' AND created_at >= ?'; dateParams.push(start + ' 00:00:00'); }
   if (end) { dateSql += ' AND created_at <= ?'; dateParams.push(end + ' 23:59:59'); }
 

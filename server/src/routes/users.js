@@ -47,7 +47,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'u.company_id');
   const rows = await query(
     `SELECT ${FIELDS}, u.language, u.notifications, u.email_notifications, u.phone_notifications,
-            u.restrictions, u.suspended_at, u.suspended_until, u.google_id,
+            u.restrictions, u.suspended_at, u.suspended_until, u.google_id, u.restrict_own_leads,
             c.name AS company_name, c.agency_id AS company_agency_id, a.name AS agency_name
      FROM users u
      LEFT JOIN companies c ON c.id = u.company_id
@@ -85,6 +85,8 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   const editable = ['username', 'email', 'first_name', 'last_name', 'display_name', 'role', 'phone', 'language', 'is_active', 'suspended_at', 'suspended_until'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
+  // manager limits an agent to the leads assigned to them
+  if (req.body.restrict_own_leads !== undefined) { sets.push('restrict_own_leads = ?'); params.push(req.body.restrict_own_leads ? 1 : 0); }
   // JSON preference blobs — accept object or string.
   for (const f of ['notifications', 'email_notifications', 'phone_notifications', 'restrictions']) {
     if (req.body[f] !== undefined) {

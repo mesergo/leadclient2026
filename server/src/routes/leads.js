@@ -1,6 +1,6 @@
 const express = require('express');
-const { query, companyScope, canAccessCompany } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { query, companyScope, canAccessCompany, leadScope } = require('../db/pool');
+const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const fs = require('fs');
 const path = require('path');
@@ -16,12 +16,12 @@ const REC_DIR = path.join(config.uploadDir, '.recordings');
 const router = express.Router();
 // allow the recording <audio>/download link to authenticate via ?token=
 router.use((req, res, next) => { if (!req.headers.authorization && req.query.token) req.headers.authorization = `Bearer ${req.query.token}`; next(); });
-router.use(requireAuth);
+router.use(requireAuth, loadLeadRestriction); // ownLeadsOnly -> leadScope()
 
 // Stream a call recording through our server (Maskyoo download needs a Bearer
 // token + whitelisted IP; the browser cannot send those, so we proxy it).
 router.get('/:id/recording', asyncHandler(async (req, res) => {
-  const s = companyScope(req.user, 'company_id');
+  const s = leadScope(req.user);
   const rows = await query(`SELECT id, recording_url FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   const lead = rows[0];
   return recording.serve(res, lead);
@@ -29,7 +29,7 @@ router.get('/:id/recording', asyncHandler(async (req, res) => {
 
 // ---- list ----
 router.get('/', asyncHandler(async (req, res) => {
-  const s = companyScope(req.user, 'l.company_id');
+  const s = leadScope(req.user, 'l');
   const params = [...s.params];
   let extra = '';
   const { company_id, service_id, status_id, start, end, q, agency } = req.query;
@@ -71,7 +71,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // ---- single lead (card) ----
 router.get('/:id', asyncHandler(async (req, res) => {
-  const s = companyScope(req.user, 'l.company_id');
+  const s = leadScope(req.user, 'l');
   const rows = await query(
     `SELECT l.*, c.name AS company_name, a.name AS agency_name, sv.name AS service_name, sv.service_type,
             st.text AS status_text, st.color AS status_color, u.display_name AS agent_name
@@ -99,15 +99,17 @@ router.post('/', asyncHandler(async (req, res) => {
   const { company_id, service_id, lead_name, lead_phone, lead_email, status_id } = req.body || {};
   if (!company_id || !lead_phone) return res.status(400).json({ error: 'חסרים שדות חובה' });
   if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  // an agent limited to own leads creates leads for themselves (else they couldn't see it)
+  const agentId = req.user.ownLeadsOnly ? req.user.id : null;
   const r = await query(
-    'INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, status_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-    [company_id, service_id || null, lead_name || null, lead_phone, lead_email || null, status_id || null]);
+    'INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, status_id, current_agent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [company_id, service_id || null, lead_name || null, lead_phone, lead_email || null, status_id || null, agentId]);
   notify.notifyCompany({ companyId: company_id, event: 'new_lead', title: 'ליד חדש', body: `${lead_name || 'ללא שם'} · ${lead_phone}`, leadId: r.insertId, excludeUserId: req.user.id }).catch(() => {});
   res.status(201).json({ lead: { id: r.insertId } });
 }));
 
 async function ownLead(req) {
-  const s = companyScope(req.user, 'company_id');
+  const s = leadScope(req.user);
   const owned = await query(`SELECT id, company_id, lead_name, lead_phone, lead_email, lead_through FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   return owned[0] || null;
 }

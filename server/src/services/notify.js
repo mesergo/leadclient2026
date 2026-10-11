@@ -58,7 +58,13 @@ async function notifyCompany({ companyId, event, title, body, leadId = null, exc
   if (!companyId) return;
   try {
     const roleSql = Array.isArray(roles) && roles.length ? ` AND role IN (${roles.map(() => '?').join(',')})` : '';
-    const users = await query(`SELECT id FROM users WHERE company_id = ? AND is_active = 1${roleSql}`, [companyId, ...(roleSql ? roles : [])]);
+    // agents limited to their own leads hear only about leads assigned to them
+    let agentId = null;
+    if (leadId) agentId = ((await query('SELECT current_agent_id FROM leads WHERE id = ?', [leadId]))[0] || {}).current_agent_id || null;
+    const users = await query(
+      `SELECT id FROM users WHERE company_id = ? AND is_active = 1${roleSql}
+         AND (role <> 'company_user' OR restrict_own_leads = 0 OR id = ?)`,
+      [companyId, ...(roleSql ? roles : []), agentId || 0]);
     await Promise.all(users.filter((u) => u.id !== excludeUserId).map((u) => notifyUser({ userId: u.id, event, title, body, leadId, companyId })));
   } catch (e) { console.warn('[notify] company', companyId, 'failed:', e.message); }
 }

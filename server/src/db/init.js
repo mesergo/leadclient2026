@@ -189,6 +189,8 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('webhook_log.service_id', () => ensureColumn('webhook_log', 'service_id', 'service_id BIGINT UNSIGNED NULL'));
   await safe('webhook_log.service_idx', () => ensureIndex('webhook_log', 'idx_wl_service', 'service_id, created_at'));
+  // a manager can limit an agent to the leads assigned to them
+  await safe('users.restrict_own_leads', () => ensureColumn('users', 'restrict_own_leads', 'restrict_own_leads TINYINT(1) NOT NULL DEFAULT 0'));
   // round-robin lead assignment: the channel's last assigned agent (turn pointer)
   await safe('services.distribute_last_user_id', () => ensureColumn('services', 'distribute_last_user_id', 'distribute_last_user_id BIGINT UNSIGNED NULL'));
   // small key/value store (e.g. the auto-created iCount PayPage id)

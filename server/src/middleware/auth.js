@@ -35,4 +35,20 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+// Marks req.user.ownLeadsOnly for an agent a manager limited to the leads assigned
+// to them (users.restrict_own_leads). Read per request, so a change applies at once.
+// Use after requireAuth on every router that reads leads; see leadScope() in db/scope.js.
+async function loadLeadRestriction(req, res, next) {
+  if (req.user && req.user.role === 'company_user') {
+    try {
+      const { query } = require('../db/pool');
+      const r = await query('SELECT restrict_own_leads FROM users WHERE id = ?', [req.user.id]);
+      req.user.ownLeadsOnly = !!(r[0] && Number(r[0].restrict_own_leads));
+    } catch (e) {
+      return res.status(500).json({ error: 'שגיאת שרת' }); // fail closed: never show leads unscoped
+    }
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireRole, loadLeadRestriction };

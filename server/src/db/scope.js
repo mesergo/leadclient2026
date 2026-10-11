@@ -25,6 +25,16 @@ function companyScope(user, col = 'company_id') {
   }
 }
 
+// Leads a user may see: the company scope, narrowed to the leads assigned to them
+// when a manager limited the agent to their own leads (req.user.ownLeadsOnly, set by
+// the loadLeadRestriction middleware). alias = the leads table alias ('l'), or none.
+function leadScope(user, alias = '') {
+  const p = alias ? alias + '.' : '';
+  const s = companyScope(user, p + 'company_id');
+  if (user && user.ownLeadsOnly) return { sql: '(' + s.sql + ') AND ' + p + 'current_agent_id = ?', params: [...s.params, user.id] };
+  return s;
+}
+
 // Scope for the `agencies` table itself.
 function agencyScope(user, col = 'id') {
   if (!user || !user.role) return { sql: '0 = 1', params: [] };
@@ -45,4 +55,4 @@ function canAccessCompany(user, companyId) {
   return String(user.company_id) === String(companyId);
 }
 
-module.exports = { ROLES, companyScope, agencyScope, canAccessCompany };
+module.exports = { leadScope, ROLES, companyScope, agencyScope, canAccessCompany };
