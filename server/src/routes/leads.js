@@ -121,6 +121,9 @@ router.post('/', asyncHandler(async (req, res) => {
 
 // any activity on a lead bumps updated_at (drives ?updated_since= sync in the mobile app)
 const touchLead = (id) => query('UPDATE leads SET updated_at = NOW() WHERE id = ?', [id]);
+// a handling action (note/treatment/message) also marks the lead as interacted with
+const interact = (id, type) => query(
+  'UPDATE leads SET last_interaction_at = NOW(), last_interaction_type = ?, updated_at = NOW() WHERE id = ?', [type, id]);
 
 async function ownLead(req) {
   const s = leadScope(req.user);
@@ -167,7 +170,7 @@ router.post('/:id/notes', asyncHandler(async (req, res) => {
   const { content, comment } = req.body || {};
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content || null, comment || null, 'note']);
-  await touchLead(req.params.id);
+  await interact(req.params.id, 'note');
   res.status(201).json({ ok: true });
 }));
 
@@ -178,7 +181,7 @@ router.post('/:id/treatment', asyncHandler(async (req, res) => {
   if (!action_type) return res.status(400).json({ error: 'חסר סוג פעולה' });
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content || null, action_type, 'treatment']);
-  await touchLead(req.params.id);
+  await interact(req.params.id, 'treatment');
   res.status(201).json({ ok: true });
 }));
 
@@ -194,7 +197,7 @@ router.post('/:id/message', asyncHandler(async (req, res) => {
   else result = await integrations.sms.send({ to: lead.lead_phone, text: content });
   await query('INSERT INTO lead_conversations (lead_id, user_id, content, comment, send_by, from_me, created_at) VALUES (?, ?, ?, ?, ?, 1, NOW())',
     [req.params.id, req.user.id, content, null, channel || 'sms']);
-  await touchLead(req.params.id);
+  await interact(req.params.id, channel === 'whatsapp' || channel === 'email' ? channel : 'sms');
   res.status(201).json({ ok: true, delivery: result });
 }));
 

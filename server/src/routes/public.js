@@ -313,7 +313,7 @@ async function processCall(num, req, res, logId) {
       } else { // lead exists -> attach the recording as soon as any webhook carries it; finalize on end
         if (recStore) await query("UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '')", [recStore, leadId]);
         if (isEnd) await query(
-          'UPDATE leads SET call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec), lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), updated_at = NOW() WHERE id = ?',
+          'UPDATE leads SET call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec), lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), last_interaction_at = NOW(), last_interaction_type = \'call_out\', updated_at = NOW() WHERE id = ?',
           [answered ? 'answered' : 'missed', durSec, `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: isEnd ? 'callback_end' : 'callback_rec' });
       }
@@ -352,8 +352,9 @@ async function processCall(num, req, res, logId) {
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
            recording_url = COALESCE(?, recording_url), call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec),
+           last_interaction_at = IF(?, NOW(), last_interaction_at), last_interaction_type = IF(?, 'call', last_interaction_type),
            updated_at = NOW() WHERE id = ?`,
-        [info, recStore, callStatus, durSec, recent[0].id]);
+        [info, recStore, callStatus, durSec, answered ? 1 : 0, answered ? 1 : 0, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       fireChannelWebhook(num.service_id, { id: recent[0].id, company_id: num.company_id, caller, duration, status: callStatus });
       return reply(true, 'lead updated');

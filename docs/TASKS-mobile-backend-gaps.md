@@ -97,7 +97,7 @@
 ### 10. הרשאות נציגים (אכיפה בשרת) ✅ בוצע (d82fc3f — `users.restrict_own_leads` + `leadScope()`; ראו MOBILE-AGENT-BRIEF א.2)
 כל `company_user` רואה/עורך את כל לידי החברה ומקבל התראה על כל ליד חדש. אם רוצים שנציג יראה רק את שלו — **האכיפה חייבת להיות בשרת** (לא רק סינון UI), כולל ב-`notifyCompany`.
 
-### 12. עדכון `last_interaction_at` / `last_interaction_type`
+### 12. עדכון `last_interaction_at` / `last_interaction_type` ✅ בוצע (`note`/`treatment`/`sms`/`whatsapp`/`email` בפעולות הליד; `call` בשיחה נכנסת שנענתה; `call_out` בסיום חיוג מהחייגן)
 **מצב נוכחי (מאומת):** השרת החדש **אף פעם לא כותב** את השדות האלה — הם מתמלאים רק ב-ETL מהמערכת הישנה. לכן ליד שטופל (הערה/טיפול/הודעה/שיחה) נראה "לא טופל", ו-`last_interaction_*` ברשימה תקוע על ערכי המיגרציה.
 **לבצע:** לעדכן `last_interaction_at = NOW()` + `last_interaction_type` (`note` / `treatment` / `sms` / `whatsapp` / `email` / `call` / `call_out`) ב:
 `POST /api/leads/:id/notes`, `/treatment`, `/message` (`routes/leads.js`), וב-webhook השיחה (`routes/public.js`) כשמתקבלת שיחה על ליד קיים.
