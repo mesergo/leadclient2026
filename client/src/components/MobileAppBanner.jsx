@@ -4,6 +4,8 @@ import { useLang } from '../context/LangContext';
 // Top-of-page banner on phones: Android -> the Play Store app, iPhone -> the installable
 // web app at /m (Add to Home Screen). Dismissed for 14 days per browser.
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.leadclient.crm';
+// the Play listing is still internal-testing only — flip to true once the app is public
+const ANDROID_APP_PUBLIC = false;
 const DISMISS_KEY = 'lc_app_banner_dismissed';
 const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -30,7 +32,7 @@ export default function MobileAppBanner() {
   const [os] = useState(platform);
   const [hidden, setHidden] = useState(dismissedRecently);
   const [iosHelp, setIosHelp] = useState(false);
-  if (!os || hidden) return null;
+  if (!os || hidden || (os === 'android' && !ANDROID_APP_PUBLIC)) return null;
 
   const close = () => {
     try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* private mode */ }
