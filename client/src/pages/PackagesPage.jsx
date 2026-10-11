@@ -69,7 +69,7 @@ export default function PackagesPage() {
               <input type="number" min="0" step="0.01" value={form.monthly_price} onChange={(e) => set('monthly_price', e.target.value)} /></label>
           </div>
 
-          <table className="data-table" style={{ marginTop: 12 }}>
+          <div className="table-wrap" style={{ marginTop: 12 }}><table className="data-table">
             <thead><tr><th>{t('quota.resource')}</th><th>{t('pkg.quota')} ({t('quota.unlimited')}=∞)</th><th>{t('pkg.overage')} (₪)</th></tr></thead>
             <tbody>
               {QUOTAS.map(([qk, ok, lbl]) => (
@@ -80,7 +80,7 @@ export default function PackagesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <input type="checkbox" checked={form.is_trial_default} onChange={(e) => set('is_trial_default', e.target.checked)} />

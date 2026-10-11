@@ -53,6 +53,7 @@ export default function LeadsPage() {
   });
   const [sort, setSort] = useState({ col: 'created_at', dir: 'desc' });
   const [selected, setSelected] = useState(null); // lead id for the floating card
+  const [filtersOpen, setFiltersOpen] = useState(false); // phones: filters fold behind a button
   const [error, setError] = useState('');
 
   const load = (filters) => api.leads(token, filters).then((d) => setRows(d.leads)).catch((e) => setError(e.message));
@@ -101,11 +102,14 @@ export default function LeadsPage() {
   return (
     <div>
       <div className="page-header"><h1>{t('nav.leads')}</h1>
-        <button className="btn btn-secondary" onClick={exportCsv}><Icons.Upload size={14} /> {t('lead.export')}</button>
+        <div className="page-header-actions">
+          <button className={'btn btn-secondary mobile-only' + (filtersOpen ? ' is-on' : '')} onClick={() => setFiltersOpen((v) => !v)}>{t('common.filters')}</button>
+          <button className="btn btn-secondary" onClick={exportCsv}><Icons.Upload size={14} /> {t('lead.export')}</button>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 
-      <div className="panel dash-filter">
+      <div className={'panel dash-filter' + (filtersOpen ? '' : ' mobile-collapsed')}>
         <div className="filter-row">
           <label className="filter-item"><span>{t('lead.received')}</span><input type="date" value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></label>
           <label className="filter-item"><span>&nbsp;</span><input type="date" value={f.end} onChange={(e) => setF({ ...f, end: e.target.value })} /></label>
@@ -127,7 +131,7 @@ export default function LeadsPage() {
             <select value={f.status_id} onChange={(e) => setF({ ...f, status_id: e.target.value })} disabled={!f.company_id}>
               <option value="">—</option>{statuses.map((st) => <option key={st.id} value={st.id}>{st.text}</option>)}
             </select></label>
-          <button className="btn btn-primary" onClick={() => load(f)}>{t('dash.show')}</button>
+          <button className="btn btn-primary" onClick={() => { load(f); setFiltersOpen(false); }}>{t('dash.show')}</button>
         </div>
       </div>
 
@@ -136,7 +140,31 @@ export default function LeadsPage() {
         <span className="muted">{sorted.length}{sorted.length >= 500 ? '+' : ''} {t('lead.count')}</span>
       </div>
 
-      <div className="table-wrap"><table className="data-table leads-table">
+      {/* phones: a card per lead instead of the wide table */}
+      <div className="lead-cards mobile-only">
+        {sorted.map((l) => {
+          const TI = typeIcon(l);
+          const cs = isCallLead(l) ? callState(l) : null;
+          const outgoing = (l.lead_through || '') === 'call_out';
+          const iconStyle = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
+          return (
+            <button key={l.id} type="button" className="lead-mcard" onClick={() => setSelected(l.id)}>
+              <span className="lead-mcard-icon"><TI size={18} style={iconStyle} /></span>
+              <span className="lead-mcard-body">
+                <span className="lead-mcard-top">
+                  <strong>{l.lead_name || t('lead.na')}</strong>
+                  {l.status_text && <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span>}
+                </span>
+                <span className="lead-mcard-phone" dir="ltr">{formatIL(l.lead_phone, t('lead.unknownPhone'))}</span>
+                <span className="lead-mcard-meta">{[l.service_name, l.company_name].filter(Boolean).join(' · ')}</span>
+                <span className="lead-mcard-meta">{l.created_at}{l.agent_name ? ' · ' + l.agent_name : ''}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="table-wrap desktop-only"><table className="data-table leads-table">
         <thead><tr>
           <th></th>
           {th('lead_name', t('lead.name'))}{th('lead_phone', t('common.phone'))}{th('lead_email', t('common.email'))}

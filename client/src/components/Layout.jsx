@@ -69,7 +69,7 @@ export default function Layout() {
         <header className="header">
           <button className="hamburger" onClick={() => setOpen((v) => !v)} aria-label="menu"><Icons.Menu /></button>
           <NavLink to="/profile" className="header-user" title={t('nav.profile')}>
-            <Icons.User size={18} /> {t('header.welcome')}, <strong>{user?.name || user?.display_name || user?.username || ''}</strong>
+            <Icons.User size={18} /> <span className="header-user-text"><span className="header-welcome">{t('header.welcome')}, </span><strong>{user?.name || user?.display_name || user?.username || ''}</strong></span>
           </NavLink>
           <div className="header-actions">
             <button className="icon-btn" title={t('dial.title')} onClick={() => setDialer(true)}><Icons.Phone size={18} /></button>
@@ -80,7 +80,7 @@ export default function Layout() {
                 {langs.map((l) => <option key={l.slug} value={l.slug}>{l.language}</option>)}
               </select>
             </label>
-            <a href="#" onClick={(e) => { e.preventDefault(); logout(); }}>{t('header.logout')}</a>
+            <a href="#" className="header-logout" title={t('header.logout')} onClick={(e) => { e.preventDefault(); logout(); }}><Icons.Logout size={18} /><span>{t('header.logout')}</span></a>
           </div>
         </header>
         <div className="content">

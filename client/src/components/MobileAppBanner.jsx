@@ -32,21 +32,23 @@ export default function MobileAppBanner() {
   const [os] = useState(platform);
   const [hidden, setHidden] = useState(dismissedRecently);
   const [iosHelp, setIosHelp] = useState(false);
-  if (!os || hidden || (os === 'android' && !ANDROID_APP_PUBLIC)) return null;
+  if (!os || hidden) return null;
 
   const close = () => {
     try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* private mode */ }
     setHidden(true);
   };
 
+  // Android -> the Play app once it is public, until then the same installable web app as iPhone
+  const androidHref = ANDROID_APP_PUBLIC ? PLAY_URL : '/m/';
+
   return (
     <>
       <div className="app-banner" role="region" aria-label="LeadClient app">
         <img src="/m/icon-192.png" alt="" className="app-banner-icon" />
-        <span className="app-banner-text">{t(os === 'android' ? 'app.banner.android' : 'app.banner.ios')}</span>
         {os === 'android'
-          ? <a className="btn btn-primary app-banner-btn" href={PLAY_URL} target="_blank" rel="noopener noreferrer">{t('app.banner.install')}</a>
-          : <button type="button" className="btn btn-primary app-banner-btn" onClick={() => setIosHelp(true)}>{t('app.banner.install')}</button>}
+          ? <a className="app-banner-link" href={androidHref} {...(ANDROID_APP_PUBLIC ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{t('app.banner.cta')}</a>
+          : <button type="button" className="app-banner-link" onClick={() => setIosHelp(true)}>{t('app.banner.cta')}</button>}
         <button type="button" className="app-banner-close" aria-label={t('app.banner.close')} onClick={close}>×</button>
       </div>
       {iosHelp && (

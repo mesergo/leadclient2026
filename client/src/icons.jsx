@@ -24,3 +24,4 @@ export const Lock = (p) => <I {...p}><rect x="3" y="11" width="18" height="11" r
 export const Swap = (p) => <I {...p}><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></I>;
 export const Trash = (p) => <I {...p}><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></I>;
 export const Star = ({ filled, ...p }) => <I {...p} fill={filled ? 'currentColor' : 'none'}><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></I>;
+export const Logout = (p) => <I {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></I>;
