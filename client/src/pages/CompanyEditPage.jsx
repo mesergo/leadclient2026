@@ -92,7 +92,8 @@ export default function CompanyEditPage() {
               </div>
             )}
             <div className="form-field"><label>{t('cop.leadsDist')}</label><div className="form-field-control">
-              <input type="checkbox" checked={!!form.leads_distribution_enabled} onChange={(e) => set('leads_distribution_enabled', e.target.checked)} /></div></div>
+              <input type="checkbox" checked={!!form.leads_distribution_enabled} onChange={(e) => set('leads_distribution_enabled', e.target.checked)} />
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('cop.leadsDistHint')}</div></div></div>
           </>)}
           {tab === 'quota' && (<>
             <QuotaPanel companyId={id} token={token} reloadKey={msg} />

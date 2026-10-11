@@ -54,10 +54,11 @@ async function notifyUser({ userId, event, title, body, leadId = null, companyId
 }
 
 // Notify all active users of a company (new_lead / status_change).
-async function notifyCompany({ companyId, event, title, body, leadId = null, excludeUserId = null }) {
+async function notifyCompany({ companyId, event, title, body, leadId = null, excludeUserId = null, roles = null }) {
   if (!companyId) return;
   try {
-    const users = await query('SELECT id FROM users WHERE company_id = ? AND is_active = 1', [companyId]);
+    const roleSql = Array.isArray(roles) && roles.length ? ` AND role IN (${roles.map(() => '?').join(',')})` : '';
+    const users = await query(`SELECT id FROM users WHERE company_id = ? AND is_active = 1${roleSql}`, [companyId, ...(roleSql ? roles : [])]);
     await Promise.all(users.filter((u) => u.id !== excludeUserId).map((u) => notifyUser({ userId: u.id, event, title, body, leadId, companyId })));
   } catch (e) { console.warn('[notify] company', companyId, 'failed:', e.message); }
 }

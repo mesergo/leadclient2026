@@ -189,6 +189,8 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('webhook_log.service_id', () => ensureColumn('webhook_log', 'service_id', 'service_id BIGINT UNSIGNED NULL'));
   await safe('webhook_log.service_idx', () => ensureIndex('webhook_log', 'idx_wl_service', 'service_id, created_at'));
+  // round-robin lead assignment: the channel's last assigned agent (turn pointer)
+  await safe('services.distribute_last_user_id', () => ensureColumn('services', 'distribute_last_user_id', 'distribute_last_user_id BIGINT UNSIGNED NULL'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,

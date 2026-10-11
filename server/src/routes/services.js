@@ -100,7 +100,7 @@ router.get('/new-context', asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'sv.company_id');
   const rows = await query(
-    `SELECT sv.*, c.name AS company_name, c.agency_id, a.name AS agency_name
+    `SELECT sv.*, c.name AS company_name, c.agency_id, c.leads_distribution_enabled AS company_distribution_enabled, a.name AS agency_name
      FROM services sv
      LEFT JOIN companies c ON c.id = sv.company_id
      LEFT JOIN agencies a ON a.id = c.agency_id

@@ -239,6 +239,10 @@ export default function EditServicePage() {
           <div className="form-field"><label>{t('es.assign')}</label><div className="form-field-control">
             <MultiSelect options={users.map((u) => ({ value: u.id, label: u.name }))} value={assigned} onChange={setAssigned}
               placeholder={t('es.assignNone')} searchPlaceholder={t('es.search')} />
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{t('es.assignHint')}</div>
+            {assigned.length > 0 && !Number(svc.company_distribution_enabled) && (
+              <div className="bill-status warn" style={{ marginTop: 6, fontSize: 13 }}>{t('es.assignOff')}</div>
+            )}
           </div></div>
 
           <div className="form-field"><label>{t('es.serviceRef')}</label><div className="form-field-control">

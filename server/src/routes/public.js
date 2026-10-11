@@ -5,6 +5,7 @@ const { asyncHandler } = require('../utils/http');
 const notify = require('../services/notify');
 const recording = require('../services/recording');
 const channelWebhook = require('../services/channelWebhook');
+const distribution = require('../services/leadDistribution');
 const messergo = require('../services/messergo');
 const config = require('../config');
 const { issueToken } = require('../services/authService');
@@ -99,8 +100,16 @@ router.get('/recording/:id', asyncHandler(async (req, res) => {
 }));
 
 // notify a company's users about a newly-arrived lead (fire-and-forget)
-function announceNewLead(companyId, leadId, name, phone) {
-  notify.notifyCompany({ companyId, event: 'new_lead', title: 'ליד חדש', body: `${name || 'ללא שם'} · ${phone}`, leadId }).catch(() => {});
+// New-lead notification. Unassigned: the whole company. Assigned (lead distribution):
+// the agent who got it + the company's managers — not every other agent.
+function announceNewLead(companyId, leadId, name, phone, assignedTo = null) {
+  const body = `${name || 'ללא שם'} · ${phone}`;
+  if (!assignedTo) {
+    notify.notifyCompany({ companyId, event: 'new_lead', title: 'ליד חדש', body, leadId }).catch(() => {});
+    return;
+  }
+  notify.notifyUser({ userId: assignedTo, event: 'new_lead', title: 'ליד חדש שויך אליך', body, leadId, companyId }).catch(() => {});
+  notify.notifyCompany({ companyId, event: 'new_lead', title: 'ליד חדש', body, leadId, excludeUserId: assignedTo, roles: ['company_admin'] }).catch(() => {});
 }
 
 // If this phone already has a named lead in the company, reuse that name for new leads.
@@ -126,7 +135,8 @@ router.post('/leads/service/:hash', asyncHandler(async (req, res) => {
   const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
     [svc[0].company_id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'widget', { companyId: svc[0].company_id, leadId: r.insertId, result: 'lead_created' });
-  announceNewLead(svc[0].company_id, r.insertId, name, phone);
+  const agent = await distribution.assignLead({ leadId: r.insertId, companyId: svc[0].company_id, serviceId: svc[0].id, phone });
+  announceNewLead(svc[0].company_id, r.insertId, name, phone, agent);
   fireChannelWebhook(svc[0].id, { id: r.insertId, company_id: svc[0].company_id, name: leadName, phone, email, source: 'widget' }, 'lead_created');
   res.status(201).json({ ok: true });
 }));
@@ -143,7 +153,8 @@ router.post('/leads/company/:token', asyncHandler(async (req, res) => {
   const r = await query('INSERT INTO leads (company_id, service_id, lead_name, lead_phone, lead_email, lead_through, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
     [co[0].id, svc[0].id, leadName, phone, email || null, 'widget']);
   await logInbound(req, 'company-token', { companyId: co[0].id, leadId: r.insertId, result: 'lead_created' });
-  announceNewLead(co[0].id, r.insertId, name, phone);
+  const agent = await distribution.assignLead({ leadId: r.insertId, companyId: co[0].id, serviceId: svc[0].id, phone });
+  announceNewLead(co[0].id, r.insertId, name, phone, agent);
   fireChannelWebhook(svc[0].id, { id: r.insertId, company_id: co[0].id, name: leadName, phone, email, source: 'form' }, 'lead_created');
   res.status(201).json({ ok: true });
 }));
@@ -274,7 +285,7 @@ async function processCall(num, req, res, logId) {
     // Match this dial by the customer (DEST) first — the agent may have several
     // callbacks on the same virtual; only the DEST tells them apart.
     const cbRows = await query(
-      `SELECT id, target_number, status, lead_id FROM callbacks
+      `SELECT id, user_id, target_number, status, lead_id FROM callbacks
          WHERE REGEXP_REPLACE(via_number, '[^0-9]', '') LIKE CONCAT('%', ?)
            AND status IN ('pending','used') AND created_at > (NOW() - INTERVAL 20 MINUTE)
            AND ( (? <> '' AND REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
@@ -295,7 +306,9 @@ async function processCall(num, req, res, logId) {
           [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid, durSec]);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
-        announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal);
+        // an outgoing (dialer) call belongs to the agent who placed it
+        const agent = await distribution.assignLead({ leadId, companyId: num.company_id, serviceId: num.service_id, phone: targetLocal, agentId: cb.user_id });
+        announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal, agent);
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: 'callback_out' });
       } else { // lead exists -> attach the recording as soon as any webhook carries it; finalize on end
         if (recStore) await query("UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '')", [recStore, leadId]);
@@ -374,7 +387,8 @@ async function processCall(num, req, res, logId) {
      VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, ?, NOW(), NOW())`,
     [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
-  announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה');
+  const agent = await distribution.assignLead({ leadId: r.insertId, companyId: num.company_id, serviceId: num.service_id, phone: caller });
+  announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה', agent);
   // a call reported only at its end (e.g. a missed call) still ends here
   if (isEnd) fireChannelWebhook(num.service_id, { id: r.insertId, company_id: num.company_id, caller, duration, status: callStatus });
   reply(true, 'lead saved');

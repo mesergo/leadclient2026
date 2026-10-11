@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS services (
   is_import_service     TINYINT(1) NOT NULL DEFAULT 0,
   is_whatsapp_service   TINYINT(1) NOT NULL DEFAULT 0,
   distribute_leads      TEXT NULL,
+  distribute_last_user_id BIGINT UNSIGNED NULL,
   service_ref           VARCHAR(100) NULL,
   export_webhook_url    VARCHAR(500) NULL,
   record_percentage     INT NULL,
