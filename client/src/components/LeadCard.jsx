@@ -5,6 +5,8 @@ import { api, API_ORIGIN } from '../api';
 import { Star, X } from '../icons';
 import { isAutoTag, displayTag, extractRecordingUrl, maskSuppliers } from '../tags';
 import { formatIL, waNumber } from '../phone';
+import Dialer from './Dialer';
+import { Phone } from '../icons';
 
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
 const CHANNELS = ['sms', 'whatsapp', 'email'];
@@ -44,6 +46,7 @@ export default function LeadCard({ id, onClose }) {
   const [msg, setMsg] = useState({ channel: 'sms', content: '' });
   const [rem, setRem] = useState({ reminder_at: '', comment: '' });
   const [edit, setEdit] = useState({ lead_name: '', lead_phone: '', lead_email: '' });
+  const [dialOpen, setDialOpen] = useState(false); // "חייג ללקוח" — the call is logged on this lead
 
   const load = () => api.lead(id, token).then((d) => {
     setData(d);
@@ -110,7 +113,7 @@ export default function LeadCard({ id, onClose }) {
           {row(t('lead.name'), editInput('lead_name', 220))}
           {row(t('common.company'), `${l.company_name} / ${l.agency_name || '-'}`)}
           {row(t('lead.channel'), l.service_name || '-')}
-          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{isPhoneLead(l) ? <strong style={{ padding: '4px 8px' }} title={t('lc.callerLocked')}>{edit.lead_phone || t('lead.unknownPhone')}</strong> : editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
+          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{isPhoneLead(l) ? <strong style={{ padding: '4px 8px' }} title={t('lc.callerLocked')}>{edit.lead_phone || t('lead.unknownPhone')}</strong> : editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <button type="button" className="chip-link dial" onClick={() => setDialOpen(true)}><Phone size={13} /> {t('lc.dialCustomer')}</button>}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
           {row(t('common.email'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_email', 200)}{edit.lead_email && <a href={`mailto:${edit.lead_email}`} className="chip-link email">Email</a>}</span>)}
           {row(t('lead.received'), l.created_at)}
           {row(t('lead.status'), (
@@ -212,6 +215,7 @@ export default function LeadCard({ id, onClose }) {
           )}
         </>)}
       </div>
+      {dialOpen && <Dialer onClose={() => setDialOpen(false)} initialTarget={edit.lead_phone} leadId={l.id} leadName={l.lead_name || ''} />}
     </div>
   );
 }

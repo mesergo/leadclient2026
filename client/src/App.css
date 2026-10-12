@@ -594,3 +594,7 @@ a.sidebar-logo:hover { text-decoration: none; background: rgba(0,131,143,0.04); 
 .lead-msub { margin-inline-start: 18px; }
 .lead-msub .lead-mcard { background: #fafcfc; border-style: dashed; padding: 0.55rem 0.75rem; }
 .group-hint { color: var(--accent) !important; font-weight: 600; }
+
+/* lead card: "call customer" chip next to the phone */
+.chip-link.dial { display: inline-flex; align-items: center; gap: 4px; background: var(--accent); color: #fff; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; }
+.chip-link.dial:hover { background: #026e78; }

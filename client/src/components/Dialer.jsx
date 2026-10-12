@@ -10,13 +10,14 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 // mobile), which virtual number to call via, and dials the customer's number.
 // Registering a callback makes the next inbound call from that mobile route to
 // the customer (logged as an outgoing call). The agent then rings the virtual #.
-export default function Dialer({ onClose }) {
+// initialTarget / leadId: opened from a lead card ("חייג ללקוח") — the call is logged on that lead
+export default function Dialer({ onClose, initialTarget = '', leadId = null, leadName = '' }) {
   const { token, user } = useAuth();
   const { t } = useLang();
   const [opts, setOpts] = useState({ mobiles: [], targets: [], virtuals: [] });
   const [from, setFrom] = useState('');
   const [via, setVia] = useState('');
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState(String(initialTarget || '').replace(/[^\d*#+]/g, ''));
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ export default function Dialer({ onClose }) {
     if (!via) { setError(t('dial.errVia')); return; }
     if (!target) { setError(t('dial.errTarget')); return; }
     setBusy(true);
-    try { await api.createCallback({ from_number: from, via_number: via, target_number: target }, token); setDone(true); }
+    try { await api.createCallback({ from_number: from, via_number: via, target_number: target, ...(leadId ? { lead_id: leadId } : {}) }, token); setDone(true); }
     catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }

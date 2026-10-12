@@ -6,7 +6,7 @@
 //     "business" (POST /mobile-call -> a lead + the number joins their business list, so next
 //     time it is recognized automatically) or private (kept on the phone only).
 const express = require('express');
-const { query, leadScope } = require('../db/pool');
+const { query, leadScope, companyScope } = require('../db/pool');
 const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -52,6 +52,42 @@ router.get('/lookup', asyncHandler(async (req, res) => {
       ORDER BY (l.lead_name IS NOT NULL AND l.lead_name <> '') DESC, l.id DESC LIMIT 1`, [...s.params, key]))[0];
   const biz = await query('SELECT 1 FROM user_business_numbers WHERE user_id = ? AND phone_key = ?', [req.user.id, key]);
   res.json({ name: (lead && lead.lead_name) || null, lead_id: lead ? lead.id : null, business: biz.length > 0 });
+}));
+
+// GET /api/calls/directory?q= -> { people: [{ name, phone, contact_id, lead_id }] }
+// the system's address book for the app dialer: CRM contacts + named leads, one entry per phone
+// (contacts win over leads), scoped like the rest of the app. The dialer merges it with the phone's contacts.
+router.get('/directory', asyncHandler(async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  const like = '%' + q + '%';
+  const cs = companyScope(req.user, 'c.company_id');
+  const contacts = await query(
+    `SELECT c.id, TRIM(CONCAT_WS(' ', c.first_name, c.last_name)) AS name, c.phone
+       FROM contacts c
+      WHERE (${cs.sql}) AND c.phone IS NOT NULL AND c.phone <> ''
+        ${q ? 'AND (c.first_name LIKE ? OR c.last_name LIKE ? OR c.phone LIKE ?)' : ''}
+      ORDER BY c.first_name, c.last_name LIMIT 300`, [...cs.params, ...(q ? [like, like, like] : [])]);
+  const ls = leadScope(req.user, 'l');
+  const leads = await query(
+    `SELECT l.id, l.lead_name AS name, l.lead_phone AS phone
+       FROM leads l
+      WHERE (${ls.sql}) AND l.lead_name IS NOT NULL AND l.lead_name <> '' AND l.lead_phone IS NOT NULL AND l.lead_phone <> ''
+        ${q ? 'AND (l.lead_name LIKE ? OR l.lead_phone LIKE ?)' : ''}
+      ORDER BY l.id DESC LIMIT 600`, [...ls.params, ...(q ? [like, like] : [])]);
+  const byKey = new Map();
+  for (const c of contacts) {
+    const k = phoneKey(c.phone);
+    if (k.length >= 7 && !byKey.has(k)) byKey.set(k, { name: c.name || c.phone, phone: c.phone, contact_id: c.id, lead_id: null });
+  }
+  for (const l of leads) { // newest lead first -> its name and id
+    const k = phoneKey(l.phone);
+    if (k.length < 7) continue;
+    const e = byKey.get(k);
+    if (!e) byKey.set(k, { name: l.name, phone: l.phone, contact_id: null, lead_id: l.id });
+    else if (!e.lead_id) e.lead_id = l.id;
+  }
+  const people = [...byKey.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'he')).slice(0, 400);
+  res.json({ people });
 }));
 
 // the agent's business numbers (last 9 digits) — the app caches them for instant recognition
