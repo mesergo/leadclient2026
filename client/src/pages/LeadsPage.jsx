@@ -7,6 +7,7 @@ import * as Icons from '../icons';
 import LeadCard from '../components/LeadCard';
 import { displayTag, isAutoTag } from '../tags';
 import { formatIL } from '../phone';
+import { groupLeads } from '../leadGroups';
 
 const isCallLead = (l) => /phone|call|טלפון|שיח/.test(((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')).toLowerCase());
 
@@ -54,6 +55,8 @@ export default function LeadsPage() {
   const [sort, setSort] = useState({ col: 'created_at', dir: 'desc' });
   const [selected, setSelected] = useState(null); // lead id for the floating card
   const [filtersOpen, setFiltersOpen] = useState(false); // phones: filters fold behind a button
+  const [openGroups, setOpenGroups] = useState(() => new Set()); // same phone + same day -> one row
+  const toggleGroup = (k) => setOpenGroups((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const [error, setError] = useState('');
 
   const load = (filters) => api.leads(token, filters).then((d) => setRows(d.leads)).catch((e) => setError(e.message));
@@ -99,6 +102,60 @@ export default function LeadsPage() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'leads.csv'; a.click();
   }
 
+  const groups = groupLeads(sorted);
+  const leadIcon = (l) => {
+    const TI = typeIcon(l);
+    const cs = isCallLead(l) ? callState(l) : null;
+    const outgoing = (l.lead_through || '') === 'call_out';
+    const style = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
+    return { TI, style, title: outgoing ? t('lead.outgoing') : (cs ? t(cs.key) : undefined) };
+  };
+  const groupChip = (grp) => (
+    <span className={'group-chip' + (grp.open ? ' open' : '')} title={t('lead.groupHint')}>{grp.count} {grp.open ? '▴' : '▾'}</span>
+  );
+
+  // one table row; grp = { count, open, onToggle } on a group head, sub = a lead inside an open group
+  function tableRow(l, grp, sub) {
+    const { TI, style, title } = leadIcon(l);
+    return (
+      <tr key={l.id} className={(grp ? 'lead-group-row' + (grp.open ? ' open' : '') : '') + (sub ? ' lead-sub-row' : '')} onClick={grp ? grp.onToggle : undefined}>
+        <td>{sub ? <span className="sub-mark">↳</span> : <TI size={16} style={style} title={title} />}</td>
+        <td>
+          <button className="link-name" onClick={(e) => { e.stopPropagation(); setSelected(l.id); }}>{l.lead_name || t('lead.na')}</button>
+          {grp && groupChip(grp)}
+        </td>
+        <td>{formatIL(l.lead_phone, t('lead.unknownPhone'))}</td><td>{l.lead_email || '--'}</td>
+        <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>
+        <td><span className={'presence ' + (/(available|online)/i.test(l.agent_status || '') ? 'on' : 'off')} /> {l.agent_name || t('lead.general')}</td>
+        <td>{l.created_at}</td>
+        <td>{l.last_interaction_type || ''}</td>
+        <td>{l.status_text ? <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span> : '-'}</td>
+        <td>{(l.tags || []).map((tg) => <span key={tg.id} className={'tag-chip ' + (isAutoTag(tg.label) ? 'tag-auto' : '')} style={{ marginInlineStart: 2 }}>{displayTag(tg.label)}</span>)}</td>
+      </tr>
+    );
+  }
+
+  // one phone card; grp = { count, open } on a group head (click toggles instead of opening)
+  function mobileCard(l, onClick, grp) {
+    const { TI, style } = leadIcon(l);
+    return (
+      <button type="button" className={'lead-mcard' + (grp && grp.open ? ' group-open' : '')} onClick={onClick}>
+        <span className="lead-mcard-icon"><TI size={18} style={style} /></span>
+        <span className="lead-mcard-body">
+          <span className="lead-mcard-top">
+            <strong>{l.lead_name || t('lead.na')}</strong>
+            {grp ? groupChip(grp) : (l.status_text && <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span>)}
+          </span>
+          <span className="lead-mcard-phone" dir="ltr">{formatIL(l.lead_phone, t('lead.unknownPhone'))}</span>
+          {grp
+            ? <span className="lead-mcard-meta group-hint">{grp.open ? t('lead.groupHide') : t('lead.groupShow').replace('{n}', grp.count)}</span>
+            : <span className="lead-mcard-meta">{[l.service_name, l.company_name].filter(Boolean).join(' · ')}</span>}
+          <span className="lead-mcard-meta">{l.created_at}{l.agent_name ? ' · ' + l.agent_name : ''}</span>
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div>
       <div className="page-header"><h1>{t('nav.leads')}</h1>
@@ -142,24 +199,14 @@ export default function LeadsPage() {
 
       {/* phones: a card per lead instead of the wide table */}
       <div className="lead-cards mobile-only">
-        {sorted.map((l) => {
-          const TI = typeIcon(l);
-          const cs = isCallLead(l) ? callState(l) : null;
-          const outgoing = (l.lead_through || '') === 'call_out';
-          const iconStyle = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
+        {groups.map((g) => {
+          const multi = g.leads.length > 1;
+          const open = multi && openGroups.has(g.key);
           return (
-            <button key={l.id} type="button" className="lead-mcard" onClick={() => setSelected(l.id)}>
-              <span className="lead-mcard-icon"><TI size={18} style={iconStyle} /></span>
-              <span className="lead-mcard-body">
-                <span className="lead-mcard-top">
-                  <strong>{l.lead_name || t('lead.na')}</strong>
-                  {l.status_text && <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span>}
-                </span>
-                <span className="lead-mcard-phone" dir="ltr">{formatIL(l.lead_phone, t('lead.unknownPhone'))}</span>
-                <span className="lead-mcard-meta">{[l.service_name, l.company_name].filter(Boolean).join(' · ')}</span>
-                <span className="lead-mcard-meta">{l.created_at}{l.agent_name ? ' · ' + l.agent_name : ''}</span>
-              </span>
-            </button>
+            <div key={g.key} className={'lead-mgroup' + (open ? ' open' : '')}>
+              {mobileCard(g.leads[0], multi ? () => toggleGroup(g.key) : () => setSelected(g.leads[0].id), multi ? { count: g.leads.length, open } : null)}
+              {open && g.leads.map((l) => <div key={l.id} className="lead-msub">{mobileCard(l, () => setSelected(l.id))}</div>)}
+            </div>
           );
         })}
       </div>
@@ -172,24 +219,13 @@ export default function LeadsPage() {
           {th('agent_name', t('lead.agent'))}{th('created_at', t('lead.received'))}<th>{t('lead.lastCall')}</th>
           {th('status_text', t('lead.status'))}<th>{t('lead.tags')}</th>
         </tr></thead>
-        <tbody>{sorted.map((l) => {
-          const TI = typeIcon(l);
-          const cs = isCallLead(l) ? callState(l) : null;
-          const outgoing = (l.lead_through || '') === 'call_out';
-          const iconStyle = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
-          return (
-            <tr key={l.id}>
-              <td><TI size={16} style={iconStyle} title={outgoing ? t('lead.outgoing') : (cs ? t(cs.key) : undefined)} /></td>
-              <td><button className="link-name" onClick={() => setSelected(l.id)}>{l.lead_name || t('lead.na')}</button></td>
-              <td>{formatIL(l.lead_phone, t('lead.unknownPhone'))}</td><td>{l.lead_email || '--'}</td>
-              <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>
-              <td><span className={'presence ' + (/(available|online)/i.test(l.agent_status || '') ? 'on' : 'off')} /> {l.agent_name || t('lead.general')}</td>
-              <td>{l.created_at}</td>
-              <td>{l.last_interaction_type || ''}</td>
-              <td>{l.status_text ? <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span> : '-'}</td>
-              <td>{(l.tags || []).map((tg) => <span key={tg.id} className={'tag-chip ' + (isAutoTag(tg.label) ? 'tag-auto' : '')} style={{ marginInlineStart: 2 }}>{displayTag(tg.label)}</span>)}</td>
-            </tr>
-          );
+        <tbody>{groups.map((g) => {
+          const multi = g.leads.length > 1;
+          const open = multi && openGroups.has(g.key);
+          return [
+            tableRow(g.leads[0], multi ? { count: g.leads.length, open, onToggle: () => toggleGroup(g.key) } : null),
+            ...(open ? g.leads.slice(1).map((l) => tableRow(l, null, true)) : []),
+          ];
         })}</tbody>
       </table></div>
       {sorted.length === 0 && <p className="muted">{t('lead.none')}</p>}

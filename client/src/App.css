@@ -580,3 +580,17 @@ a.sidebar-logo:hover { text-decoration: none; background: rgba(0,131,143,0.04); 
 .header-logo img { height: 26px; display: block; }
 @media (max-width: 860px) { .header-logo { display: inline-flex; } }
 @media (max-width: 520px) { .header-user-text { display: none; } .header-logo img { height: 24px; } }
+
+/* same phone + same day grouped into one row */
+.group-chip { display: inline-flex; align-items: center; gap: 3px; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: rgba(0,131,143,0.12); color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.group-chip.open { background: var(--accent); color: #fff; }
+.lead-group-row { cursor: pointer; }
+.lead-group-row.open td { background: rgba(0,131,143,0.05); }
+.lead-sub-row td { background: #fafcfc; font-size: 12.5px; }
+.lead-sub-row td:first-child { text-align: center; }
+.sub-mark { color: var(--text-dim); }
+.lead-mgroup { display: flex; flex-direction: column; gap: 4px; }
+.lead-mcard.group-open { border-color: var(--accent); }
+.lead-msub { margin-inline-start: 18px; }
+.lead-msub .lead-mcard { background: #fafcfc; border-style: dashed; padding: 0.55rem 0.75rem; }
+.group-hint { color: var(--accent) !important; font-weight: 600; }
