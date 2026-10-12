@@ -195,6 +195,24 @@ async function ensureSchema() {
   await safe('users.restrict_own_leads', () => ensureColumn('users', 'restrict_own_leads', 'restrict_own_leads TINYINT(1) NOT NULL DEFAULT 0'));
   // round-robin lead assignment: the channel's last assigned agent (turn pointer)
   await safe('services.distribute_last_user_id', () => ensureColumn('services', 'distribute_last_user_id', 'distribute_last_user_id BIGINT UNSIGNED NULL'));
+  // mobile app: FCM device tokens (one row per device; a token moves to whoever logs in on it)
+  await safe('device_tokens.table', () => query(`CREATE TABLE IF NOT EXISTS device_tokens (
+      id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+      user_id BIGINT UNSIGNED NOT NULL,
+      token VARCHAR(255) NOT NULL,
+      platform VARCHAR(10) NOT NULL DEFAULT 'android',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_device_token (token),
+      INDEX idx_device_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // mobile app caller ID: numbers an agent marked "business call" on their private mobile
+  // (last 9 digits). Numbers marked private stay on the phone only, never stored here.
+  await safe('user_business_numbers.table', () => query(`CREATE TABLE IF NOT EXISTS user_business_numbers (
+      user_id BIGINT UNSIGNED NOT NULL,
+      phone_key VARCHAR(12) NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, phone_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,

@@ -27,6 +27,10 @@ module.exports = {
     mobileExpiresIn: process.env.MOBILE_JWT_EXPIRES_IN || '90d',
   },
   uploadDir: process.env.UPLOAD_DIR || require('path').resolve(__dirname, '../../public/uploads'),
+  // mobile app push (FCM): the service-account JSON, raw or base64 (see services/fcm.js)
+  firebase: {
+    serviceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || '',
+  },
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY || '',
     privateKey: process.env.VAPID_PRIVATE_KEY || '',

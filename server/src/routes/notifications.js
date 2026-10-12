@@ -46,6 +46,25 @@ router.post('/unsubscribe', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// --- mobile app (FCM) ---
+// register this device's FCM token (upsert; a token that belonged to another user moves to this one)
+router.post('/device', asyncHandler(async (req, res) => {
+  const { token, platform } = req.body || {};
+  if (!token || typeof token !== 'string' || token.length > 255) return res.status(400).json({ error: 'טוקן לא תקין' });
+  await query(
+    `INSERT INTO device_tokens (user_id, token, platform) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), platform = VALUES(platform)`,
+    [req.user.id, token, platform === 'ios' ? 'ios' : 'android']);
+  res.json({ ok: true });
+}));
+
+// the app calls this on sign-out
+router.delete('/device', asyncHandler(async (req, res) => {
+  const token = req.body && req.body.token;
+  if (token) await query('DELETE FROM device_tokens WHERE user_id = ? AND token = ?', [req.user.id, token]);
+  res.json({ ok: true });
+}));
+
 // send myself a test notification across my enabled channels
 router.post('/test', asyncHandler(async (req, res) => {
   await notify.notifyUser({ userId: req.user.id, event: 'new_lead', title: 'התראת בדיקה', body: 'זו התראת בדיקה מהמערכת' });

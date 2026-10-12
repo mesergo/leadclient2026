@@ -28,6 +28,7 @@ function callState(l) {
 
 // map a lead's source to an icon
 function typeIcon(l) {
+  if (l.lead_through === 'mobile') return Icons.Mobile; // business call on the agent's private mobile
   const s = ((l.lead_through || '') + ' ' + (l.service_type || '') + ' ' + (l.service_name || '')).toLowerCase();
   if (/whatsapp|וואטס|ווטס/.test(s)) return Icons.Phone;
   if (/phone|call|טלפון|שיח/.test(s)) return Icons.Phone;
@@ -108,7 +109,8 @@ export default function LeadsPage() {
     const cs = isCallLead(l) ? callState(l) : null;
     const outgoing = (l.lead_through || '') === 'call_out';
     const style = { ...(cs ? { color: cs.color } : {}), ...(outgoing ? { transform: 'scaleX(-1)' } : {}) };
-    return { TI, style, title: outgoing ? t('lead.outgoing') : (cs ? t(cs.key) : undefined) };
+    const mobile = l.lead_through === 'mobile';
+    return { TI, style, title: mobile ? t('lead.mobileCall') : outgoing ? t('lead.outgoing') : (cs ? t(cs.key) : undefined) };
   };
   const groupChip = (grp) => (
     <span className={'group-chip' + (grp.open ? ' open' : '')} title={t('lead.groupHint')}>{grp.count} {grp.open ? '▴' : '▾'}</span>

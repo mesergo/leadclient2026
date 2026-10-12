@@ -3,16 +3,18 @@
 //   app     -> row in `notifications` (in-app bell)
 //   browser -> Web Push (background, works when the app tab is closed)
 //   sms     -> integrations.sms.send (currently MOCK — logs, no real send)
+//   mobile  -> FCM push to the user's phones (the Android app), when Firebase is configured
 // Best-effort: callers fire-and-forget; failures never break the request.
 const webpush = require('web-push');
 const config = require('../config');
 const { query } = require('../db/pool');
 const integrations = require('./integrations');
+const fcm = require('./fcm');
 
 // Event catalog — the customer chooses which of these they want, per channel.
 const EVENTS = ['new_lead', 'status_change', 'reminder_due', 'lead_message'];
 // Default when a user has no explicit preference for an event.
-const DEFAULTS = { app: true, browser: false, sms: false };
+const DEFAULTS = { app: true, browser: false, sms: false, mobile: true };
 
 let pushReady = false;
 if (config.vapid.publicKey && config.vapid.privateKey) {
@@ -45,6 +47,7 @@ async function notifyUser({ userId, event, title, body, leadId = null, companyId
     const ch = channelsFor(parsePrefs(rows[0].notifications), event);
     const content = title && body ? `${title} — ${body}` : (body || title || '');
     if (ch.app) await query('INSERT INTO notifications (user_id, company_id, lead_id, content) VALUES (?, ?, ?, ?)', [userId, companyId, leadId, content]);
+    if (ch.mobile) await fcm.sendToUser(userId, { title: title || 'LeadClient', body: body || content, data: { type: event, leadId } });
     if (ch.browser) await sendPush(userId, { title: title || 'LeadClient', body: body || content, url: leadId ? `/leads/${leadId}` : '/' });
     if (ch.sms && rows[0].phone) {
       const r = await integrations.sms.send({ to: rows[0].phone, text: content });
