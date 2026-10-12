@@ -213,6 +213,13 @@ async function ensureSchema() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (user_id, phone_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // a forwarded call the agent marked private in the app: its lead was deleted, and the rest of
+  // the call's webhooks (e.g. the end event) must not create it again
+  await safe('private_calls.table', () => query(`CREATE TABLE IF NOT EXISTS private_calls (
+      call_uuid VARCHAR(100) PRIMARY KEY,
+      company_id BIGINT UNSIGNED NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,

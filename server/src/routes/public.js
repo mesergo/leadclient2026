@@ -275,6 +275,12 @@ async function processCall(num, req, res, logId) {
   if (!num) { await updateLog(logId, { result: 'no_match' }); return reply(false, 'no match'); }
   if (!num.company_id) { await updateLog(logId, { numberId: num.id, result: 'number_unassigned' }); return reply(true, 'number unassigned'); }
 
+  // the agent marked this call private in the mobile app: keep routing it, never log it as a lead
+  if (callUuid && (await query('SELECT 1 FROM private_calls WHERE call_uuid = ? LIMIT 1', [callUuid])).length) {
+    await updateLog(logId, { numberId: num.id, companyId: num.company_id, result: 'private_call' });
+    return reply(true, 'private call');
+  }
+
   // --- click-to-call: recognize the webhook of a dialer (create_maskyoo_call_v2) call ---
   // Match a recent callback on THIS virtual where the caller is the agent OR the customer,
   // so the one outgoing lead is reused (no duplicate inbound lead is created).

@@ -99,4 +99,23 @@ router.post('/mobile-call', asyncHandler(async (req, res) => {
   res.status(201).json({ lead: { id: r.insertId }, reused: false });
 }));
 
+// DELETE /api/calls/lead/:id — "this call was private": deletes THIS call's lead only (never the
+// number's other leads). Limited to recent call leads the user can see. For a forwarded call the
+// call's UUID is remembered so its remaining webhooks don't recreate the lead.
+router.delete('/lead/:id', asyncHandler(async (req, res) => {
+  if (req.user.role === 'sales_manager') return res.status(403).json({ error: 'אין הרשאה' });
+  const s = leadScope(req.user, 'l');
+  const lead = (await query(
+    `SELECT l.id, l.company_id, l.call_uuid FROM leads l
+      WHERE l.id = ? AND (${s.sql}) AND l.lead_through IN ('call', 'mobile')
+        AND l.created_at > (NOW() - INTERVAL 1 DAY) LIMIT 1`, [req.params.id, ...s.params]))[0];
+  if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
+  if (lead.call_uuid) {
+    await query('INSERT IGNORE INTO private_calls (call_uuid, company_id) VALUES (?, ?)', [lead.call_uuid, lead.company_id]);
+  }
+  await query('DELETE FROM notifications WHERE lead_id = ?', [lead.id]);
+  await query('DELETE FROM leads WHERE id = ?', [lead.id]); // notes/tags/reminders cascade
+  res.json({ ok: true });
+}));
+
 module.exports = router;
