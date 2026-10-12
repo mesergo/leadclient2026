@@ -21,6 +21,8 @@ app.get('/api/health', async (req, res) => {
       'SELECT NOW() AS db_now, @@session.time_zone AS db_session_tz, @@global.time_zone AS db_global_tz, @@system_time_zone AS db_system_tz');
     out.time = { server_now: fmt(new Date()), ...r };
   } catch (e) { out.time = { error: e.message }; }
+  // push readiness only (true/false) — never any part of the keys
+  out.push = { mobile_fcm: require('./services/fcm').isReady(), web: require('./services/notify').isPushReady() };
   res.json(out);
 });
 
