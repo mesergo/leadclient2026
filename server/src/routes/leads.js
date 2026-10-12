@@ -85,13 +85,16 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const s = leadScope(req.user, 'l');
   const rows = await query(
     `SELECT l.*, c.name AS company_name, a.name AS agency_name, sv.name AS service_name, sv.service_type,
-            st.text AS status_text, st.color AS status_color, u.display_name AS agent_name
+            st.text AS status_text, st.color AS status_color, u.display_name AS agent_name,
+            COALESCE(NULLIF(ab.display_name,''), NULLIF(TRIM(CONCAT_WS(' ', ab.first_name, ab.last_name)),''), ab.username) AS answered_by_name,
+            ab.phone AS answered_by_phone
      FROM leads l
      LEFT JOIN companies c ON c.id = l.company_id
      LEFT JOIN agencies a ON a.id = c.agency_id
      LEFT JOIN services sv ON sv.id = l.service_id
      LEFT JOIN lead_statuses st ON st.id = l.status_id
      LEFT JOIN users u ON u.id = l.current_agent_id
+     LEFT JOIN users ab ON ab.id = l.answered_by
      WHERE l.id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!rows[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
   const lead = rows[0];

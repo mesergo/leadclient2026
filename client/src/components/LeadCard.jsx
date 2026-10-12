@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api, API_ORIGIN } from '../api';
-import { Star, X } from '../icons';
+import { Star, X, Phone, Mobile, Inbox, Globe, User, Check } from '../icons';
 import { isAutoTag, displayTag, extractRecordingUrl, maskSuppliers } from '../tags';
 import { formatIL, waNumber } from '../phone';
 import Dialer from './Dialer';
-import { Phone } from '../icons';
 
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
 const CHANNELS = ['sms', 'whatsapp', 'email'];
@@ -62,6 +61,18 @@ export default function LeadCard({ id, onClose }) {
   const treatments = convos.filter((c) => c.send_by === 'treatment');
   const messages = convos.filter((c) => c.send_by !== 'treatment');
 
+  // what kind of lead this is, for the avatar
+  const callKind = l.lead_through === 'mobile'
+    ? { Icon: Mobile, cls: 'k-mobile', label: t('lead.mobileCall') }
+    : l.lead_through === 'call_out' ? { Icon: Phone, cls: 'k-out', label: t('lead.outgoing') }
+      : isPhoneLead(l) ? { Icon: Phone, cls: l.call_status === 'missed' ? 'k-missed' : 'k-in', label: t('lc.callIn') }
+        : /site|web|widget|form/i.test(l.lead_through || '') ? { Icon: Globe, cls: 'k-web', label: l.lead_through } : { Icon: Inbox, cls: 'k-web', label: l.lead_through || '' };
+  // who took the call: incoming -> answered by, outgoing -> dialed by
+  const outgoing = l.lead_through === 'call_out' || l.lead_through === 'mobile';
+  const takerName = l.answered_by_name || (outgoing ? l.agent_name : null);
+  const takerPhone = l.answered_by_name ? (l.answered_by_phone || l.answered_phone) : (outgoing ? null : l.answered_phone);
+  const durText = l.call_duration_sec ? `${Math.floor(l.call_duration_sec / 60)}:${String(l.call_duration_sec % 60).padStart(2, '0')}` : null;
+
   const upd = async (patch) => { try { await api.updateLead(id, patch, token); load(); } catch (e) { setError(e.message); } };
   const saveField = (f) => {
     const a = edit[f] || '', b = l[f] || '';
@@ -103,39 +114,122 @@ export default function LeadCard({ id, onClose }) {
   return (
     <div className="lead-card">
       <div className="lead-card-head">
-        <h2>{t('leadd.title')} #{l.id} — {l.lead_name || t('lead.na')}</h2>
-        {onClose && <button className="icon-btn" onClick={onClose}><X size={16} /></button>}
+        <span className="lc-id">{t('leadd.title')} #{l.id}</span>
+        {onClose && <button className="icon-btn" onClick={onClose} aria-label="close"><X size={16} /></button>}
       </div>
+
+      {/* hero: who, how to reach, where it came from */}
+      <div className="lc-hero">
+        <div className={'lc-avatar ' + callKind.cls} title={callKind.label}><callKind.Icon size={22} /></div>
+        <div className="lc-hero-main">
+          <input className="lc-name-input" value={edit.lead_name} placeholder={t('lead.na')}
+            onChange={(e) => setEdit({ ...edit, lead_name: e.target.value })}
+            onBlur={() => saveField('lead_name')} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />
+          <div className="lc-phone" dir="ltr">
+            {isPhoneLead(l)
+              ? <span title={t('lc.callerLocked')}>{edit.lead_phone || t('lead.unknownPhone')}</span>
+              : <input value={edit.lead_phone} placeholder={t('lead.unknownPhone')} onChange={(e) => setEdit({ ...edit, lead_phone: e.target.value })}
+                  onBlur={() => saveField('lead_phone')} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} />}
+          </div>
+          <div className="lc-meta">
+            {l.service_name && <span className="lc-meta-chip">{l.service_name}</span>}
+            <span className="lc-meta-chip">{l.company_name}{l.agency_name ? ` · ${l.agency_name}` : ''}</span>
+            <span className="lc-meta-chip">{l.created_at}</span>
+          </div>
+        </div>
+        <div className="lc-rating" title={t('lc.rating')}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" onClick={() => upd({ lead_rating: n })} aria-label={`${n}`}><Star size={18} filled={n <= (l.lead_rating || 0)} /></button>
+          ))}
+        </div>
+      </div>
+
+      <div className="lc-actions">
+        {waNumber(edit.lead_phone) && <button type="button" className="lc-action primary" onClick={() => setDialOpen(true)}><Phone size={16} /> {t('lc.dialCustomer')}</button>}
+        {waNumber(edit.lead_phone) && <a className="lc-action wa" href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer">WhatsApp</a>}
+        {edit.lead_email && <a className="lc-action" href={`mailto:${edit.lead_email}`}>Email</a>}
+      </div>
+
       <div className="tabs">{TABS.map(([k, lbl]) => <button key={k} className={'tab' + (tab === k ? ' active' : '')} onClick={() => setTab(k)}>{lbl}</button>)}</div>
 
       <div className="lead-card-body">
         {tab === 'general' && (<>
-          {row(t('lead.name'), editInput('lead_name', 220))}
-          {row(t('common.company'), `${l.company_name} / ${l.agency_name || '-'}`)}
-          {row(t('lead.channel'), l.service_name || '-')}
-          {row(t('common.phone'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{isPhoneLead(l) ? <strong style={{ padding: '4px 8px' }} title={t('lc.callerLocked')}>{edit.lead_phone || t('lead.unknownPhone')}</strong> : editInput('lead_phone', 170, t('lead.unknownPhone'))}{waNumber(edit.lead_phone) && <button type="button" className="chip-link dial" onClick={() => setDialOpen(true)}><Phone size={13} /> {t('lc.dialCustomer')}</button>}{waNumber(edit.lead_phone) && <a href={`https://wa.me/${waNumber(edit.lead_phone)}`} target="_blank" rel="noreferrer" className="chip-link wa">WhatsApp</a>}</span>)}
-          {row(t('common.email'), <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{editInput('lead_email', 200)}{edit.lead_email && <a href={`mailto:${edit.lead_email}`} className="chip-link email">Email</a>}</span>)}
-          {row(t('lead.received'), l.created_at)}
-          {row(t('lead.status'), (
-            <select value={l.status_id || ''} onChange={(e) => upd({ status_id: e.target.value || null })}>
-              <option value="">—</option>{(data.statuses || []).map((st) => <option key={st.id} value={st.id}>{st.text}</option>)}
-            </select>
-          ))}
-          {row(t('lc.rating'), <span style={{ color: '#f5a623', display: 'flex', gap: 2 }}>{[1, 2, 3, 4, 5].map((n) => <span key={n} style={{ cursor: 'pointer' }} onClick={() => upd({ lead_rating: n })}><Star size={18} filled={n <= (l.lead_rating || 0)} /></span>)}</span>)}
-          {(() => {
+          {/* status — colored chips like the app */}
+          <section className="lc-section">
+            <h4>{t('lead.status')}</h4>
+            <div className="lc-status-row">
+              {(data.statuses || []).map((st) => {
+                const on = String(l.status_id) === String(st.id);
+                const c = st.color || '#888';
+                return (
+                  <button key={st.id} type="button" className={'lc-status' + (on ? ' on' : '')}
+                    style={on ? { background: c, borderColor: c, color: '#fff' } : { borderColor: c + '66', color: c }}
+                    onClick={() => !on && upd({ status_id: st.id })}>
+                    {on && <Check size={13} />}{st.text}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* the call: who answered / dialed, outcome, length, recording */}
+          {isPhoneLead(l) || l.lead_through === 'mobile' ? (() => {
             const hasRec = !!(l.recording_url || extractRecordingUrl(l.lead_info) || extractRecordingUrl(l.referrer));
-            if (!isPhoneLead(l) && !hasRec) return null;
-            // stream through our server (Maskyoo recordings need auth); token in query for the media request
             const recSrc = `${API_ORIGIN}/api/leads/${l.id}/recording?token=${encodeURIComponent(token)}`;
-            return row(t('lc.recording'), hasRec ? (
-              <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <audio controls preload="none" src={recSrc} style={{ height: 32 }} />
-                <a href={recSrc} target="_blank" rel="noreferrer" className="chip-link email">{t('lc.download')}</a>
-              </span>
-            ) : <span className="muted">{t('lc.noRecording')}</span>);
-          })()}
-          {row(t('lead.tags'), (
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+            return (
+              <section className="lc-section">
+                <h4>{t('lc.callTitle')}</h4>
+                <div className="lc-call-grid">
+                  <div className="lc-kv">
+                    <span>{outgoing ? t('lc.dialedBy') : t('lc.answeredBy')}</span>
+                    <strong>
+                      {takerName
+                        ? <><User size={14} /> {takerName}{takerPhone && <em dir="ltr"> · {formatIL(takerPhone)}</em>}</>
+                        : takerPhone ? <span dir="ltr">{formatIL(takerPhone)}</span>
+                          : <span className="muted">{l.call_status === 'missed' ? t('lc.notAnswered') : '—'}</span>}
+                    </strong>
+                  </div>
+                  <div className="lc-kv">
+                    <span>{t('lc.callResult')}</span>
+                    <strong className={'lc-callstate ' + (l.call_status || '')}>
+                      {l.call_status === 'answered' ? t('lc.resAnswered') : l.call_status === 'missed' ? t('lc.resMissed') : l.call_status === 'active' ? t('lc.resActive') : '—'}
+                    </strong>
+                  </div>
+                  <div className="lc-kv">
+                    <span>{t('lc.duration')}</span>
+                    <strong dir="ltr">{durText || '—'}</strong>
+                  </div>
+                </div>
+                {hasRec ? (
+                  <div className="lc-rec">
+                    <audio controls preload="none" src={recSrc} />
+                    <a href={recSrc} target="_blank" rel="noreferrer" className="lc-action small">{t('lc.download')}</a>
+                  </div>
+                ) : <p className="muted lc-norec">{t('lc.noRecording')}</p>}
+              </section>
+            );
+          })() : null}
+
+          {/* details */}
+          <section className="lc-section">
+            <h4>{t('lc.details')}</h4>
+            <div className="lc-fields">
+              <label className="lc-field">
+                <span>{t('common.email')}</span>
+                <input value={edit.lead_email} onChange={(e) => setEdit({ ...edit, lead_email: e.target.value })}
+                  onBlur={() => saveField('lead_email')} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }} placeholder="name@example.com" dir="ltr" />
+              </label>
+              <div className="lc-field">
+                <span>{t('lead.agent')}</span>
+                <strong>{l.agent_name || t('lead.general')}</strong>
+              </div>
+            </div>
+          </section>
+
+          {/* tags */}
+          <section className="lc-section">
+            <h4>{t('lead.tags')}</h4>
+            <div className="lc-tags">
               {(data.tags || []).map((tg) => {
                 const auto = isAutoTag(tg.label);
                 return (
@@ -145,19 +239,17 @@ export default function LeadCard({ id, onClose }) {
                   </span>
                 );
               })}
-              {/* pick an existing tag — adds immediately, repeatable */}
               <select className="tag-picker" value="" onChange={(e) => { if (e.target.value) addExistingTag(e.target.value); e.target.value = ''; }}>
                 <option value="">+ {t('lc.addTag')}</option>
                 {companyTags
                   .filter((ct) => !(data.tags || []).some((lt) => String(lt.id) === String(ct.id)))
                   .map((tg) => <option key={tg.id} value={tg.id}>{displayTag(tg.label)}</option>)}
               </select>
-              {/* or create a new tag */}
               <form onSubmit={addTag} style={{ display: 'inline-flex' }}>
-                <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder={t('lc.newTag')} style={{ width: 120, padding: '4px 8px' }} />
+                <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder={t('lc.newTag')} className="lc-tag-input" />
               </form>
             </div>
-          ))}
+          </section>
         </>)}
 
         {tab === 'extra' && (<>
