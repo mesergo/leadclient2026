@@ -65,9 +65,10 @@ router.delete('/business-numbers/:key', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// POST /api/calls/mobile-call { phone } — a business call that reached the agent's private mobile.
+// POST /api/calls/mobile-call { phone, call_id? } — a business call that reached the agent's private mobile.
 // Creates a lead (lead_through 'mobile') assigned to the agent and remembers the number as business.
-// A second report of the same number within 3 minutes reuses the lead (no duplicates).
+// Every call is its own lead (several calls = several leads). call_id is the phone's id for ONE call:
+// a repeated report of the same call reuses its lead instead of duplicating it.
 router.post('/mobile-call', asyncHandler(async (req, res) => {
   const raw = String((req.body && req.body.phone) || '').trim();
   const key = phoneKey(raw);
@@ -78,11 +79,12 @@ router.post('/mobile-call', asyncHandler(async (req, res) => {
 
   await query('INSERT IGNORE INTO user_business_numbers (user_id, phone_key) VALUES (?, ?)', [req.user.id, key]);
 
-  const recent = (await query(
-    `SELECT id FROM leads WHERE company_id = ? AND lead_through = 'mobile' AND current_agent_id = ?
-       AND REGEXP_REPLACE(lead_phone, '[^0-9]', '') LIKE CONCAT('%', ?) AND created_at > (NOW() - INTERVAL 3 MINUTE)
-     ORDER BY id DESC LIMIT 1`, [companyId, req.user.id, key]))[0];
-  if (recent) return res.json({ lead: { id: recent.id }, reused: true });
+  const callId = String((req.body && req.body.call_id) || '').replace(/[^\w-]/g, '').slice(0, 64);
+  const callUuid = callId ? `mobile:${req.user.id}:${callId}` : null;
+  if (callUuid) {
+    const same = (await query('SELECT id FROM leads WHERE company_id = ? AND call_uuid = ? LIMIT 1', [companyId, callUuid]))[0];
+    if (same) return res.json({ lead: { id: same.id }, reused: true });
+  }
 
   const local = raw.replace(/\D/g, '').replace(/^972/, '0');
   const named = (await query(
@@ -91,11 +93,11 @@ router.post('/mobile-call', asyncHandler(async (req, res) => {
   const st = await query(
     'SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1', [companyId]);
   const r = await query(
-    `INSERT INTO leads (company_id, status_id, lead_name, lead_phone, lead_info, lead_through, current_agent_id,
+    `INSERT INTO leads (company_id, status_id, lead_name, lead_phone, lead_info, lead_through, current_agent_id, call_uuid,
                         last_interaction_at, last_interaction_type, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'mobile', ?, NOW(), 'call', NOW(), NOW())`,
+     VALUES (?, ?, ?, ?, ?, 'mobile', ?, ?, NOW(), 'call', NOW(), NOW())`,
     [companyId, st[0] ? st[0].id : null, named ? named.lead_name : null, local || raw,
-      '[שיחה עסקית בנייד פרטי]', req.user.id]);
+      '[שיחה עסקית בנייד פרטי]', req.user.id, callUuid]);
   res.status(201).json({ lead: { id: r.insertId }, reused: false });
 }));
 
