@@ -366,6 +366,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS leads (
+  -- answered_phone VARCHAR(20) / answered_by BIGINT: who took the call (added by ensureSchema)
   id                    BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   company_id            BIGINT UNSIGNED NOT NULL,
   service_id            BIGINT UNSIGNED NULL,

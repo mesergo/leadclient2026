@@ -113,6 +113,16 @@ function announceNewLead(companyId, leadId, name, phone, assignedTo = null) {
 }
 
 // If this phone already has a named lead in the company, reuse that name for new leads.
+// The company user whose mobile is `phone` (last 9 digits) — the agent a call was routed to.
+async function userByPhone(companyId, phone) {
+  const key = String(phone || '').replace(/\D/g, '').slice(-9);
+  if (!companyId || key.length < 7) return null;
+  const r = await query(
+    `SELECT id FROM users WHERE company_id = ? AND is_active = 1 AND phone IS NOT NULL
+       AND REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?) LIMIT 1`, [companyId, key]).catch(() => []);
+  return r[0] ? r[0].id : null;
+}
+
 async function nameForPhone(companyId, phone) {
   const key = String(phone || '').replace(/\D/g, '').slice(-9);
   if (!companyId || key.length < 7) return null;
@@ -312,6 +322,7 @@ async function processCall(num, req, res, logId) {
           [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid, durSec]);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
+        if (cb.user_id) await query('UPDATE leads SET answered_by = ? WHERE id = ?', [cb.user_id, leadId]); // who dialed
         // an outgoing (dialer) call belongs to the agent who placed it
         const agent = await distribution.assignLead({ leadId, companyId: num.company_id, serviceId: num.service_id, phone: targetLocal, agentId: cb.user_id });
         announceNewLead(num.company_id, leadId, 'שיחה יוצאת', targetLocal, agent);
@@ -323,10 +334,10 @@ async function processCall(num, req, res, logId) {
           await query("UPDATE callbacks SET status = 'used', used_at = NOW() WHERE id = ?", [cb.id]);
           await query(
             `UPDATE leads SET call_status = 'active', call_uuid = COALESCE(?, call_uuid),
-               current_agent_id = COALESCE(current_agent_id, ?),
+               current_agent_id = COALESCE(current_agent_id, ?), answered_by = ?, answered_phone = NULL,
                lead_info = CONCAT(COALESCE(lead_info, ''), '
 [שיחה יוצאת] חיוג מהחייגן'), updated_at = NOW() WHERE id = ?`,
-            [callUuid, cb.user_id, leadId]);
+            [callUuid, cb.user_id, cb.user_id || null, leadId]);
         }
         // the recording belongs to THIS call: fill an empty one, or replace one from this same call
         if (recStore) await query(
@@ -369,12 +380,16 @@ async function processCall(num, req, res, logId) {
       const routedLocal = routedTo ? String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0') : '';
       const label = answered ? 'שיחה הסתיימה' : 'שיחה לא נענתה';
       const info = `\n[${label}] משך: ${duration || '?'} שנ׳${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
+      // who took it: the number the call was routed to, and the user with that mobile
+      const answeredPhone = answered && routedLocal ? routedLocal : null;
+      const answeredBy = answeredPhone ? await userByPhone(num.company_id, answeredPhone) : null;
       await query(
         `UPDATE leads SET lead_info = CONCAT(COALESCE(lead_info, ''), ?),
            recording_url = COALESCE(?, recording_url), call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec),
            last_interaction_at = IF(?, NOW(), last_interaction_at), last_interaction_type = IF(?, 'call', last_interaction_type),
+           answered_phone = COALESCE(?, answered_phone), answered_by = COALESCE(?, answered_by),
            updated_at = NOW() WHERE id = ?`,
-        [info, recStore, callStatus, durSec, answered ? 1 : 0, answered ? 1 : 0, recent[0].id]);
+        [info, recStore, callStatus, durSec, answered ? 1 : 0, answered ? 1 : 0, answeredPhone, answeredBy, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       fireChannelWebhook(num.service_id, { id: recent[0].id, company_id: num.company_id, caller, duration, status: callStatus });
       return reply(true, 'lead updated');
@@ -408,6 +423,11 @@ async function processCall(num, req, res, logId) {
      VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, ?, NOW(), NOW())`,
     [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
+  if (isEnd && answered && routedTo) {
+    const answeredPhone = String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0');
+    await query('UPDATE leads SET answered_phone = ?, answered_by = ? WHERE id = ?',
+      [answeredPhone, await userByPhone(num.company_id, answeredPhone), r.insertId]);
+  }
   const agent = await distribution.assignLead({ leadId: r.insertId, companyId: num.company_id, serviceId: num.service_id, phone: caller });
   announceNewLead(num.company_id, r.insertId, 'שיחה נכנסת', caller || 'לא מזוהה', agent);
   // a call reported only at its end (e.g. a missed call) still ends here

@@ -14,13 +14,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // so a test looks exactly like what the receiver will get in production.
 // recording_url: our signed link (only when the lead has a recording);
 // recording_ready: the file is already downloadable from that link.
-function callEndedPayload({ leadId, companyId, serviceId, caller, duration, status, withRecording = true, recordingReady = false }) {
+// direction: 'incoming' | 'outgoing'. agent: who took the call — on an incoming call the agent who
+// answered (null when missed / unknown), on an outgoing call the agent who dialed. agent_action says which.
+function callEndedPayload({ leadId, companyId, serviceId, caller, duration, status, withRecording = true, recordingReady = false, direction = null, agent = null }) {
   const rec = !!(withRecording && leadId);
   return {
     event: 'call_ended', lead_id: leadId, company_id: companyId, service_id: serviceId,
+    direction: direction || null,
     caller: caller || null,
     duration: duration == null || duration === '' ? null : String(duration),
     status: status || null,                    // 'answered' | 'missed'
+    agent: agent || null,                      // { id, name, phone } | null
+    agent_action: agent ? (direction === 'outgoing' ? 'dialed' : 'answered') : null,
     recording_url: rec ? recording.publicUrl(leadId) : null,
     recording_ready: rec && !!recordingReady,
     at: new Date().toISOString(),
@@ -34,7 +39,24 @@ function leadCreatedPayload({ leadId, companyId, serviceId, name, phone, email, 
   };
 }
 
-const LEAD_COLS = 'id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url';
+const LEAD_COLS = 'id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url, answered_by, answered_phone, current_agent_id';
+
+// { direction, agent } of a call lead. Incoming: who answered (the user, or just the number it was
+// routed to). Outgoing: who dialed (answered_by, falling back to the lead's agent).
+async function callParty(l) {
+  if (!l) return { direction: null, agent: null };
+  const outgoing = l.lead_through === 'call_out';
+  const direction = outgoing ? 'outgoing' : 'incoming';
+  const userId = outgoing ? (l.answered_by || l.current_agent_id) : l.answered_by;
+  if (userId) {
+    const u = (await query(
+      `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name, phone
+         FROM users WHERE id = ?`, [userId]).catch(() => []))[0];
+    if (u) return { direction, agent: { id: u.id, name: u.name || null, phone: u.phone || null } };
+  }
+  if (!outgoing && l.answered_phone && l.call_status === 'answered') return { direction, agent: { id: null, name: null, phone: l.answered_phone } };
+  return { direction, agent: null };
+}
 
 // A stored lead in the real event format (call -> call_ended, otherwise lead_created).
 // For a call with a recording, the file is fetched/cached first so the link works at once.
@@ -44,7 +66,8 @@ async function payloadForLead(service, l) {
     let ready = false;
     if (l.recording_url) { try { ready = await recording.prefetch(l.id); } catch (e) { ready = false; } }
     return callEndedPayload({ ...base, caller: l.lead_phone, duration: l.call_duration_sec,
-      status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url, recordingReady: ready });
+      status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url, recordingReady: ready,
+      ...(await callParty(l)) });
   }
   return leadCreatedPayload({ ...base, name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_through });
 }
@@ -55,7 +78,7 @@ async function payloadForLead(service, l) {
 // without a recording link.
 async function sendCallEnded(serviceId, lead) {
   const base = { leadId: lead.id, companyId: lead.company_id, serviceId, caller: lead.caller, duration: lead.duration, status: lead.status };
-  const row = (await query('SELECT recording_url FROM leads WHERE id = ?', [lead.id]).catch(() => []))[0];
+  const row = (await query(`SELECT ${LEAD_COLS} FROM leads WHERE id = ?`, [lead.id]).catch(() => []))[0];
   const hasRec = lead.status === 'answered' && !!(row && row.recording_url);
   let ready = false;
   if (hasRec) {
@@ -66,7 +89,8 @@ async function sendCallEnded(serviceId, lead) {
       if (ready) break;
     }
   }
-  return send(serviceId, callEndedPayload({ ...base, withRecording: hasRec, recordingReady: ready }),
+  const party = await callParty(row ? { ...row, call_status: lead.status } : null);
+  return send(serviceId, callEndedPayload({ ...base, withRecording: hasRec, recordingReady: ready, ...party }),
     { companyId: lead.company_id, leadId: lead.id });
 }
 
@@ -82,7 +106,8 @@ async function testPayload(service) {
   if (l) {
     p = await payloadForLead(service, l);
   } else if (service.service_type === 'phone') {
-    p = { ...callEndedPayload({ ...base, leadId: 0, caller: '0501234567', duration: 42, status: 'answered', withRecording: false }), sample: true };
+    p = { ...callEndedPayload({ ...base, leadId: 0, caller: '0501234567', duration: 42, status: 'answered', withRecording: false,
+      direction: 'incoming', agent: { id: 0, name: 'נציג לדוגמה', phone: '0521234567' } }), sample: true };
   } else {
     p = { ...leadCreatedPayload({ ...base, leadId: 0, name: 'ישראל ישראלי', phone: '0501234567', email: 'test@example.com', source: 'widget' }), sample: true };
   }

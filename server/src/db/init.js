@@ -220,6 +220,10 @@ async function ensureSchema() {
       company_id BIGINT UNSIGNED NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // who took the call: incoming -> the number the call was routed to (DEST) + the matching user;
+  // outgoing (dialer) -> the user who dialed. Sent in the channel webhook (agent / direction).
+  await safe('leads.answered_phone', () => ensureColumn('leads', 'answered_phone', 'answered_phone VARCHAR(20) NULL'));
+  await safe('leads.answered_by', () => ensureColumn('leads', 'answered_by', 'answered_by BIGINT UNSIGNED NULL'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,
