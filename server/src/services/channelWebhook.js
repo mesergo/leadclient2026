@@ -14,12 +14,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // so a test looks exactly like what the receiver will get in production.
 // recording_url: our signed link (only when the lead has a recording);
 // recording_ready: the file is already downloadable from that link.
+// call_id: the provider's id of this call (the same in a later recording_ready event).
 // direction: 'incoming' | 'outgoing'. agent: who took the call — on an incoming call the agent who
 // answered (null when missed / unknown), on an outgoing call the agent who dialed. agent_action says which.
-function callEndedPayload({ leadId, companyId, serviceId, caller, duration, status, withRecording = true, recordingReady = false, direction = null, agent = null }) {
+function callEndedPayload({ leadId, companyId, serviceId, caller, duration, status, withRecording = true, recordingReady = false, direction = null, agent = null, callId = null }) {
   const rec = !!(withRecording && leadId);
   return {
-    event: 'call_ended', lead_id: leadId, company_id: companyId, service_id: serviceId,
+    event: 'call_ended', lead_id: leadId, call_id: callId || null, company_id: companyId, service_id: serviceId,
     direction: direction || null,
     caller: caller || null,
     duration: duration == null || duration === '' ? null : String(duration),
@@ -39,7 +40,7 @@ function leadCreatedPayload({ leadId, companyId, serviceId, name, phone, email, 
   };
 }
 
-const LEAD_COLS = 'id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, recording_url, answered_by, answered_phone, current_agent_id';
+const LEAD_COLS = 'id, lead_name, lead_phone, lead_email, lead_through, call_status, call_duration_sec, call_uuid, recording_url, answered_by, answered_phone, current_agent_id';
 
 // { direction, agent } of a call lead. Incoming: who answered (the user, or just the number it was
 // routed to). Outgoing: who dialed (answered_by, falling back to the lead's agent).
@@ -67,15 +68,16 @@ async function payloadForLead(service, l) {
     if (l.recording_url) { try { ready = await recording.prefetch(l.id); } catch (e) { ready = false; } }
     return callEndedPayload({ ...base, caller: l.lead_phone, duration: l.call_duration_sec,
       status: l.call_status === 'active' ? 'answered' : l.call_status, withRecording: !!l.recording_url, recordingReady: ready,
-      ...(await callParty(l)) });
+      callId: l.call_uuid, ...(await callParty(l)) });
   }
   return leadCreatedPayload({ ...base, name: l.lead_name, phone: l.lead_phone, email: l.lead_email, source: l.lead_through });
 }
 
 // Real call end: for an answered call, hold the webhook until the provider has the
 // recording ready (fetched + cached here, so the link downloads immediately) — up to
-// ~3.5 minutes, then send anyway with recording_ready:false. Missed calls go at once,
-// without a recording link.
+// ~3.5 minutes, then send anyway with recording_ready:false and keep checking in the
+// background: once the file exists a follow-up 'recording_ready' event is sent.
+// Missed calls go at once, without a recording link.
 async function sendCallEnded(serviceId, lead) {
   const base = { leadId: lead.id, companyId: lead.company_id, serviceId, caller: lead.caller, duration: lead.duration, status: lead.status };
   const row = (await query(`SELECT ${LEAD_COLS} FROM leads WHERE id = ?`, [lead.id]).catch(() => []))[0];
@@ -90,8 +92,37 @@ async function sendCallEnded(serviceId, lead) {
     }
   }
   const party = await callParty(row ? { ...row, call_status: lead.status } : null);
-  return send(serviceId, callEndedPayload({ ...base, withRecording: hasRec, recordingReady: ready, ...party }),
+  const callId = row ? row.call_uuid : null;
+  const r = await send(serviceId, callEndedPayload({ ...base, withRecording: hasRec, recordingReady: ready, callId, ...party }),
     { companyId: lead.company_id, leadId: lead.id });
+  if (hasRec && !ready) followRecording(serviceId, lead, callId);
+  return r;
+}
+
+// Background follow-up for a recording that was not ready at call_ended: check every
+// 5 minutes for an hour; when it is downloadable send { event: 'recording_ready' }.
+// Stops if the lead moved on to another call meanwhile. (In memory: a restart drops it.)
+const FOLLOW_EVERY_MS = 5 * 60 * 1000;
+const FOLLOW_TRIES = 12;
+function followRecording(serviceId, lead, callId, attempt = 1) {
+  setTimeout(async () => {
+    try {
+      const row = (await query('SELECT call_uuid, recording_url FROM leads WHERE id = ?', [lead.id]).catch(() => []))[0];
+      if (!row || !row.recording_url || (callId && row.call_uuid !== callId)) return;
+      let ready = false;
+      try { ready = await recording.prefetch(lead.id); } catch (e) { ready = false; }
+      if (ready) {
+        await send(serviceId, recordingReadyPayload({ leadId: lead.id, callId, companyId: lead.company_id, serviceId }),
+          { companyId: lead.company_id, leadId: lead.id });
+      } else if (attempt < FOLLOW_TRIES) followRecording(serviceId, lead, callId, attempt + 1);
+    } catch (e) { /* best effort */ }
+  }, FOLLOW_EVERY_MS).unref?.();
+}
+function recordingReadyPayload({ leadId, callId, companyId, serviceId }) {
+  return {
+    event: 'recording_ready', lead_id: leadId, call_id: callId || null, company_id: companyId, service_id: serviceId,
+    recording_url: recording.publicUrl(leadId), recording_ready: true, at: new Date().toISOString(),
+  };
 }
 
 // "Send test": the channel's latest lead (preferring one with a recording) in the

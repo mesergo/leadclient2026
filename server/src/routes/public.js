@@ -292,25 +292,30 @@ async function processCall(num, req, res, logId) {
   }
 
   // --- click-to-call: recognize the webhook of a dialer (create_maskyoo_call_v2) call ---
-  // Match a recent callback on THIS virtual where the caller is the agent OR the customer,
-  // so the one outgoing lead is reused (no duplicate inbound lead is created).
+  // Match a recent callback on THIS virtual where the caller is the AGENT (the click-to-call
+  // report always has CLI = the agent, DEST = the customer). A call whose caller is the customer
+  // is the customer calling back — a real incoming call with its own lead, never the dial's.
   const cbKey = String(caller || '').replace(/\D/g, '').slice(-9);
   const viaKey = String(num.phone_number || '').replace(/\D/g, '').slice(-9);
   const destKey = String(routedTo || '').replace(/\D/g, '').slice(-9); // DEST = the customer, unique per dial
-  if (viaKey && (cbKey || destKey)) {
-    // Match this dial by the customer (DEST) first — the agent may have several
-    // callbacks on the same virtual; only the DEST tells them apart.
+  if (viaKey && cbKey) {
+    // The DEST (the customer) must match the dial — the agent may have several callbacks
+    // on the same virtual; only the DEST tells them apart (and a stray report never joins an old dial).
     const cbRows = await query(
       `SELECT id, user_id, target_number, status, lead_id FROM callbacks
          WHERE REGEXP_REPLACE(via_number, '[^0-9]', '') LIKE CONCAT('%', ?)
            AND status IN ('pending','used') AND created_at > (NOW() - INTERVAL 20 MINUTE)
-           AND ( (? <> '' AND REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
-                 OR REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?)
-                 OR REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?) )
-         ORDER BY (? <> '' AND REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?)) DESC, id DESC
-         LIMIT 1`, [viaKey, destKey, destKey, cbKey, cbKey, destKey, destKey]);
+           AND ? <> '' AND REGEXP_REPLACE(from_number, '[^0-9]', '') LIKE CONCAT('%', ?)
+           AND (CHAR_LENGTH(?) < 7 OR REGEXP_REPLACE(target_number, '[^0-9]', '') LIKE CONCAT('%', ?))
+         ORDER BY id DESC
+         LIMIT 1`, [viaKey, cbKey, cbKey, destKey, destKey]);
     const cb = cbRows[0];
     if (cb) {
+      const custStatus = String(pick(req, 'STATUS') || '').toUpperCase();
+      const outAnswered = custStatus ? custStatus === 'ANSWER' : answered;
+      const outStatus = isEnd ? (outAnswered ? 'answered' : 'missed') : 'active';
+      const outSec = outAnswered ? durSec : null;
+      const outRec = outAnswered ? recStore : null; // no recording for a dial the customer did not answer
       const targetLocal = String(cb.target_number).replace(/\D/g, '').replace(/^972/, '0');
       let leadId = cb.lead_id;
       if (!leadId) { // no lead yet -> create the single outgoing lead
@@ -319,7 +324,7 @@ async function processCall(num, req, res, logId) {
         const r = await query(
           `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, call_duration_sec, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, '[שיחה יוצאת] חיוג מהחייגן', 'call_out', ?, ?, ?, ?, NOW(), NOW())`,
-          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, recStore, isEnd ? (answered ? 'answered' : 'missed') : 'active', callUuid, durSec]);
+          [num.company_id, num.service_id || null, st[0] ? st[0].id : null, knownName, targetLocal, outRec, outStatus, callUuid, outSec]);
         leadId = r.insertId;
         await query("UPDATE callbacks SET status = 'used', used_at = NOW(), lead_id = ? WHERE id = ?", [leadId, cb.id]);
         if (cb.user_id) await query('UPDATE leads SET answered_by = ? WHERE id = ?', [cb.user_id, leadId]); // who dialed
@@ -340,15 +345,15 @@ async function processCall(num, req, res, logId) {
             [callUuid, cb.user_id, cb.user_id || null, leadId]);
         }
         // the recording belongs to THIS call: fill an empty one, or replace one from this same call
-        if (recStore) await query(
+        if (outRec) await query(
           "UPDATE leads SET recording_url = ?, updated_at = NOW() WHERE id = ? AND (recording_url IS NULL OR recording_url = '' OR (? IS NOT NULL AND call_uuid = ?))",
-          [recStore, leadId, callUuid, callUuid]);
+          [outRec, leadId, callUuid, callUuid]);
         if (isEnd) await query(
           'UPDATE leads SET call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec), lead_info = CONCAT(COALESCE(lead_info, \'\'), ?), last_interaction_at = NOW(), last_interaction_type = \'call_out\', updated_at = NOW() WHERE id = ?',
-          [answered ? 'answered' : 'missed', durSec, `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳`, leadId]);
+          [outStatus, outSec, outAnswered ? `\n[שיחה יוצאת הסתיימה] משך: ${duration || '?'} שנ׳` : '\n[שיחה יוצאת] הלקוח לא ענה', leadId]);
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId, result: isEnd ? 'callback_end' : 'callback_rec' });
       }
-      if (isEnd) fireChannelWebhook(num.service_id, { id: leadId, company_id: num.company_id, caller: targetLocal, duration, status: answered ? 'answered' : 'missed' });
+      if (isEnd) fireChannelWebhook(num.service_id, { id: leadId, company_id: num.company_id, caller: targetLocal, duration: outAnswered ? duration : null, status: outStatus });
       return res.type('text/plain').send(toIsraeliMsisdn(cb.target_number) || '');
     }
   }
