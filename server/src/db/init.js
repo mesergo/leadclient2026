@@ -224,6 +224,7 @@ async function ensureSchema() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY uq_user_phone (user_id, phone)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  await safe('user_dial_numbers.label', () => ensureColumn('user_dial_numbers', 'label', 'label VARCHAR(80) NULL')); // e.g. the rep's name
   // account / data deletion requests from the public /delete-account page (Google Play requirement)
   await safe('deletion_requests.table', () => query(`CREATE TABLE IF NOT EXISTS deletion_requests (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

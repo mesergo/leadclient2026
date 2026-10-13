@@ -463,6 +463,7 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .dialer .link-btn.danger { color: #c62828; }
 .dialer-add { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--surface-2, #f7f7f8); }
 .dialer-add > input { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 16px; text-align: center; background: #fff; }
+.dialer-add-label { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: #fff; font-size: 14px; }
 .dialer-add-q { font-weight: 600; color: var(--text, #333); }
 .dialer-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .dialer-seg button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: #fff; cursor: pointer; color: var(--text, #333); }

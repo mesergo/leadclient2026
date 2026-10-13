@@ -41,6 +41,7 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
   const [newPhone, setNewPhone] = useState('');
   const [newKind, setNewKind] = useState('permanent');  // permanent | temporary
   const [newDefault, setNewDefault] = useState(true);
+  const [newLabel, setNewLabel] = useState('');          // permanent only: e.g. the rep's name
   const [saving, setSaving] = useState(false);
 
   const profilePhone = localPhone(user?.phone);
@@ -64,7 +65,7 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
   const seen = new Set();
   const push = (phone, label, kind, id) => { const p = localPhone(phone); if (p && !seen.has(p)) { seen.add(p); choices.push({ phone: p, label, kind, id }); } };
   if (profilePhone) push(profilePhone, t('dial.myProfile'), 'profile');
-  mine.forEach((n) => push(n.phone, t('dial.saved'), 'saved', n.id));
+  mine.forEach((n) => push(n.phone, n.label ? `${n.label} · ${t('dial.saved')}` : t('dial.saved'), 'saved', n.id));
   temp.numbers.forEach((p) => push(p, t('dial.temporary'), 'temp'));
   const others = opts.mobiles.filter((m) => !seen.has(localPhone(m.phone)));
   if (from && !seen.has(localPhone(from)) && !others.some((m) => localPhone(m.phone) === localPhone(from))) push(from, '', 'other');
@@ -74,7 +75,7 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
     : savedDefault ? savedDefault.phone === current.phone : current.kind === 'profile');
 
   function pickFrom(v) {
-    if (v === ADD) { setAdding(true); setNewPhone(''); setNewKind('permanent'); setNewDefault(true); return; }
+    if (v === ADD) { setAdding(true); setNewPhone(''); setNewLabel(''); setNewKind('permanent'); setNewDefault(true); return; }
     setFrom(v);
   }
 
@@ -85,7 +86,7 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
     setSaving(true);
     try {
       if (newKind === 'permanent') {
-        const r = await api.addDialNumber({ phone: p, is_default: newDefault }, token);
+        const r = await api.addDialNumber({ phone: p, label: newLabel.trim(), is_default: newDefault }, token);
         setMine(r.my_numbers || []);
         // a saved default replaces any temporary one
         saveTemp({ numbers: temp.numbers.filter((x) => x !== p), def: newDefault ? '' : temp.def });
@@ -167,6 +168,10 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
                     <b>{t('dial.temporary')}</b><small>{t('dial.temporaryHint')}</small>
                   </button>
                 </div>
+                {newKind === 'permanent' && (
+                  <input className="dialer-add-label" value={newLabel} maxLength={80} onChange={(e) => setNewLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addNumber(); }} placeholder={t('dial.labelPh')} />
+                )}
                 <label className="dialer-check"><input type="checkbox" checked={newDefault} onChange={(e) => setNewDefault(e.target.checked)} /> {t('dial.asDefault')}</label>
                 <div className="dialer-add-actions">
                   <button type="button" className="btn btn-primary" onClick={addNumber} disabled={saving}>{t('dial.add')}</button>

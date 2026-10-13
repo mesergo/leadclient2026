@@ -22,7 +22,7 @@ router.get('/options', asyncHandler(async (req, res) => {
   const virtuals = await query(
     `SELECT id, phone_number, number_to_display FROM phone_numbers
        WHERE company_id IS NOT NULL AND (${s.sql}) ORDER BY phone_number LIMIT 500`, s.params);
-  const myNumbers = await query('SELECT id, phone, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [req.user.id]);
+  const myNumbers = await query('SELECT id, phone, label, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [req.user.id]);
   res.json({ mobiles, targets: t.map((x) => x.n), virtuals, my_numbers: myNumbers });
 }));
 
@@ -34,17 +34,18 @@ const localPhone = (v) => {
   else if (d && !d.startsWith('0')) d = '0' + d;
   return d;
 };
-const myNumbers = (userId) => query('SELECT id, phone, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [userId]);
+const myNumbers = (userId) => query('SELECT id, phone, label, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [userId]);
 
 router.post('/my-numbers', asyncHandler(async (req, res) => {
   const phone = localPhone(req.body && req.body.phone);
   if (phone.length < 9 || phone.length > 10) return res.status(400).json({ error: 'מספר טלפון לא תקין' });
   const makeDefault = !!(req.body && req.body.is_default);
+  const label = String((req.body && req.body.label) || '').trim().slice(0, 80) || null;
   if (makeDefault) await query('UPDATE user_dial_numbers SET is_default = 0 WHERE user_id = ?', [req.user.id]);
   await query(
-    `INSERT INTO user_dial_numbers (user_id, phone, is_default) VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE is_default = GREATEST(is_default, VALUES(is_default))`,
-    [req.user.id, phone, makeDefault ? 1 : 0]);
+    `INSERT INTO user_dial_numbers (user_id, phone, label, is_default) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE is_default = GREATEST(is_default, VALUES(is_default)), label = COALESCE(VALUES(label), label)`,
+    [req.user.id, phone, label, makeDefault ? 1 : 0]);
   res.json({ my_numbers: await myNumbers(req.user.id) });
 }));
 
