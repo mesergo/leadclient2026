@@ -101,6 +101,22 @@ router.delete('/business-numbers/:key', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// GET /api/calls/after-call/:id — what the phone's after-call card needs in one request:
+// the lead (name, phone, current status) and its company's statuses (the agent marks what was done).
+router.get('/after-call/:id', asyncHandler(async (req, res) => {
+  const s = leadScope(req.user, 'l');
+  const lead = (await query(
+    `SELECT l.id, l.company_id, l.lead_name, l.lead_phone, l.status_id, l.lead_through, l.recording_url
+       FROM leads l WHERE l.id = ? AND (${s.sql})`, [req.params.id, ...s.params]))[0];
+  if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
+  const statuses = await query(
+    'SELECT id, text, color, is_finished FROM lead_statuses WHERE company_id = ? ORDER BY sort_order ASC, id ASC', [lead.company_id]);
+  res.json({
+    lead: { id: lead.id, name: lead.lead_name, phone: lead.lead_phone, status_id: lead.status_id, has_recording: !!lead.recording_url },
+    statuses,
+  });
+}));
+
 // POST /api/calls/mobile-call { phone, call_id? } — a business call that reached the agent's private mobile.
 // Creates a lead (lead_through 'mobile') assigned to the agent and remembers the number as business.
 // Every call is its own lead (several calls = several leads). call_id is the phone's id for ONE call:
