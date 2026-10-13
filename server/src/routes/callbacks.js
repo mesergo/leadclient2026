@@ -22,7 +22,42 @@ router.get('/options', asyncHandler(async (req, res) => {
   const virtuals = await query(
     `SELECT id, phone_number, number_to_display FROM phone_numbers
        WHERE company_id IS NOT NULL AND (${s.sql}) ORDER BY phone_number LIMIT 500`, s.params);
-  res.json({ mobiles, targets: t.map((x) => x.n), virtuals });
+  const myNumbers = await query('SELECT id, phone, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [req.user.id]);
+  res.json({ mobiles, targets: t.map((x) => x.n), virtuals, my_numbers: myNumbers });
+}));
+
+// The agent's own saved "call from" numbers (permanent). One may be the default;
+// with none marked, the dialer defaults to the profile phone.
+const localPhone = (v) => {
+  let d = String(v || '').replace(/\D/g, '');
+  if (d.startsWith('972')) d = '0' + d.slice(3);
+  else if (d && !d.startsWith('0')) d = '0' + d;
+  return d;
+};
+const myNumbers = (userId) => query('SELECT id, phone, is_default FROM user_dial_numbers WHERE user_id = ? ORDER BY id', [userId]);
+
+router.post('/my-numbers', asyncHandler(async (req, res) => {
+  const phone = localPhone(req.body && req.body.phone);
+  if (phone.length < 9 || phone.length > 10) return res.status(400).json({ error: 'מספר טלפון לא תקין' });
+  const makeDefault = !!(req.body && req.body.is_default);
+  if (makeDefault) await query('UPDATE user_dial_numbers SET is_default = 0 WHERE user_id = ?', [req.user.id]);
+  await query(
+    `INSERT INTO user_dial_numbers (user_id, phone, is_default) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE is_default = GREATEST(is_default, VALUES(is_default))`,
+    [req.user.id, phone, makeDefault ? 1 : 0]);
+  res.json({ my_numbers: await myNumbers(req.user.id) });
+}));
+
+// id = null -> no saved default (the profile phone is used)
+router.put('/my-numbers/default', asyncHandler(async (req, res) => {
+  const id = req.body && req.body.id ? Number(req.body.id) : null;
+  await query('UPDATE user_dial_numbers SET is_default = (id = ?) WHERE user_id = ?', [id || 0, req.user.id]);
+  res.json({ my_numbers: await myNumbers(req.user.id) });
+}));
+
+router.delete('/my-numbers/:id', asyncHandler(async (req, res) => {
+  await query('DELETE FROM user_dial_numbers WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+  res.json({ my_numbers: await myNumbers(req.user.id) });
 }));
 
 // Register a pending callback: when `from_number` next calls in, the system routes

@@ -215,6 +215,15 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // a forwarded call the agent marked private in the app: its lead was deleted, and the rest of
   // the call's webhooks (e.g. the end event) must not create it again
+  // the agent's own "call from" numbers for the web dialer (permanent ones; temporary live in the browser)
+  await safe('user_dial_numbers.table', () => query(`CREATE TABLE IF NOT EXISTS user_dial_numbers (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NOT NULL,
+      phone VARCHAR(20) NOT NULL,
+      is_default TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_phone (user_id, phone)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // account / data deletion requests from the public /delete-account page (Google Play requirement)
   await safe('deletion_requests.table', () => query(`CREATE TABLE IF NOT EXISTS deletion_requests (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

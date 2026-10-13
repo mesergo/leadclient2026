@@ -5,6 +5,20 @@ import { api } from '../api';
 import * as Icons from '../icons';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+const ADD = '__add__';
+
+const localPhone = (v) => {
+  let d = String(v || '').replace(/\D/g, '');
+  if (d.startsWith('972')) d = '0' + d.slice(3);
+  else if (d && !d.startsWith('0')) d = '0' + d;
+  return d;
+};
+const fmt = (p) => { const d = localPhone(p); return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3)}` : d; };
+
+// temporary "call from" numbers live only in this browser tab session (cleared when it closes)
+const tempKey = (uid) => `lc_dial_temp_${uid}`;
+const readTemp = (uid) => { try { return JSON.parse(window.sessionStorage.getItem(tempKey(uid))) || { numbers: [], def: '' }; } catch { return { numbers: [], def: '' }; } };
+const writeTemp = (uid, v) => { try { window.sessionStorage.setItem(tempKey(uid), JSON.stringify(v)); } catch { /* private mode */ } };
 
 // Click-to-call dialer. The agent picks which number they'll call FROM (their
 // mobile), which virtual number to call via, and dials the customer's number.
@@ -21,15 +35,89 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [mine, setMine] = useState([]);               // saved (permanent) numbers {id, phone, is_default}
+  const [temp, setTemp] = useState(() => readTemp(user?.id));
+  const [adding, setAdding] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [newKind, setNewKind] = useState('permanent');  // permanent | temporary
+  const [newDefault, setNewDefault] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const profilePhone = localPhone(user?.phone);
+  const saveTemp = (v) => { setTemp(v); writeTemp(user?.id, v); };
 
   useEffect(() => {
     api.callbackOptions(token).then((d) => {
       setOpts(d);
+      setMine(d.my_numbers || []);
       if (d.virtuals[0]) setVia(d.virtuals[0].phone_number);
-      // default "from" to the signed-in agent's own mobile — it MUST equal the number they call from
-      setFrom(user?.phone || (d.mobiles[0] && d.mobiles[0].phone) || '');
+      // default "from": this session's temporary default > the saved default > the profile phone.
+      // It MUST equal the number the agent answers on.
+      const savedDef = (d.my_numbers || []).find((n) => n.is_default);
+      const tmp = readTemp(user?.id);
+      setFrom(tmp.def || (savedDef && savedDef.phone) || profilePhone || (d.mobiles[0] && localPhone(d.mobiles[0].phone)) || '');
     }).catch((e) => setError(e.message));
   }, [token]);
+
+  // every number the agent may call from, without duplicates
+  const choices = [];
+  const seen = new Set();
+  const push = (phone, label, kind, id) => { const p = localPhone(phone); if (p && !seen.has(p)) { seen.add(p); choices.push({ phone: p, label, kind, id }); } };
+  if (profilePhone) push(profilePhone, t('dial.myProfile'), 'profile');
+  mine.forEach((n) => push(n.phone, t('dial.saved'), 'saved', n.id));
+  temp.numbers.forEach((p) => push(p, t('dial.temporary'), 'temp'));
+  const others = opts.mobiles.filter((m) => !seen.has(localPhone(m.phone)));
+  if (from && !seen.has(localPhone(from)) && !others.some((m) => localPhone(m.phone) === localPhone(from))) push(from, '', 'other');
+  const current = choices.find((c) => c.phone === localPhone(from));
+  const savedDefault = mine.find((n) => n.is_default);
+  const isDefault = current && (temp.def ? temp.def === current.phone
+    : savedDefault ? savedDefault.phone === current.phone : current.kind === 'profile');
+
+  function pickFrom(v) {
+    if (v === ADD) { setAdding(true); setNewPhone(''); setNewKind('permanent'); setNewDefault(true); return; }
+    setFrom(v);
+  }
+
+  async function addNumber() {
+    setError('');
+    const p = localPhone(newPhone);
+    if (p.length < 9 || p.length > 10) { setError(t('dial.errPhone')); return; }
+    setSaving(true);
+    try {
+      if (newKind === 'permanent') {
+        const r = await api.addDialNumber({ phone: p, is_default: newDefault }, token);
+        setMine(r.my_numbers || []);
+        // a saved default replaces any temporary one
+        saveTemp({ numbers: temp.numbers.filter((x) => x !== p), def: newDefault ? '' : temp.def });
+      } else {
+        saveTemp({ numbers: temp.numbers.includes(p) ? temp.numbers : [...temp.numbers, p], def: newDefault ? p : temp.def });
+      }
+      setFrom(p);
+      setAdding(false);
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function makeDefault() {
+    if (!current) return;
+    setError('');
+    try {
+      if (current.kind === 'temp') { saveTemp({ ...temp, def: current.phone }); return; }
+      const r = await api.setDefaultDialNumber(current.kind === 'saved' ? current.id : null, token);
+      setMine(r.my_numbers || []);
+      saveTemp({ ...temp, def: '' });
+    } catch (e) { setError(e.message); }
+  }
+
+  async function removeCurrent() {
+    if (!current) return;
+    setError('');
+    try {
+      if (current.kind === 'saved') { const r = await api.deleteDialNumber(current.id, token); setMine(r.my_numbers || []); }
+      if (current.kind === 'temp') saveTemp({ numbers: temp.numbers.filter((x) => x !== current.phone), def: temp.def === current.phone ? '' : temp.def });
+      setFrom(profilePhone || '');
+    } catch (e) { setError(e.message); }
+  }
 
   const press = (k) => setTarget((v) => v + k);
 
@@ -65,13 +153,44 @@ export default function Dialer({ onClose, initialTarget = '', leadId = null, lea
         ) : (<>
           {error && <p className="error">{error}</p>}
 
-          <label className="dialer-field"><span>{t('dial.from')}</span>
-            <input list="dialer-from-list" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="05X-XXXXXXX" />
-            <datalist id="dialer-from-list">
-              {opts.mobiles.map((m) => <option key={'m' + m.phone} value={m.phone}>{m.name} · {m.phone}</option>)}
-              {opts.targets.map((n) => <option key={'t' + n} value={n}>{n}</option>)}
-            </datalist>
-          </label>
+          <div className="dialer-field"><span>{t('dial.from')}</span>
+            {adding ? (
+              <div className="dialer-add">
+                <input dir="ltr" autoFocus value={newPhone} onChange={(e) => setNewPhone(e.target.value.replace(/[^\d+\-\s]/g, ''))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addNumber(); }} placeholder="05X-XXXXXXX" />
+                <div className="dialer-add-q">{t('dial.kindQ')}</div>
+                <div className="dialer-seg" role="radiogroup">
+                  <button type="button" role="radio" aria-checked={newKind === 'permanent'} className={newKind === 'permanent' ? 'on' : ''} onClick={() => setNewKind('permanent')}>
+                    <b>{t('dial.permanent')}</b><small>{t('dial.permanentHint')}</small>
+                  </button>
+                  <button type="button" role="radio" aria-checked={newKind === 'temporary'} className={newKind === 'temporary' ? 'on' : ''} onClick={() => setNewKind('temporary')}>
+                    <b>{t('dial.temporary')}</b><small>{t('dial.temporaryHint')}</small>
+                  </button>
+                </div>
+                <label className="dialer-check"><input type="checkbox" checked={newDefault} onChange={(e) => setNewDefault(e.target.checked)} /> {t('dial.asDefault')}</label>
+                <div className="dialer-add-actions">
+                  <button type="button" className="btn btn-primary" onClick={addNumber} disabled={saving}>{t('dial.add')}</button>
+                  <button type="button" className="btn" onClick={() => setAdding(false)}>{t('common.cancel') || 'ביטול'}</button>
+                </div>
+              </div>
+            ) : (<>
+              <select value={localPhone(from)} onChange={(e) => pickFrom(e.target.value)}>
+                {!from && <option value="">{t('dial.errFrom')}</option>}
+                {choices.map((c) => <option key={c.phone} value={c.phone}>{fmt(c.phone)}{c.label ? ` · ${c.label}` : ''}</option>)}
+                {others.length > 0 && <optgroup label={t('dial.companyMobiles')}>
+                  {others.map((m) => <option key={'m' + m.phone} value={localPhone(m.phone)}>{fmt(m.phone)} · {m.name}</option>)}
+                </optgroup>}
+                <option value={ADD}>＋ {t('dial.addNumber')}</option>
+              </select>
+              {current && (
+                <div className="dialer-from-meta">
+                  {isDefault ? <span className="dialer-badge">★ {t('dial.default')}</span>
+                    : <button type="button" className="link-btn" onClick={makeDefault}>☆ {t('dial.setDefault')}</button>}
+                  {(current.kind === 'saved' || current.kind === 'temp') && <button type="button" className="link-btn danger" onClick={removeCurrent}>{t('dial.remove')}</button>}
+                </div>
+              )}
+            </>)}
+          </div>
 
           <label className="dialer-field"><span>{t('dial.via')}</span>
             <select value={via} onChange={(e) => setVia(e.target.value)}>

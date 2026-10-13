@@ -457,6 +457,21 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .dialer-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
 .dialer-field span { color: var(--muted, #667); }
 .dialer-field input, .dialer-field select { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; }
+.dialer-from-meta { display: flex; gap: 12px; align-items: center; font-size: 12px; margin-top: 2px; }
+.dialer-badge { color: var(--accent, #00838f); font-weight: 600; }
+.dialer .link-btn { background: none; border: 0; padding: 0; color: var(--link, #337ab7); cursor: pointer; font-size: 12px; }
+.dialer .link-btn.danger { color: #c62828; }
+.dialer-add { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; background: var(--surface-2, #f7f7f8); }
+.dialer-add > input { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 16px; text-align: center; background: #fff; }
+.dialer-add-q { font-weight: 600; color: var(--text, #333); }
+.dialer-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dialer-seg button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border: 1px solid var(--border, #ddd); border-radius: 8px; background: #fff; cursor: pointer; color: var(--text, #333); }
+.dialer-seg button small { color: var(--text-dim, #6b7280); font-size: 11px; }
+.dialer-seg button.on { border-color: var(--accent, #00838f); background: #e0f2f4; box-shadow: 0 0 0 1px var(--accent, #00838f) inset; }
+.dialer-check { display: flex; align-items: center; gap: 6px; color: var(--text, #333); cursor: pointer; flex-direction: row !important; font-size: 13px; }
+.dialer-check input { width: auto; padding: 0; margin: 0; }
+.dialer-add-actions { display: flex; gap: 8px; }
+.dialer-add-actions .btn { flex: 1; }
 .dialer-display { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
 .dialer-display input { flex: 1; font-size: 22px; text-align: center; letter-spacing: 2px; padding: 10px; border: 1px solid var(--border, #ddd); border-radius: 10px; }
 .dialer-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; direction: ltr; }
