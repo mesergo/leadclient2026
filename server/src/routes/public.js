@@ -373,7 +373,7 @@ async function processCall(num, req, res, logId) {
     }
     if (recent[0]) {
       // a prior end already finalized this call (answered/missed, or recording set) -> retry
-      if (recent[0].recording_url || recent[0].call_status === 'answered' || recent[0].call_status === 'missed') {
+      if (recent[0].call_status === 'answered' || recent[0].call_status === 'missed') {
         await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'duplicate' });
         return reply(true, 'duplicate');
       }
@@ -388,7 +388,7 @@ async function processCall(num, req, res, logId) {
            recording_url = COALESCE(?, recording_url), call_status = ?, call_duration_sec = COALESCE(?, call_duration_sec),
            last_interaction_at = IF(?, NOW(), last_interaction_at), last_interaction_type = IF(?, 'call', last_interaction_type),
            answered_phone = COALESCE(?, answered_phone), answered_by = COALESCE(?, answered_by),
-           updated_at = NOW() WHERE id = ?`,
+           call_ended_at = NOW(), updated_at = NOW() WHERE id = ?`,
         [info, recStore, callStatus, durSec, answered ? 1 : 0, answered ? 1 : 0, answeredPhone, answeredBy, recent[0].id]);
       await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: recent[0].id, result: 'lead_updated' });
       fireChannelWebhook(num.service_id, { id: recent[0].id, company_id: num.company_id, caller, duration, status: callStatus });
@@ -412,6 +412,37 @@ async function processCall(num, req, res, logId) {
       return reply(true, 'duplicate');
     }
   }
+  // repeat call: the same caller calls again within 2 minutes after their previous call ended
+  // (usually a dropped call redialed). Maskyoo reports it as a new call (new UUID); continue the
+  // previous lead instead of opening another one. Its billed minutes are kept in repeat_billed_min.
+  const callerKey = String(caller || '').replace(/\D/g, '').slice(-9);
+  if (callerKey.length >= 7) {
+    const prev = (await query(
+      `SELECT id, call_status, call_duration_sec FROM leads WHERE company_id = ? AND lead_through = 'call'
+         AND call_status IN ('answered', 'missed') AND call_ended_at >= (NOW() - INTERVAL 2 MINUTE)
+         AND REGEXP_REPLACE(lead_phone, '[^0-9]', '') LIKE CONCAT('%', ?)
+       ORDER BY id DESC LIMIT 1`, [num.company_id, callerKey]))[0];
+    if (prev) {
+      const prevMin = prev.call_status === 'answered' && prev.call_duration_sec > 0 ? Math.ceil(prev.call_duration_sec / 60) : 0;
+      const routedLocal = routedTo ? String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0') : '';
+      const answeredPhone = isEnd && answered && routedLocal ? routedLocal : null;
+      const answeredBy = answeredPhone ? await userByPhone(num.company_id, answeredPhone) : null;
+      const label = !isEnd ? 'שיחה חוזרת' : answered ? 'שיחה חוזרת הסתיימה' : 'שיחה חוזרת לא נענתה';
+      const info = `\n[${label}]${isEnd ? ` משך: ${duration || '?'} שנ׳` : ''}${routedLocal ? ` · נותב בפועל ל-${routedLocal}` : ''}`;
+      await query(
+        `UPDATE leads SET call_uuid = COALESCE(?, call_uuid), call_status = ?, call_duration_sec = ?,
+           repeat_billed_min = repeat_billed_min + ?, recording_url = COALESCE(?, recording_url),
+           call_ended_at = IF(?, NOW(), NULL), answered_phone = COALESCE(?, answered_phone), answered_by = COALESCE(?, answered_by),
+           last_interaction_at = IF(?, NOW(), last_interaction_at), last_interaction_type = IF(?, 'call', last_interaction_type),
+           lead_info = CONCAT(COALESCE(lead_info, ''), ?), updated_at = NOW() WHERE id = ?`,
+        [callUuid, callStatus, isEnd ? durSec : null, prevMin, recStore, isEnd ? 1 : 0, answeredPhone, answeredBy,
+          answered ? 1 : 0, answered ? 1 : 0, info, prev.id]);
+      await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: prev.id, result: 'repeat_call' });
+      if (isEnd) fireChannelWebhook(num.service_id, { id: prev.id, company_id: num.company_id, caller, duration, status: callStatus });
+      return reply(true, 'repeat call');
+    }
+  }
+
   // default status = the company's "new" status (static first, then lowest sort order)
   const st = await query(
     `SELECT id FROM lead_statuses WHERE company_id = ? ORDER BY is_static DESC, sort_order ASC, id ASC LIMIT 1`,
@@ -419,9 +450,9 @@ async function processCall(num, req, res, logId) {
   const statusId = st[0] ? st[0].id : null;
   const knownName = await nameForPhone(num.company_id, caller);
   const r = await query(
-    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, call_duration_sec, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, ?, NOW(), NOW())`,
-    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec]);
+    `INSERT INTO leads (company_id, service_id, status_id, lead_name, lead_phone, lead_info, lead_through, recording_url, call_status, call_uuid, call_duration_sec, call_ended_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'call', ?, ?, ?, ?, IF(?, NOW(), NULL), NOW(), NOW())`,
+    [num.company_id, num.service_id || null, statusId, knownName, caller, duration ? `[שיחה] משך: ${duration}` : null, recStore, callStatus, callUuid, durSec, isEnd ? 1 : 0]);
   await updateLog(logId, { numberId: num.id, companyId: num.company_id, leadId: r.insertId, result: 'lead_created' });
   if (isEnd && answered && routedTo) {
     const answeredPhone = String(routedTo).replace(/\D/g, '').replace(/^972/, '0').replace(/^(?!0)/, '0');

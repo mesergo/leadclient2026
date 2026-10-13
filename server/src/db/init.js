@@ -248,6 +248,10 @@ async function ensureSchema() {
   // outgoing (dialer) -> the user who dialed. Sent in the channel webhook (agent / direction).
   await safe('leads.answered_phone', () => ensureColumn('leads', 'answered_phone', 'answered_phone VARCHAR(20) NULL'));
   await safe('leads.answered_by', () => ensureColumn('leads', 'answered_by', 'answered_by BIGINT UNSIGNED NULL'));
+  // repeat calls: when the call ended (a redial within 2 min joins this lead), and the billed
+  // minutes of the earlier calls folded into it (each call is still billed on its own)
+  await safe('leads.call_ended_at', () => ensureColumn('leads', 'call_ended_at', 'call_ended_at DATETIME NULL'));
+  await safe('leads.repeat_billed_min', () => ensureColumn('leads', 'repeat_billed_min', 'repeat_billed_min INT NOT NULL DEFAULT 0'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,

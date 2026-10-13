@@ -67,9 +67,11 @@ async function verifyPendingByEmail(sub) {
 // Answered call minutes (each call rounded up to a whole minute) in [from, to).
 async function callMinutes(companyId, from, to) {
   const r = await query(
-    `SELECT COALESCE(SUM(CEIL(call_duration_sec / 60)), 0) AS m FROM leads
-      WHERE company_id = ? AND lead_through IN ('call', 'call_out') AND call_status = 'answered'
-        AND call_duration_sec > 0 AND created_at >= ? AND created_at < ?`,
+    // + repeat_billed_min: earlier calls of a redial that were folded into the same lead
+    `SELECT COALESCE(SUM(CASE WHEN call_status = 'answered' AND call_duration_sec > 0 THEN CEIL(call_duration_sec / 60) ELSE 0 END
+                         + repeat_billed_min), 0) AS m FROM leads
+      WHERE company_id = ? AND lead_through IN ('call', 'call_out')
+        AND created_at >= ? AND created_at < ?`,
     [companyId, from, to]);
   return Number(r[0].m) || 0;
 }
