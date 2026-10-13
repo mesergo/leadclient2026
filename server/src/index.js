@@ -31,6 +31,10 @@ require('./routes')(app);
 
 app.use('/api', notFound);
 
+// public account-deletion page (the URL listed in Google Play)
+const deletePage = path.resolve(__dirname, 'pages/delete-account.html');
+app.get(['/delete-account', '/account-deletion'], (req, res) => res.sendFile(deletePage));
+
 // mobile app as an installable web app (PWA for iPhone) — built from leadclient-mobile (build-web.sh)
 const mobileDist = path.resolve(__dirname, '../../mobile-web');
 if (fs.existsSync(mobileDist)) {

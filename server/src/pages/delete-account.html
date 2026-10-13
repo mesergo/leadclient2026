@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מחיקת חשבון ונתונים | LeadClient</title>
+<meta name="description" content="בקשה למחיקת חשבון LeadClient ונתונים הקשורים אליו — אפליקציית LeadClient - ניהול לידים.">
+<link rel="icon" href="/favicon.png">
+<style>
+  :root {
+    --accent: #00838f; --accent-soft: #e0f2f4; --text: #1f2933; --dim: #5f6b7a;
+    --bg: #f4f6f8; --surface: #fff; --border: #e2e6ea; --danger: #c62828; --ok: #2e7d32;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); }
+  .bar { max-width: 820px; margin: 0 auto; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+  .bar img { width: 32px; height: 32px; border-radius: 8px; }
+  .bar b { font-size: 18px; }
+  .bar a { margin-inline-start: auto; color: var(--accent); text-decoration: none; font-size: 14px; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  .lead { color: var(--dim); margin: 0 0 22px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 19px; margin: 0 0 10px; }
+  ol, ul { padding-inline-start: 22px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  .note { background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; font-size: 15px; }
+  form { display: grid; gap: 12px; }
+  label { font-weight: 600; font-size: 14px; display: grid; gap: 5px; }
+  input, select, textarea { font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+  .check input { width: auto; margin-top: 5px; }
+  button { font: inherit; font-weight: 700; background: var(--danger); color: #fff; border: 0; border-radius: 8px; padding: 12px 18px; cursor: pointer; justify-self: start; }
+  button:disabled { opacity: .6; cursor: default; }
+  .msg { display: none; border-radius: 8px; padding: 12px 14px; }
+  .msg.ok { display: block; background: #e8f5e9; color: var(--ok); }
+  .msg.err { display: block; background: #fdecea; color: var(--danger); }
+  .muted { color: var(--dim); font-size: 14px; }
+  a { color: var(--accent); }
+  .en { direction: ltr; text-align: left; }
+  footer { text-align: center; color: var(--dim); font-size: 13px; padding: 0 16px 32px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <img src="/favicon.png" alt="">
+    <b>LeadClient</b>
+    <a href="https://leadclient.net">leadclient.net</a>
+  </div>
+</header>
+
+<main>
+  <h1>מחיקת חשבון ונתונים</h1>
+  <p class="lead">העמוד הזה מיועד למשתמשי האפליקציה <b>LeadClient - ניהול לידים</b> ומערכת LeadClient (מפתחת: LeadClient). כאן מבקשים למחוק את החשבון שלכם ואת הנתונים שקשורים אליו.</p>
+
+  <section class="card">
+    <h2>איך מבקשים מחיקה</h2>
+    <ol>
+      <li>ממלאים את הטופס שלמטה עם האימייל או הטלפון של החשבון. אפשר גם לפנות במייל ל-<a href="mailto:info@leadclient.net?subject=בקשת מחיקת חשבון">info@leadclient.net</a> או בטלפון <a href="tel:0723317777">072-331-7777</a>.</li>
+      <li>נאמת שהבקשה הגיעה מבעל החשבון. ייתכן שניצור איתכם קשר בטלפון או במייל שרשומים בחשבון.</li>
+      <li>אחרי האימות נמחק את הנתונים תוך 30 יום לכל היותר, ונשלח לכם אישור.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>מה נמחק</h2>
+    <ul>
+      <li>חשבון המשתמש: שם, אימייל, טלפון, סיסמה ופרטי התחברות.</li>
+      <li>הגדרות אישיות והעדפות התראות, ומזהי המכשיר לשליחת התראות.</li>
+      <li>מספרי החיוג האישיים שהגדרתם באפליקציה.</li>
+      <li>אם אתם מנהלי החשבון העסקי ומבקשים למחוק אותו כולו: גם הלידים, אנשי הקשר, התזכורות, ההערות וההקלטות של העסק.</li>
+    </ul>
+    <p class="note">רשימת המספרים הפרטיים של זיהוי השיחות נשמרת רק בטלפון שלכם ולא בשרת. היא נמחקת כשמתנתקים מהאפליקציה או מסירים אותה.</p>
+  </section>
+
+  <section class="card">
+    <h2>מה נשמר ולכמה זמן</h2>
+    <ul>
+      <li><b>נתוני העסק</b>: לידים, שיחות והקלטות שייכים לחשבון העסקי. כשמוחקים משתמש אחד, נתוני העסק נשארים אצל העסק. כדי למחוק אותם, מנהל החשבון העסקי מבקש למחוק את החשבון כולו.</li>
+      <li><b>הקלטות שיחה</b>: נמחקות אוטומטית אחרי 21 יום, אלא אם העסק הפעיל ארכיון.</li>
+      <li><b>רשומות חשבונאיות</b> (חשבוניות ותשלומים): נשמרות לתקופה שהחוק מחייב.</li>
+      <li><b>גיבויים</b>: עותקים בגיבויים נמחקים במחזור הגיבוי הרגיל, תוך 30 יום לכל היותר.</li>
+    </ul>
+    <p class="muted">פרטים נוספים ב<a href="https://leadclient.net/privacy">מדיניות הפרטיות</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>טופס בקשת מחיקה</h2>
+    <form id="f" novalidate>
+      <label>מה למחוק?
+        <select name="scope">
+          <option value="account">את החשבון שלי וכל הנתונים שלו</option>
+          <option value="data">רק חלק מהנתונים (פרטו למטה)</option>
+        </select>
+      </label>
+      <div class="row">
+        <label>שם מלא *<input name="name" autocomplete="name" required></label>
+        <label>שם העסק / החברה<input name="company" autocomplete="organization"></label>
+      </div>
+      <div class="row">
+        <label>אימייל של החשבון<input name="email" type="email" autocomplete="email" dir="ltr"></label>
+        <label>טלפון של החשבון<input name="phone" type="tel" autocomplete="tel" dir="ltr"></label>
+      </div>
+      <p class="muted" style="margin:-4px 0 0">צריך למלא לפחות אימייל או טלפון.</p>
+      <label>פרטים נוספים<textarea name="details" rows="3" placeholder="למשל: אילו נתונים למחוק, או כל דבר שיעזור לנו לזהות את החשבון"></textarea></label>
+      <label class="check"><input type="checkbox" name="confirm" required> אני מבין/ה שהמחיקה סופית ולא ניתן לשחזר את הנתונים אחריה.</label>
+      <button type="submit">שליחת בקשת מחיקה</button>
+      <div id="msg" class="msg" role="status"></div>
+    </form>
+  </section>
+
+  <section class="card en">
+    <h2>Delete your LeadClient account</h2>
+    <p>To delete your account in the <b>LeadClient - ניהול לידים</b> app (developer: LeadClient) and the data linked to it, fill in the form above, or email <a href="mailto:info@leadclient.net">info@leadclient.net</a> from the address on your account. We verify the request and delete the data within 30 days.</p>
+    <p><b>Deleted:</b> your user profile (name, email, phone, password), settings, notification preferences and device push tokens, and your dial-from numbers. If the business account owner asks to delete the whole business account, its leads, contacts, reminders, notes and call recordings are deleted too.</p>
+    <p><b>Kept:</b> when a single user is deleted, the business's own records stay with the business. Call recordings are deleted automatically after 21 days unless the business enabled an archive. Billing records are kept as required by law. Backup copies are removed within 30 days.</p>
+  </section>
+</main>
+
+<footer>© LeadClient · <a href="https://leadclient.net/privacy">מדיניות פרטיות</a> · <a href="https://leadclient.net/terms">תנאי שימוש</a></footer>
+
+<script>
+  var f = document.getElementById('f'), msg = document.getElementById('msg');
+  function show(cls, text) { msg.className = 'msg ' + cls; msg.textContent = text; }
+  f.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var d = Object.fromEntries(new FormData(f));
+    if (!d.name.trim()) return show('err', 'נא למלא שם.');
+    if (!d.email.trim() && d.phone.replace(/\D/g, '').length < 9) return show('err', 'נא למלא אימייל או טלפון של החשבון.');
+    if (!d.confirm) return show('err', 'נא לאשר שהמחיקה סופית.');
+    var btn = f.querySelector('button'); btn.disabled = true;
+    fetch('/api/public/deletion-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
+      .then(function (r) {
+        if (r.ok) { f.reset(); show('ok', 'הבקשה התקבלה (מספר ' + r.j.id + '). ניצור איתכם קשר לאימות, והמחיקה תתבצע תוך 30 יום לכל היותר.'); }
+        else show('err', r.status === 429 ? 'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר או כתבו ל-info@leadclient.net.' : (r.j.error || 'השליחה נכשלה. נסו שוב או כתבו ל-info@leadclient.net.'));
+      })
+      .catch(function () { show('err', 'אין חיבור. נסו שוב או כתבו ל-info@leadclient.net.'); })
+      .finally(function () { btn.disabled = false; });
+  });
+</script>
+</body>
+</html>
