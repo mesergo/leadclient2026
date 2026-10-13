@@ -225,6 +225,20 @@ async function ensureSchema() {
       UNIQUE KEY uq_user_phone (user_id, phone)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('user_dial_numbers.label', () => ensureColumn('user_dial_numbers', 'label', 'label VARCHAR(80) NULL')); // e.g. the rep's name
+  // company-defined quick actions (הצעת מחיר, בירור משלוח…) logged as treatment entries
+  await safe('lead_actions.table', () => query(`CREATE TABLE IF NOT EXISTS lead_actions (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      company_id BIGINT UNSIGNED NOT NULL,
+      label VARCHAR(60) NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_lead_actions_company (company_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
+  // companies that already got the default actions (so deleting them all does not bring them back)
+  await safe('lead_actions_seeded.table', () => query(`CREATE TABLE IF NOT EXISTS lead_actions_seeded (
+      company_id BIGINT UNSIGNED PRIMARY KEY,
+      seeded TINYINT(1) NOT NULL DEFAULT 1
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // account / data deletion requests from the public /delete-account page (Google Play requirement)
   await safe('deletion_requests.table', () => query(`CREATE TABLE IF NOT EXISTS deletion_requests (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

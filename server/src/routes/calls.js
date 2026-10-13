@@ -102,7 +102,7 @@ router.delete('/business-numbers/:key', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/calls/after-call/:id — what the phone's after-call card needs in one request:
-// the lead (name, phone, current status) and its company's statuses (the agent marks what was done).
+// the lead (name, phone, current status), its company's statuses and quick actions (what was done).
 router.get('/after-call/:id', asyncHandler(async (req, res) => {
   const s = leadScope(req.user, 'l');
   const lead = (await query(
@@ -111,9 +111,12 @@ router.get('/after-call/:id', asyncHandler(async (req, res) => {
   if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
   const statuses = await query(
     'SELECT id, text, color, is_finished FROM lead_statuses WHERE company_id = ? ORDER BY sort_order ASC, id ASC', [lead.company_id]);
+  // the company's quick actions; tapping one logs a treatment entry (POST /api/leads/:id/treatment)
+  const actions = await require('./leadActions').actionsFor(lead.company_id);
   res.json({
     lead: { id: lead.id, name: lead.lead_name, phone: lead.lead_phone, status_id: lead.status_id, has_recording: !!lead.recording_url },
     statuses,
+    actions: actions.map((a) => ({ id: a.id, label: a.label })),
   });
 }));
 

@@ -8,6 +8,7 @@ module.exports = function registerRoutes(app) {
   app.use('/api/invitations', require('./invitations'));
   app.use('/api/services', require('./services'));
   app.use('/api/statuses', require('./statuses'));
+  app.use('/api/lead-actions', require('./leadActions'));
   app.use('/api/tags', require('./tags'));
   app.use('/api/users', require('./users'));
   app.use('/api/leads', require('./leads'));

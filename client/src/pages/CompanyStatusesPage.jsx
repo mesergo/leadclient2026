@@ -12,8 +12,13 @@ export default function CompanyStatusesPage() {
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ text: '', color: '#888888' });
   const [error, setError] = useState('');
+  const [actions, setActions] = useState([]);
+  const [actionLabel, setActionLabel] = useState('');
   const load = () => api.statuses(token, id).then((d) => setRows(d.statuses)).catch((e) => setError(e.message));
-  useEffect(() => { load(); }, [id, token]);
+  const loadActions = () => api.leadActions(token, id).then((d) => setActions(d.actions)).catch((e) => setError(e.message));
+  useEffect(() => { load(); loadActions(); }, [id, token]);
+  async function addAction(e) { e.preventDefault(); if (!actionLabel.trim()) return; try { await api.createLeadAction({ company_id: id, label: actionLabel.trim() }, token); setActionLabel(''); loadActions(); } catch (e) { setError(e.message); } }
+  async function delAction(aid) { if (!confirm('?')) return; try { await api.deleteLeadAction(aid, token); loadActions(); } catch (e) { setError(e.message); } }
   async function add(e) { e.preventDefault(); if (!form.text.trim()) return; try { await api.createStatus({ company_id: id, text: form.text.trim(), color: form.color, sort_order: rows.length + 1 }, token); setForm({ text: '', color: '#888888' }); load(); } catch (e) { setError(e.message); } }
   async function del(sid) { if (!confirm('?')) return; try { await api.deleteStatus(sid, token); load(); } catch (e) { setError(e.message); } }
   return (
@@ -30,6 +35,18 @@ export default function CompanyStatusesPage() {
         <tbody>{rows.map((s) => (<tr key={s.id}><td><span className="tag-chip" style={{ background: (s.color || '#888') + '22', color: s.color || '#555' }}>{s.text}</span></td><td>{s.color}</td><td><button className="icon-btn icon-btn--red" onClick={() => del(s.id)}><Trash size={14} /></button></td></tr>))}</tbody>
       </table></div>
       {rows.length === 0 && <p className="muted">{t('common.none')}</p>}
+
+      <h2 style={{ marginTop: 28 }}>{t('cop.actions')}</h2>
+      <p className="muted">{t('cop.actionsHint')}</p>
+      <form className="inline-form" onSubmit={addAction}>
+        <input placeholder={t('common.name')} value={actionLabel} maxLength={60} onChange={(e) => setActionLabel(e.target.value)} />
+        <button className="btn btn-primary">{t('cop.addAction')}</button>
+      </form>
+      <div className="table-wrap"><table className="data-table">
+        <thead><tr><th>{t('common.name')}</th><th></th></tr></thead>
+        <tbody>{actions.map((a) => (<tr key={a.id}><td>{a.label}</td><td><button className="icon-btn icon-btn--red" onClick={() => delAction(a.id)}><Trash size={14} /></button></td></tr>))}</tbody>
+      </table></div>
+      {actions.length === 0 && <p className="muted">{t('common.none')}</p>}
     </div>
   );
 }
