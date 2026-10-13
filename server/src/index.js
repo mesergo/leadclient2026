@@ -7,6 +7,9 @@ const config = require('./config');
 const { notFound, errorHandler } = require('./middleware/error');
 
 const app = express();
+// behind one reverse proxy (Coolify/Traefik): take the client IP from X-Forwarded-For,
+// so rate limits count per user and not for everyone together
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
