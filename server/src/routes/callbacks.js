@@ -72,16 +72,26 @@ router.post('/', asyncHandler(async (req, res) => {
   if (!via_number) return res.status(400).json({ error: 'חסר מספר וירטואלי לחיוג דרכו' });
   const from = messergo.toE164(from_number);
   const target = messergo.toE164(target_number);
-  const via = messergo.toE164(via_number);
+  let via = messergo.toE164(via_number);
   const companyId = req.user.company_id || null;
   // optional: dialing from an existing lead's card -> the call is recorded on THAT lead
   // (no new call_out lead). Must be a lead the user may see (restricted agent -> own only).
   let leadId = null;
   if (lead_id) {
     const s = leadScope(req.user);
-    const own = await query(`SELECT id FROM leads WHERE id = ? AND (${s.sql})`, [lead_id, ...s.params]);
+    const own = await query(`SELECT id, company_id, service_id FROM leads WHERE id = ? AND (${s.sql})`, [lead_id, ...s.params]);
     if (!own[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
     leadId = own[0].id;
+    // dialing from a lead goes out through ITS virtual number: the one its call came in on,
+    // else its channel's number — so the customer sees the number they know
+    const leadVia = (await query(
+      `SELECT pn.phone_number FROM webhook_log w JOIN phone_numbers pn ON pn.id = w.matched_number_id
+        WHERE w.lead_id = ? AND w.source = 'maskyoo-call' AND pn.company_id = ? ORDER BY w.id DESC LIMIT 1`,
+      [leadId, own[0].company_id]))[0]
+      || (own[0].service_id ? (await query(
+        'SELECT phone_number FROM phone_numbers WHERE service_id = ? AND company_id = ? ORDER BY id LIMIT 1',
+        [own[0].service_id, own[0].company_id]))[0] : null);
+    if (leadVia && leadVia.phone_number) via = messergo.toE164(leadVia.phone_number);
   }
 
   // Record the intent BEFORE placing the call, so the inbound webhook can match it
@@ -97,7 +107,7 @@ router.post('/', asyncHandler(async (req, res) => {
     await query("UPDATE callbacks SET status = 'expired' WHERE id = ?", [cb.insertId]);
     return res.status(502).json({ error: 'יצירת השיחה נכשלה' + (placed.error && placed.error !== 'call_failed' ? `: ${placed.error}` : '') });
   }
-  res.status(201).json({ ok: true, placed: true });
+  res.status(201).json({ ok: true, placed: true, via_number: via });
 }));
 
 module.exports = router;

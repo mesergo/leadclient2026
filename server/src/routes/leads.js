@@ -87,7 +87,13 @@ router.get('/:id', asyncHandler(async (req, res) => {
     `SELECT l.*, c.name AS company_name, a.name AS agency_name, sv.name AS service_name, sv.service_type,
             st.text AS status_text, st.color AS status_color, u.display_name AS agent_name,
             COALESCE(NULLIF(ab.display_name,''), NULLIF(TRIM(CONCAT_WS(' ', ab.first_name, ab.last_name)),''), ab.username) AS answered_by_name,
-            ab.phone AS answered_by_phone
+            ab.phone AS answered_by_phone,
+            -- the virtual number a call from this lead goes out through (its incoming number, else its channel's)
+            COALESCE(
+              (SELECT pn.phone_number FROM webhook_log w JOIN phone_numbers pn ON pn.id = w.matched_number_id
+                 WHERE w.lead_id = l.id AND w.source = 'maskyoo-call' AND pn.company_id = l.company_id ORDER BY w.id DESC LIMIT 1),
+              (SELECT pn2.phone_number FROM phone_numbers pn2 WHERE pn2.service_id = l.service_id AND pn2.company_id = l.company_id ORDER BY pn2.id LIMIT 1)
+            ) AS via_number
      FROM leads l
      LEFT JOIN companies c ON c.id = l.company_id
      LEFT JOIN agencies a ON a.id = c.agency_id
