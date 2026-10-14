@@ -33,11 +33,11 @@ async function syncRouting(maskyooNumber, routing, extra = {}) {
   const num = intl(maskyooNumber);
   if (!num) return { ok: false, error: 'bad_args' };
 
-  let numbers = [], type = 'sequential', ring = 0;
+  let numbers = [], type = 'parallel', ring = 60; // default: ring together, 60 s
   if (routing && typeof routing === 'object' && Array.isArray(routing.numbers)) {
     numbers = routing.numbers.filter(Boolean);
-    type = ['parallel', 'ivr'].includes(routing.type) ? routing.type : 'sequential';
-    ring = Number(routing.ring_seconds) || 0;
+    type = ['sequential', 'ivr'].includes(routing.type) ? routing.type : 'parallel';
+    ring = Number(routing.ring_seconds) || 60;
   } else if (routing) { numbers = [String(routing)]; }
   const dests = numbers.map(intl).filter(Boolean);
   if (!dests.length) return { ok: false, error: 'no_dest' };

@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useLang } from '../context/LangContext';
 
-export const emptyRedirect = () => ({ type: 'sequential', ring_seconds: 25, numbers: [''] });
+// default for a new number: all phones ring together, 60 seconds
+export const emptyRedirect = () => ({ type: 'parallel', ring_seconds: 60, numbers: [''] });
 
 // Normalise anything coming from the API into a {type, ring_seconds, numbers[]} object.
 export function toRedirect(raw, fallbackNumber) {
   let o = raw;
   if (typeof raw === 'string') { try { o = JSON.parse(raw); } catch { o = null; } }
   if (o && Array.isArray(o.numbers)) {
-    return { type: ['parallel', 'ivr'].includes(o.type) ? o.type : 'sequential', ring_seconds: Number(o.ring_seconds) || 25, numbers: o.numbers.length ? o.numbers.map(String) : [''] };
+    return { type: ['sequential', 'ivr'].includes(o.type) ? o.type : 'parallel', ring_seconds: Number(o.ring_seconds) || 60, numbers: o.numbers.length ? o.numbers.map(String) : [''] };
   }
-  return { type: 'sequential', ring_seconds: 25, numbers: [fallbackNumber ? String(fallbackNumber) : ''] };
+  return { type: 'parallel', ring_seconds: 60, numbers: [fallbackNumber ? String(fallbackNumber) : ''] };
 }
 
 export default function RedirectConfig({ value, onChange }) {
@@ -43,8 +44,8 @@ export default function RedirectConfig({ value, onChange }) {
         <div className="rc-advanced">
           <label className="rc-field"><span>{t('rc.type')}</span>
             <select value={v.type} onChange={(e) => onChange({ ...v, type: e.target.value })}>
-              <option value="sequential">{t('rc.sequential')}</option>
               <option value="parallel">{t('rc.parallel')}</option>
+              <option value="sequential">{t('rc.sequential')}</option>
               <option value="ivr">{t('rc.ivr')}</option>
             </select>
           </label>
