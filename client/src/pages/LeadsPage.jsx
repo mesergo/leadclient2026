@@ -104,6 +104,18 @@ export default function LeadsPage() {
   }
 
   const groups = groupLeads(sorted);
+  // last activity on the lead (call in/out, handling entry, note, message), in the UI language + when
+  const lastActivity = (l) => {
+    if (!l.last_interaction_type) return '';
+    const key = 'li.' + l.last_interaction_type;
+    const label = t(key) !== key ? t(key) : l.last_interaction_type;
+    const at = String(l.last_interaction_at || '');
+    const m = at.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return label;
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jerusalem' }).format(new Date());
+    const when = `${m[1]}-${m[2]}-${m[3]}` === today ? `${m[4]}:${m[5]}` : `${m[3]}/${m[2]} ${m[4]}:${m[5]}`;
+    return <span title={at}>{label} <span className="muted" dir="ltr">· {when}</span></span>;
+  };
   const leadIcon = (l) => {
     const TI = typeIcon(l);
     const cs = isCallLead(l) ? callState(l) : null;
@@ -130,7 +142,7 @@ export default function LeadsPage() {
         <td>{l.agency_name}</td><td>{l.company_name}</td><td>{l.service_name || '-'}</td>
         <td><span className={'presence ' + (/(available|online)/i.test(l.agent_status || '') ? 'on' : 'off')} /> {l.agent_name || t('lead.general')}</td>
         <td>{l.created_at}</td>
-        <td>{l.last_interaction_type || ''}</td>
+        <td>{lastActivity(l)}</td>
         <td>{l.status_text ? <span className="tag-chip" style={{ background: (l.status_color || '#888') + '22', color: l.status_color || '#555' }}>{l.status_text}</span> : '-'}</td>
         <td>{(l.tags || []).map((tg) => <span key={tg.id} className={'tag-chip ' + (isAutoTag(tg.label) ? 'tag-auto' : '')} style={{ marginInlineStart: 2 }}>{displayTag(tg.label)}</span>)}</td>
       </tr>
