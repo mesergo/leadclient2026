@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, companyScope } = require('../db/pool');
+const { query, companyScope, targetCompanyId, ownsCompany } = require('../db/pool');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -16,8 +16,10 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { company_id, label } = req.body || {};
+  const { label } = req.body || {};
+  const company_id = targetCompanyId(req.user, (req.body || {}).company_id);
   if (!company_id || !label) return res.status(400).json({ error: 'חסרים שדות חובה' });
+  if (!(await ownsCompany(req.user, company_id))) return res.status(404).json({ error: 'חברה לא נמצאה' });
   const r = await query('INSERT INTO tags (company_id, label) VALUES (?, ?)', [company_id, label]);
   res.status(201).json({ tag: { id: r.insertId, company_id, label } });
 }));

@@ -19,10 +19,13 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
-  const { agency_id, name, body, type, for_whatsapp, for_sms } = req.body || {};
+  const { name, body, type, for_whatsapp, for_sms } = req.body || {};
   if (!name || !body) return res.status(400).json({ error: 'חסרים שדות חובה' });
+  // an agency admin may only add templates to its own agency (a body agency_id is ignored)
+  const agency_id = req.user.role === 'super_admin' ? ((req.body || {}).agency_id || req.user.agency_id || null) : req.user.agency_id;
+  if (!agency_id && req.user.role !== 'super_admin') return res.status(403).json({ error: 'אין הרשאה' });
   const r = await query('INSERT INTO message_templates (agency_id, name, body, type, for_whatsapp, for_sms) VALUES (?, ?, ?, ?, ?, ?)',
-    [agency_id || req.user.agency_id || null, name, body, type || 'manual', for_whatsapp ? 1 : 0, for_sms ? 1 : 0]);
+    [agency_id, name, body, type || 'manual', for_whatsapp ? 1 : 0, for_sms ? 1 : 0]);
   res.status(201).json({ template: { id: r.insertId } });
 }));
 

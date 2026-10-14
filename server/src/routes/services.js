@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const { query, companyScope, canAccessCompany } = require('../db/pool');
+const { query, companyScope, targetCompanyId, ownsCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { upload, fileUrl } = require('../services/uploads');
@@ -82,9 +82,9 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Context for the new-channel form: company users + that company's unassigned numbers.
 router.get('/new-context', asyncHandler(async (req, res) => {
-  const companyId = req.query.company_id;
+  const companyId = targetCompanyId(req.user, req.query.company_id);
   if (!companyId) return res.status(400).json({ error: 'חסר מזהה חברה' });
-  if (canAccessCompany(req.user, companyId) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (!(await ownsCompany(req.user, companyId))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   const users = await query(
     `SELECT id, COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
      FROM users WHERE company_id = ? AND is_active = 1 ORDER BY name`, [companyId]);
@@ -121,9 +121,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
 router.post('/', requireRole('super_admin', 'agency_admin', 'company_admin'), asyncHandler(async (req, res) => {
   const b = req.body || {};
-  const { company_id, name, service_type } = b;
+  const { name, service_type } = b;
+  const company_id = targetCompanyId(req.user, b.company_id);
   if (!company_id || !name) return res.status(400).json({ error: 'חסרים שדות חובה' });
-  if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (!(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   const distribute = JSON.stringify((Array.isArray(b.distribute_leads) ? b.distribute_leads : []).map(String));
   const closeCfg = b.close_hours_config == null ? null : (typeof b.close_hours_config === 'string' ? b.close_hours_config : JSON.stringify(b.close_hours_config));
   const r = await query(

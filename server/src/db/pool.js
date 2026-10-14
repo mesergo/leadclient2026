@@ -58,4 +58,20 @@ function scoped(user, baseWhere = '1=1', baseParams = [], col = 'company_id') {
   return { where: `(${baseWhere}) AND (${s.sql})`, params: [...baseParams, ...s.params] };
 }
 
-module.exports = { getPool, query, scoped, tzOffset, ...scope };
+// The company a write targets: company-level roles always write to their own company
+// (a body company_id is ignored); admins above them name it and must pass ownsCompany.
+const COMPANY_ROLES = ['company_admin', 'company_user', 'translator'];
+function targetCompanyId(user, requested) {
+  if (user && COMPANY_ROLES.includes(user.role)) return user.company_id || null;
+  return Number(requested) || null;
+}
+
+// Whether `user` may write to company `companyId` (super_admin: any; agency_admin:
+// its agency's companies; company roles: their own). Async counterpart of canAccessCompany.
+async function ownsCompany(user, companyId) {
+  if (!companyId) return false;
+  const s = scope.companyScope(user, 'id');
+  return !!(await query(`SELECT id FROM companies WHERE id = ? AND (${s.sql})`, [companyId, ...s.params]))[0];
+}
+
+module.exports = { getPool, query, scoped, tzOffset, targetCompanyId, ownsCompany, ...scope };
