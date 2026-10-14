@@ -1,29 +1,55 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
-function requireAuth(req, res, next) {
+// The token proves WHO the user is; their role / company / agency are read from the DB
+// (cached briefly), so assigning a user to a company or changing a role applies without
+// signing in again, and a deactivated user is locked out at once.
+const USER_TTL_MS = 30 * 1000;
+const userCache = new Map(); // id -> { at, row }
+async function currentUser(id) {
+  const hit = userCache.get(id);
+  if (hit && Date.now() - hit.at < USER_TTL_MS) return hit.row;
+  const { query } = require('../db/pool');
+  const row = (await query('SELECT role, company_id, agency_id, is_active FROM users WHERE id = ?', [id]))[0] || null;
+  userCache.set(id, { at: Date.now(), row });
+  if (userCache.size > 5000) userCache.clear();
+  return row;
+}
+
+async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'לא מחובר' });
+  let payload;
   try {
-    const payload = jwt.verify(token, config.jwt.secret);
-    req.user = {
-      id: payload.sub,
-      role: payload.role,
-      company_id: payload.company_id ?? null,
-      agency_id: payload.agency_id ?? null,
-      name: payload.name || null,
-      impersonated_by: payload.impersonated_by || null,
-    };
-    // sales_manager is a read-only role: block every write except the auth/OTP
-    // flows it needs to sign in and pass the phone-verify gate.
-    if (req.user.role === 'sales_manager' && req.method !== 'GET' && req.baseUrl !== '/api/auth') {
-      return res.status(403).json({ error: 'למנהל מכירות הרשאת צפייה בלבד' });
-    }
-    next();
+    payload = jwt.verify(token, config.jwt.secret);
   } catch {
     return res.status(401).json({ error: 'טוקן לא תקין' });
   }
+  req.user = {
+    id: payload.sub,
+    role: payload.role,
+    company_id: payload.company_id ?? null,
+    agency_id: payload.agency_id ?? null,
+    name: payload.name || null,
+    impersonated_by: payload.impersonated_by || null,
+  };
+  try {
+    const row = await currentUser(payload.sub);
+    if (!row) return res.status(401).json({ error: 'המשתמש לא נמצא' });
+    if (!Number(row.is_active)) return res.status(401).json({ error: 'המשתמש אינו פעיל' });
+    req.user.role = row.role;
+    req.user.company_id = row.company_id ?? null;
+    req.user.agency_id = row.agency_id ?? null;
+  } catch (e) {
+    // DB hiccup: keep the token's claims rather than failing every request
+  }
+  // sales_manager is a read-only role: block every write except the auth/OTP
+  // flows it needs to sign in and pass the phone-verify gate.
+  if (req.user.role === 'sales_manager' && req.method !== 'GET' && req.baseUrl !== '/api/auth') {
+    return res.status(403).json({ error: 'למנהל מכירות הרשאת צפייה בלבד' });
+  }
+  next();
 }
 
 function requireRole(...roles) {
