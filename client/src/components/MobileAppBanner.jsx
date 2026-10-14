@@ -5,7 +5,7 @@ import { useLang } from '../context/LangContext';
 // web app at /m (Add to Home Screen). Dismissed for 14 days per browser.
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.leadclient.crm';
 // the Play listing is still internal-testing only — flip to true once the app is public
-const ANDROID_APP_PUBLIC = false;
+const ANDROID_APP_PUBLIC = true;
 const DISMISS_KEY = 'lc_app_banner_dismissed';
 const DISMISS_MS = 14 * 24 * 60 * 60 * 1000;
 
