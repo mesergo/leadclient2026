@@ -10,7 +10,7 @@ export const LANGS = [
 const DICT = {
   he: {
     brand: 'LeadClient',
-    'login.remember': 'זכור אותי במחשב הזה',
+    'login.remember': 'זכור אותי במחשב הזה', 'login.noAccount': 'אין לכם חשבון?', 'login.signupNow': 'הרשמו עכשיו', 'login.support': 'תמיכה:',
     'app.banner.android': 'יש לנו אפליקציה לאנדרואיד — לידים, חיוג ותזכורות מהנייד',
     'app.banner.ios': 'התקינו את LeadClient על האייפון — לידים, חיוג ותזכורות מהנייד',
     'app.banner.install': 'להתקנה',
@@ -163,7 +163,7 @@ const DICT = {
   },
   en: {
     brand: 'LeadClient',
-    'login.remember': 'Remember me on this computer',
+    'login.remember': 'Remember me on this computer', 'login.noAccount': "Don't have an account?", 'login.signupNow': 'Sign up now', 'login.support': 'Support:',
     'app.banner.android': 'Get the LeadClient Android app — leads, calls and reminders on the go',
     'app.banner.ios': 'Install LeadClient on your iPhone — leads, calls and reminders on the go',
     'app.banner.install': 'Install',

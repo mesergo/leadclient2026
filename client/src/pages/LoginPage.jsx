@@ -107,6 +107,13 @@ export default function LoginPage() {
         <div className="google-slot" style={{ marginTop: 18 }}>
           <GoogleButton onCredential={onGoogle} onError={() => setError(t('login.googleError'))} />
         </div>
+
+        <p className="login-signup">
+          {t('login.noAccount')} <a href="https://leadclient.net/pricing" target="_blank" rel="noopener noreferrer">{t('login.signupNow')}</a>
+        </p>
+        <p className="login-support muted">
+          {t('login.support')} <a href="mailto:leadclientnet@gmail.com" dir="ltr">leadclientnet@gmail.com</a>
+        </p>
       </div>
     </div>
   );

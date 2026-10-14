@@ -61,7 +61,7 @@
   <section class="card">
     <h2>איך מבקשים מחיקה</h2>
     <ol>
-      <li>ממלאים את הטופס שלמטה עם האימייל או הטלפון של החשבון. אפשר גם לפנות במייל ל-<a href="mailto:info@leadclient.net?subject=בקשת מחיקת חשבון">info@leadclient.net</a> או בטלפון <a href="tel:0723317777">072-331-7777</a>.</li>
+      <li>ממלאים את הטופס שלמטה עם האימייל או הטלפון של החשבון. אפשר גם לפנות במייל ל-<a href="mailto:leadclientnet@gmail.com?subject=בקשת מחיקת חשבון">leadclientnet@gmail.com</a> או בטלפון <a href="tel:0723317777">072-331-7777</a>.</li>
       <li>נאמת שהבקשה הגיעה מבעל החשבון. ייתכן שניצור איתכם קשר בטלפון או במייל שרשומים בחשבון.</li>
       <li>אחרי האימות נמחק את הנתונים תוך 30 יום לכל היותר, ונשלח לכם אישור.</li>
     </ol>
@@ -116,7 +116,7 @@
 
   <section class="card en">
     <h2>Delete your LeadClient account</h2>
-    <p>To delete your account in the <b>LeadClient - ניהול לידים</b> app (developer: LeadClient) and the data linked to it, fill in the form above, or email <a href="mailto:info@leadclient.net">info@leadclient.net</a> from the address on your account. We verify the request and delete the data within 30 days.</p>
+    <p>To delete your account in the <b>LeadClient - ניהול לידים</b> app (developer: LeadClient) and the data linked to it, fill in the form above, or email <a href="mailto:leadclientnet@gmail.com">leadclientnet@gmail.com</a> from the address on your account. We verify the request and delete the data within 30 days.</p>
     <p><b>Deleted:</b> your user profile (name, email, phone, password), settings, notification preferences and device push tokens, and your dial-from numbers. If the business account owner asks to delete the whole business account, its leads, contacts, reminders, notes and call recordings are deleted too.</p>
     <p><b>Kept:</b> when a single user is deleted, the business's own records stay with the business. Call recordings are deleted automatically after 21 days unless the business enabled an archive. Billing records are kept as required by law. Backup copies are removed within 30 days.</p>
   </section>
@@ -138,9 +138,9 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
       .then(function (r) {
         if (r.ok) { f.reset(); show('ok', 'הבקשה התקבלה (מספר ' + r.j.id + '). ניצור איתכם קשר לאימות, והמחיקה תתבצע תוך 30 יום לכל היותר.'); }
-        else show('err', r.status === 429 ? 'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר או כתבו ל-info@leadclient.net.' : (r.j.error || 'השליחה נכשלה. נסו שוב או כתבו ל-info@leadclient.net.'));
+        else show('err', r.status === 429 ? 'נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר או כתבו ל-leadclientnet@gmail.com.' : (r.j.error || 'השליחה נכשלה. נסו שוב או כתבו ל-leadclientnet@gmail.com.'));
       })
-      .catch(function () { show('err', 'אין חיבור. נסו שוב או כתבו ל-info@leadclient.net.'); })
+      .catch(function () { show('err', 'אין חיבור. נסו שוב או כתבו ל-leadclientnet@gmail.com.'); })
       .finally(function () { btn.disabled = false; });
   });
 </script>
