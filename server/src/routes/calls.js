@@ -124,6 +124,8 @@ router.get('/after-call/:id', asyncHandler(async (req, res) => {
 // Creates a lead (lead_through 'mobile') assigned to the agent and remembers the number as business.
 // Every call is its own lead (several calls = several leads). call_id is the phone's id for ONE call:
 // a repeated report of the same call reuses its lead instead of duplicating it.
+// name (optional): the caller's name from the phone's contacts — used only when the system has no
+// name for this customer yet (a name already in the system is never overwritten).
 router.post('/mobile-call', asyncHandler(async (req, res) => {
   const raw = String((req.body && req.body.phone) || '').trim();
   const key = phoneKey(raw);
@@ -134,11 +136,15 @@ router.post('/mobile-call', asyncHandler(async (req, res) => {
 
   await query('INSERT IGNORE INTO user_business_numbers (user_id, phone_key) VALUES (?, ?)', [req.user.id, key]);
 
+  const contactName = String((req.body && req.body.name) || '').trim().slice(0, 100) || null;
   const callId = String((req.body && req.body.call_id) || '').replace(/[^\w-]/g, '').slice(0, 64);
   const callUuid = callId ? `mobile:${req.user.id}:${callId}` : null;
   if (callUuid) {
     const same = (await query('SELECT id FROM leads WHERE company_id = ? AND call_uuid = ? LIMIT 1', [companyId, callUuid]))[0];
-    if (same) return res.json({ lead: { id: same.id }, reused: true });
+    if (same) {
+      if (contactName) await query("UPDATE leads SET lead_name = ? WHERE id = ? AND (lead_name IS NULL OR lead_name = '')", [contactName, same.id]);
+      return res.json({ lead: { id: same.id }, reused: true });
+    }
   }
 
   const local = raw.replace(/\D/g, '').replace(/^972/, '0');
@@ -151,7 +157,7 @@ router.post('/mobile-call', asyncHandler(async (req, res) => {
     `INSERT INTO leads (company_id, status_id, lead_name, lead_phone, lead_info, lead_through, current_agent_id, call_uuid,
                         last_interaction_at, last_interaction_type, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, 'mobile', ?, ?, NOW(), 'call', NOW(), NOW())`,
-    [companyId, st[0] ? st[0].id : null, named ? named.lead_name : null, local || raw,
+    [companyId, st[0] ? st[0].id : null, named ? named.lead_name : contactName, local || raw,
       '[שיחה עסקית בנייד פרטי]', req.user.id, callUuid]);
   res.status(201).json({ lead: { id: r.insertId }, reused: false });
 }));
