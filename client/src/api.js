@@ -3,10 +3,20 @@
 // VITE_API_URL always wins.
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '');
 
+// a user who works in several companies: the active one ('all' = every company together),
+// sent with every request; the server honours it only for companies the user belongs to
+const COMPANY_KEY = 'lc_company';
+let activeCompany = (() => { try { return localStorage.getItem(COMPANY_KEY) || ''; } catch { return ''; } })();
+export function setActiveCompany(v) {
+  activeCompany = v ? String(v) : '';
+  try { if (activeCompany) localStorage.setItem(COMPANY_KEY, activeCompany); else localStorage.removeItem(COMPANY_KEY); } catch { /* private mode */ }
+}
+const companyHeader = () => (activeCompany ? { 'X-Company': activeCompany } : {});
+
 async function request(path, { method = 'GET', body, token } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...companyHeader() },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -18,7 +28,7 @@ async function uploadForm(path, field, file, extra, token) {
   const fd = new FormData();
   fd.append(field, file);
   Object.entries(extra || {}).forEach(([k, v]) => fd.append(k, v));
-  const res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: fd });
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...companyHeader() }, body: fd });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'שגיאה בהעלאת הקובץ');
   return data;
@@ -53,6 +63,9 @@ export const api = {
   uploadAgencyLogo: (id, file, token) => uploadForm(`/api/agencies/${id}/logo`, 'logo', file, {}, token),
 
   companies: (token) => request('/api/companies', { token }),
+  userCompanies: (id, token) => request(`/api/users/${id}/companies`, { token }),
+  addUserCompany: (id, body, token) => request(`/api/users/${id}/companies`, { method: 'POST', body, token }),
+  removeUserCompany: (id, companyId, token) => request(`/api/users/${id}/companies/${companyId}`, { method: 'DELETE', token }),
   company: (id, token) => request(`/api/companies/${id}`, { token }),
   createCompany: (body, token) => request('/api/companies', { method: 'POST', body, token }),
   updateCompany: (id, body, token) => request(`/api/companies/${id}`, { method: 'PATCH', body, token }),

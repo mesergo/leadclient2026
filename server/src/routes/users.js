@@ -120,6 +120,52 @@ router.patch('/:id', asyncHandler(async (req, res) => {
 
 // "Login as" — issue a token for another (accessible) user so an admin can see
 // their view/permissions. The token carries impersonated_by for audit.
+// ---- extra companies (a user who works in several companies) — super / agency admin only ----
+// The user must be visible to the caller, and an agency admin may add only its agency's companies.
+async function visibleUser(req, id) {
+  const s = companyScope(req.user, 'u.company_id');
+  return (await query(`SELECT u.id, u.company_id, u.role FROM users u WHERE u.id = ? AND (${s.sql})`, [id, ...s.params]))[0];
+}
+async function companyAllowed(req, companyId) {
+  if (req.user.role === 'super_admin') return true;
+  if (req.user.role !== 'agency_admin') return false;
+  return (await query('SELECT 1 FROM companies WHERE id = ? AND agency_id = ?', [companyId, req.user.agency_id])).length > 0;
+}
+const MEMBER_ROLES = ['company_admin', 'company_user'];
+
+router.get('/:id/companies', asyncHandler(async (req, res) => {
+  if (!['super_admin', 'agency_admin'].includes(req.user.role)) return res.status(403).json({ error: 'אין הרשאה' });
+  const u = await visibleUser(req, req.params.id);
+  if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  const rows = await query(
+    `SELECT uc.company_id, uc.role, c.name AS company_name FROM user_companies uc JOIN companies c ON c.id = uc.company_id
+      WHERE uc.user_id = ? ORDER BY c.name`, [u.id]);
+  res.json({ companies: rows });
+}));
+
+router.post('/:id/companies', asyncHandler(async (req, res) => {
+  if (!['super_admin', 'agency_admin'].includes(req.user.role)) return res.status(403).json({ error: 'אין הרשאה' });
+  const u = await visibleUser(req, req.params.id);
+  if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  if (!['company_admin', 'company_user'].includes(u.role)) return res.status(400).json({ error: 'אפשר לשייך לחברות נוספות רק מנהל חברה או נציג' });
+  const companyId = Number(req.body && req.body.company_id);
+  const role = MEMBER_ROLES.includes(req.body && req.body.role) ? req.body.role : 'company_user';
+  if (!companyId) return res.status(400).json({ error: 'לא נבחרה חברה' });
+  if (Number(u.company_id) === companyId) return res.status(400).json({ error: 'זו כבר החברה הראשית של המשתמש' });
+  if (!(await companyAllowed(req, companyId))) return res.status(403).json({ error: 'אין הרשאה לחברה הזו' });
+  await query('INSERT INTO user_companies (user_id, company_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)', [u.id, companyId, role]);
+  res.json({ ok: true });
+}));
+
+router.delete('/:id/companies/:companyId', asyncHandler(async (req, res) => {
+  if (!['super_admin', 'agency_admin'].includes(req.user.role)) return res.status(403).json({ error: 'אין הרשאה' });
+  const u = await visibleUser(req, req.params.id);
+  if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  if (!(await companyAllowed(req, req.params.companyId))) return res.status(403).json({ error: 'אין הרשאה לחברה הזו' });
+  await query('DELETE FROM user_companies WHERE user_id = ? AND company_id = ?', [u.id, req.params.companyId]);
+  res.json({ ok: true });
+}));
+
 router.post('/:id/impersonate', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const rows = await query(

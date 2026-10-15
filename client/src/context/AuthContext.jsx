@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, setActiveCompany } from '../api';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -84,5 +84,9 @@ export function AuthProvider({ children }) {
     if (admin) { saveToken(admin); setToken(admin); setUser(null); }
   };
 
-  return <AuthContext.Provider value={{ token, user, loading, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, acceptInvite, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
+  // switch the active company of a user who works in several ('all' = every company together);
+  // a full reload makes every screen refetch under the new company
+  const switchCompany = (v) => { setActiveCompany(v); window.location.reload(); };
+
+  return <AuthContext.Provider value={{ token, user, loading, switchCompany, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, acceptInvite, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

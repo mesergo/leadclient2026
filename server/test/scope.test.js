@@ -59,3 +59,17 @@ test('translator treated as company-scoped', () => {
   const s = companyScope({ role: 'translator', company_id: 8 });
   assert.deepStrictEqual(s.params, [8]);
 });
+
+test('user in several companies: "all" view covers exactly their companies', () => {
+  const u = { role: 'company_user', company_id: 5, companyIds: [5, 8] };
+  const s = companyScope(u, 'l.company_id');
+  assert.strictEqual(s.sql, 'l.company_id IN (?,?)');
+  assert.deepStrictEqual(s.params, [5, 8]);
+  assert.strictEqual(canAccessCompany(u, 8), true);
+  assert.strictEqual(canAccessCompany(u, 9), false);
+});
+
+test('user in several companies, one active: only that company', () => {
+  const s = companyScope({ role: 'company_admin', company_id: 8 }, 'company_id');
+  assert.deepStrictEqual([s.sql, s.params], ['company_id = ?', [8]]);
+});

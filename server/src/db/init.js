@@ -217,6 +217,8 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // a forwarded call the agent marked private in the app: its lead was deleted, and the rest of
   // the call's webhooks (e.g. the end event) must not create it again
+  // the value the seed script last wrote (app strings): re-seeding replaces only values nobody edited
+  await safe('translation_strings.seeded_value', () => ensureColumn('translation_strings', 'seeded_value', 'seeded_value TEXT NULL'));
   // the agent's own "call from" numbers for the web dialer (permanent ones; temporary live in the browser)
   await safe('user_dial_numbers.table', () => query(`CREATE TABLE IF NOT EXISTS user_dial_numbers (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -269,6 +271,17 @@ async function ensureSchema() {
   await safe('leads.call_ended_at', () => ensureColumn('leads', 'call_ended_at', 'call_ended_at DATETIME NULL'));
   await safe('leads.repeat_billed_min', () => ensureColumn('leads', 'repeat_billed_min', 'repeat_billed_min INT NOT NULL DEFAULT 0'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
+  // a user who works in several companies: extra memberships beyond users.company_id (the primary),
+  // each with its own role; the client picks the active company (X-Company header) or "all"
+  await safe('user_companies.table', () => query(`CREATE TABLE IF NOT EXISTS user_companies (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NOT NULL,
+      company_id BIGINT UNSIGNED NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'company_user',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_user_company (user_id, company_id),
+      INDEX idx_uc_company (company_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   // super admin pushes to the mobile app's users (broadcast / app-update notices)
   await safe('app_push_log.table', () => query(`CREATE TABLE IF NOT EXISTS app_push_log (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

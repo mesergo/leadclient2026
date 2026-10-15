@@ -19,6 +19,10 @@ function companyScope(user, col = 'company_id') {
     case 'company_admin':
     case 'company_user':
     case 'translator':
+      // "all my companies" view of a user who works in several companies
+      if (Array.isArray(user.companyIds) && user.companyIds.length) {
+        return { sql: `${col} IN (${user.companyIds.map(() => '?').join(',')})`, params: [...user.companyIds] };
+      }
       return { sql: `${col} = ?`, params: [user.company_id] };
     default:
       return { sql: '0 = 1', params: [] };
@@ -41,9 +45,10 @@ function agencyScope(user, col = 'id') {
   if (user.role === 'super_admin') return { sql: '1 = 1', params: [] };
   if (user.role === 'agency_admin' || user.role === 'sales_manager') return { sql: `${col} = ?`, params: [user.agency_id] };
   // company roles: only their own agency (via their company)
+  const ids = Array.isArray(user.companyIds) && user.companyIds.length ? user.companyIds : [user.company_id];
   return {
-    sql: `${col} IN (SELECT agency_id FROM companies WHERE id = ?)`,
-    params: [user.company_id],
+    sql: `${col} IN (SELECT agency_id FROM companies WHERE id IN (${ids.map(() => '?').join(',')}))`,
+    params: ids,
   };
 }
 
@@ -52,6 +57,7 @@ function canAccessCompany(user, companyId) {
   if (!user || !user.role) return false;
   if (user.role === 'super_admin') return true;
   if (user.role === 'agency_admin') return { needsCheck: 'agency', agency_id: user.agency_id };
+  if (Array.isArray(user.companyIds) && user.companyIds.length) return user.companyIds.map(String).includes(String(companyId));
   return String(user.company_id) === String(companyId);
 }
 

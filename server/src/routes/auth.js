@@ -337,7 +337,18 @@ router.get('/me', requireAuth, async (req, res, next) => {
     if (!rows[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
     const u = rows[0];
     const name = u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
-    res.json({ user: { ...rows[0], must_change_password: !!u.must_change_password, name, impersonated_by: req.user.impersonated_by, phone_verify_required: config.requirePhoneVerify } });
+    // several companies: the list (primary first) and the active one ('all' = every company together)
+    let companies = [];
+    if (req.user.companies && req.user.companies.length > 1) {
+      const ids = req.user.companies.map((c) => c.id);
+      const names = await query(`SELECT id, name FROM companies WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+      companies = req.user.companies.map((c) => ({ id: c.id, role: c.role, name: (names.find((n) => Number(n.id) === Number(c.id)) || {}).name || '' }));
+    }
+    res.json({ user: {
+      ...rows[0], role: req.user.role, company_id: req.user.company_id,
+      companies, active_company: req.user.companyIds ? 'all' : req.user.company_id,
+      must_change_password: !!u.must_change_password, name, impersonated_by: req.user.impersonated_by, phone_verify_required: config.requirePhoneVerify,
+    } });
   } catch (e) {
     next(e);
   }

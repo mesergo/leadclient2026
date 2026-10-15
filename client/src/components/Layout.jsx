@@ -35,7 +35,7 @@ const CRUMB_KEY = {
 };
 
 export default function Layout() {
-  const { user, logout, impersonatorName, stopImpersonation } = useAuth();
+  const { user, logout, impersonatorName, stopImpersonation, switchCompany } = useAuth();
   const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [dialer, setDialer] = useState(false);
@@ -72,6 +72,15 @@ export default function Layout() {
           <NavLink to="/profile" className="header-user" title={t('nav.profile')}>
             <Icons.User size={18} /> <span className="header-user-text"><span className="header-welcome">{t('header.welcome')}, </span><strong>{user?.name || user?.display_name || user?.username || ''}</strong></span>
           </NavLink>
+          {user?.companies?.length > 1 && (
+            <label className="header-company" title={t('hc.switch')}>
+              <span>{t('hc.connectedTo')}</span>
+              <select value={String(user.active_company || user.company_id || '')} onChange={(e) => switchCompany(e.target.value)}>
+                {user.companies.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+                <option value="all">{t('hc.all')}</option>
+              </select>
+            </label>
+          )}
           <div className="header-actions">
             <button className="icon-btn" title={t('dial.title')} onClick={() => setDialer(true)}><Icons.Phone size={18} /></button>
             <NotificationBell />

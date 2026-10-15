@@ -5,12 +5,21 @@ const config = require('../config');
 // (cached briefly), so assigning a user to a company or changing a role applies without
 // signing in again, and a deactivated user is locked out at once.
 const USER_TTL_MS = 30 * 1000;
+const COMPANY_ROLES = ['company_admin', 'company_user', 'sales_manager', 'translator'];
 const userCache = new Map(); // id -> { at, row }
 async function currentUser(id) {
   const hit = userCache.get(id);
   if (hit && Date.now() - hit.at < USER_TTL_MS) return hit.row;
   const { query } = require('../db/pool');
   const row = (await query('SELECT role, company_id, agency_id, is_active FROM users WHERE id = ?', [id]))[0] || null;
+  if (row && COMPANY_ROLES.includes(row.role)) {
+    // every company the user works in: the primary one + extra memberships (each with its role)
+    const extra = await query('SELECT company_id, role FROM user_companies WHERE user_id = ? ORDER BY id', [id]).catch(() => []);
+    row.companies = [
+      ...(row.company_id ? [{ id: Number(row.company_id), role: row.role }] : []),
+      ...extra.filter((m) => Number(m.company_id) !== Number(row.company_id)).map((m) => ({ id: Number(m.company_id), role: m.role })),
+    ];
+  }
   userCache.set(id, { at: Date.now(), row });
   if (userCache.size > 5000) userCache.clear();
   return row;
@@ -41,6 +50,15 @@ async function requireAuth(req, res, next) {
     req.user.role = row.role;
     req.user.company_id = row.company_id ?? null;
     req.user.agency_id = row.agency_id ?? null;
+    // several companies: the client chooses one (X-Company: <id>) or all of them (X-Company: all);
+    // only companies the user really belongs to count — anything else falls back to the primary
+    if (row.companies && row.companies.length > 1) {
+      req.user.companies = row.companies;
+      const want = String(req.headers['x-company'] || '');
+      const pick = row.companies.find((c) => String(c.id) === want);
+      if (pick) { req.user.company_id = pick.id; req.user.role = pick.role; }
+      else if (want === 'all') req.user.companyIds = row.companies.map((c) => c.id);
+    }
   } catch (e) {
     // DB hiccup: keep the token's claims rather than failing every request
   }

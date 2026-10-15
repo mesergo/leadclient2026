@@ -117,8 +117,9 @@ router.get('/:id', asyncHandler(async (req, res) => {
     if (k.length >= 7) {
       const who = (await query(
         `SELECT COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
-           FROM users WHERE company_id = ? AND is_active = 1 AND RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 9) = ? LIMIT 1`,
-        [lead.company_id, k]))[0]
+           FROM users u WHERE u.is_active = 1 AND RIGHT(REGEXP_REPLACE(u.phone, '[^0-9]', ''), 9) = ?
+             AND (u.company_id = ? OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = ?)) LIMIT 1`,
+        [k, lead.company_id, lead.company_id]))[0]
         || (await query(
           `SELECT NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), '') AS name FROM contacts
             WHERE company_id = ? AND (RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 9) = ? OR RIGHT(REGEXP_REPLACE(phone2, '[^0-9]', ''), 9) = ?)
@@ -133,7 +134,9 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const reminders = await query('SELECT id, reminder_at, comment, user_id, done_at FROM reminders WHERE lead_id = ? ORDER BY reminder_at ASC', [req.params.id]);
   const statuses = await query('SELECT id, text, color FROM lead_statuses WHERE company_id = ? ORDER BY sort_order', [lead.company_id]);
   const agents = await query(
-    "SELECT id, display_name FROM users WHERE company_id = ? AND is_active = 1 AND role IN ('company_admin','company_user') ORDER BY display_name", [lead.company_id]);
+    `SELECT u.id, u.display_name FROM users u LEFT JOIN user_companies uc ON uc.user_id = u.id AND uc.company_id = ?
+      WHERE (u.company_id = ? OR uc.id IS NOT NULL) AND u.is_active = 1 AND COALESCE(uc.role, u.role) IN ('company_admin','company_user')
+      ORDER BY u.display_name`, [lead.company_id, lead.company_id]);
   res.json({ lead, conversations, tags, reminders, statuses, agents });
 }));
 

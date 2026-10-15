@@ -457,6 +457,9 @@ button.channel-name.link-name:hover { text-decoration: underline; }
 .dialer-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; }
 .dialer-field span { color: var(--muted, #667); }
 .dialer-field input, .dialer-field select { padding: 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; }
+.header-company { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim, #6b7280); margin-inline-start: 12px; }
+.header-company select { padding: 4px 8px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-weight: 600; color: var(--text, #333); background: #fff; max-width: 200px; }
+@media (max-width: 640px) { .header-company span { display: none; } .header-company select { max-width: 130px; } }
 .login-signup { text-align: center; margin: 18px 0 4px; font-size: 14px; }
 .login-signup a { font-weight: 600; }
 .login-support { text-align: center; margin: 0; font-size: 13px; }

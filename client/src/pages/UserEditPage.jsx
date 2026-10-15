@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
 import PasswordRules from '../components/PasswordRules';
+import UserCompaniesPanel from '../components/UserCompaniesPanel';
 
 const ROLES = ['super_admin', 'agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'];
 const ROLE_LABELS = {
@@ -214,6 +215,7 @@ export default function UserEditPage() {
           {tab === 'restrict' && <button className="btn btn-primary" onClick={() => save({ restrictions: restrict })}>{t('ue.save')}</button>}
         </div>
       </form>
+      <UserCompaniesPanel userId={id} primaryCompanyId={u.company_id} userRole={u.role} />
     </div>
   );
 }

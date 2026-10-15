@@ -130,9 +130,12 @@ function announceNewLead(companyId, leadId, name, phone, assignedTo = null) {
 async function userByPhone(companyId, phone) {
   const key = String(phone || '').replace(/\D/g, '').slice(-9);
   if (!companyId || key.length < 7) return null;
+  // the company's own users and users who also work in it (user_companies)
   const r = await query(
-    `SELECT id FROM users WHERE company_id = ? AND is_active = 1 AND phone IS NOT NULL
-       AND REGEXP_REPLACE(phone, '[^0-9]', '') LIKE CONCAT('%', ?) LIMIT 1`, [companyId, key]).catch(() => []);
+    `SELECT u.id FROM users u WHERE u.is_active = 1 AND u.phone IS NOT NULL
+       AND (u.company_id = ? OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = ?))
+       AND REGEXP_REPLACE(u.phone, '[^0-9]', '') LIKE CONCAT('%', ?) ORDER BY (u.company_id = ?) DESC LIMIT 1`,
+    [companyId, companyId, key, companyId]).catch(() => []);
   return r[0] ? r[0].id : null;
 }
 
@@ -188,14 +191,35 @@ router.get('/languages', asyncHandler(async (req, res) => {
   res.json({ languages: rows });
 }));
 
-// Translation overrides map for a language (only non-empty values).
+// Translation overrides map for a language (only non-empty values). The mobile app's strings
+// (namespace 'app') are served separately by /app-strings.
 router.get('/translations/:slug', asyncHandler(async (req, res) => {
   const rows = await query(
-    "SELECT string_key, string_value FROM translation_strings WHERE lang_slug = ? AND string_value IS NOT NULL AND string_value <> ''",
+    `SELECT string_key, string_value FROM translation_strings WHERE lang_slug = ? AND string_value IS NOT NULL AND string_value <> ''
+       AND (namespace IS NULL OR namespace <> 'app')`,
     [req.params.slug]);
   const map = {};
   for (const r of rows) map[r.string_key] = r.string_value;
   res.json({ strings: map });
+}));
+
+// The mobile app's UI strings for a language (namespace 'app', keys app.*), edited in the CRM's
+// Languages screen. GET /api/public/app-strings?lang=ar -> { lang, version, strings }. The app bundles
+// its own dictionary as fallback and overrides it with these. he / he_IL both mean Hebrew.
+const APP_LANGS = { he: 'he_IL', he_il: 'he_IL', ar: 'ar', ru: 'ru', en: 'en' };
+router.get('/app-strings', asyncHandler(async (req, res) => {
+  const slug = APP_LANGS[String(req.query.lang || 'he').toLowerCase()];
+  if (!slug) return res.status(400).json({ error: 'unknown language' });
+  const rows = await query(
+    `SELECT string_key, string_value FROM translation_strings
+      WHERE lang_slug = ? AND namespace = 'app' AND string_value IS NOT NULL AND string_value <> '' ORDER BY string_key`,
+    [slug]).catch(() => []);
+  const strings = {};
+  for (const r of rows) strings[r.string_key] = r.string_value;
+  const version = require('crypto').createHash('md5').update(JSON.stringify(strings)).digest('hex').slice(0, 12);
+  res.set('Cache-Control', 'public, max-age=300').set('ETag', `"${version}"`);
+  if (req.headers['if-none-match'] === `"${version}"`) return res.status(304).end();
+  res.json({ lang: slug, version, strings });
 }));
 
 // --- IVR / Maskyoo call webhooks (configure these URLs on the provider's number) ---
