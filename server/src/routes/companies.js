@@ -105,6 +105,40 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   res.json({ company: rows[0] });
 }));
 
+// Move a company to another agency (or to none). super_admin only. The company's users follow
+// (users.agency_id kept in sync, as when a user changes company); its leads, numbers, services etc.
+// hang off the company and move with it. The old agency's admins lose access at once.
+// Bills / logs already written keep the agency they had then (history).
+router.post('/:id/transfer', requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const raw = req.body ? req.body.agency_id : undefined;
+  if (raw === undefined) return res.status(400).json({ error: 'לא נבחרה סוכנות' });
+  const to = raw === null || raw === '' ? null : Number(raw);
+  const c = (await query('SELECT c.id, c.name, c.agency_id, a.name AS agency_name FROM companies c LEFT JOIN agencies a ON a.id = c.agency_id WHERE c.id = ?', [id]))[0];
+  if (!c) return res.status(404).json({ error: 'חברה לא נמצאה' });
+  let target = null;
+  if (to !== null) {
+    target = (await query('SELECT id, name FROM agencies WHERE id = ?', [to]))[0];
+    if (!target) return res.status(400).json({ error: 'סוכנות לא נמצאה' });
+  }
+  if (String(c.agency_id ?? '') === String(to ?? '')) return res.status(400).json({ error: 'החברה כבר שייכת לסוכנות הזו' });
+  const conn = await getPool().getConnection();
+  let moved = 0;
+  try {
+    await conn.beginTransaction();
+    await conn.execute('UPDATE companies SET agency_id = ? WHERE id = ?', [to, id]);
+    const [u] = await conn.execute(
+      "UPDATE users SET agency_id = ? WHERE company_id = ? AND role IN ('company_admin', 'company_user', 'sales_manager', 'translator')", [to, id]);
+    moved = u.affectedRows || 0;
+    await conn.execute(
+      'INSERT INTO action_log (agency_id, company_id, user_id, user_name, content, icon, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+      [to, id, req.user.id, String(req.user.name || '').slice(0, 50),
+        `החברה הועברה מסוכנות "${c.agency_name || 'ללא סוכנות'}" לסוכנות "${target ? target.name : 'ללא סוכנות'}"`, 'swap']).catch(() => {}); // log only
+    await conn.commit();
+  } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+  res.json({ ok: true, from: { id: c.agency_id, name: c.agency_name }, to: target, users_moved: moved });
+}));
+
 // Permanently delete a company. Releases its virtual numbers back to the pool,
 // removes its users/invites/callbacks, and relies on FK CASCADE for the rest
 // (services, leads, statuses, tags, contacts, files, reports). super_admin only.

@@ -60,6 +60,7 @@ export const api = {
   createAgency: (name, token) => request('/api/agencies', { method: 'POST', body: { name }, token }),
   updateAgency: (id, body, token) => request(`/api/agencies/${id}`, { method: 'PATCH', body, token }),
   agency: (id, token) => request(`/api/agencies/${id}`, { token }),
+  transferCompany: (id, agency_id, token) => request(`/api/companies/${id}/transfer`, { method: 'POST', body: { agency_id }, token }),
   uploadAgencyLogo: (id, file, token) => uploadForm(`/api/agencies/${id}/logo`, 'logo', file, {}, token),
 
   companies: (token) => request('/api/companies', { token }),
