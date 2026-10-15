@@ -61,7 +61,7 @@ module.exports = {
     resendSeconds: Number(process.env.OTP_RESEND_SECONDS || 30),  // min gap between sends
   },
   google: {
-    clientId: process.env.GOOGLE_CLIENT_ID || '',          // for verifying Google id_token (aud)
+    clientId: process.env.GOOGLE_CLIENT_ID || '',          // id_token audience(s), comma-separated
   },
   // iCount billing (standing orders via a hosted PayPage). No token => mock mode (non-production only).
   icount: {
