@@ -147,7 +147,10 @@ router.post('/:id/companies', asyncHandler(async (req, res) => {
   if (!['super_admin', 'agency_admin'].includes(req.user.role)) return res.status(403).json({ error: 'אין הרשאה' });
   const u = await visibleUser(req, req.params.id);
   if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
-  if (!['company_admin', 'company_user'].includes(u.role)) return res.status(400).json({ error: 'אפשר לשייך לחברות נוספות רק מנהל חברה או נציג' });
+  // a super admin already sees every company; a membership only ties their phone to that company's
+  // calls ("answered by", call-start matching) and notifications — only a super admin may add it
+  const memberRoles = req.user.role === 'super_admin' ? ['company_admin', 'company_user', 'super_admin'] : ['company_admin', 'company_user'];
+  if (!memberRoles.includes(u.role)) return res.status(400).json({ error: 'אפשר לשייך לחברות נוספות רק מנהל חברה או נציג' });
   const companyId = Number(req.body && req.body.company_id);
   const role = MEMBER_ROLES.includes(req.body && req.body.role) ? req.body.role : 'company_user';
   if (!companyId) return res.status(400).json({ error: 'לא נבחרה חברה' });

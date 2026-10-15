@@ -12,7 +12,8 @@ export default function UserCompaniesPanel({ userId, primaryCompanyId, userRole 
   const [companies, setCompanies] = useState([]);
   const [add, setAdd] = useState({ company_id: '', role: 'company_user' });
   const [error, setError] = useState('');
-  const allowed = me && ['super_admin', 'agency_admin'].includes(me.role) && ['company_admin', 'company_user'].includes(userRole);
+  const allowed = me && ['super_admin', 'agency_admin'].includes(me.role)
+    && (['company_admin', 'company_user'].includes(userRole) || (me.role === 'super_admin' && userRole === 'super_admin'));
 
   const load = () => api.userCompanies(userId, token).then((d) => setRows(d.companies || [])).catch((e) => setError(e.message));
   useEffect(() => {
