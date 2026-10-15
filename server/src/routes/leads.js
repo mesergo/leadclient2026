@@ -165,6 +165,11 @@ router.patch('/:id', asyncHandler(async (req, res) => {
     }
   }
 
+  // the lead's contact (one per phone per company) gets the name too, if it has none yet
+  if (req.body.lead_name !== undefined && String(req.body.lead_name || '').trim()) {
+    require('../services/contactsSync').ensureContactForLead(lead.id).catch(() => {});
+  }
+
   // naming a lead names the contact: propagate to every lead with the same phone
   // in this company (past and — via nameForPhone on intake — future).
   if (req.body.lead_name !== undefined && String(req.body.lead_name || '').trim() && lead.lead_phone) {

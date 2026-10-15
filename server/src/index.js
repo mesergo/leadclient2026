@@ -62,6 +62,7 @@ if (require.main === module) {
       console.log(`LeadClient on http://localhost:${config.port} (${config.env})`);
       require('./services/reminderPoller').start();
       require('./services/billingPoller').start();
+      require('./services/contactsSync').start();
     });
   });
 }
