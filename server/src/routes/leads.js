@@ -110,6 +110,23 @@ router.get('/:id', asyncHandler(async (req, res) => {
      WHERE l.id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!rows[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
   const lead = rows[0];
+  // "answered by": the number the call was routed to has no linked user -> name it from this
+  // company's users, else this company's contacts (never another company's people)
+  if (!lead.answered_by_name && lead.answered_phone) {
+    const k = String(lead.answered_phone).replace(/\D/g, '').slice(-9);
+    if (k.length >= 7) {
+      const who = (await query(
+        `SELECT COALESCE(NULLIF(display_name,''), NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)),''), username) AS name
+           FROM users WHERE company_id = ? AND is_active = 1 AND RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 9) = ? LIMIT 1`,
+        [lead.company_id, k]))[0]
+        || (await query(
+          `SELECT NULLIF(TRIM(CONCAT_WS(' ', first_name, last_name)), '') AS name FROM contacts
+            WHERE company_id = ? AND (RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 9) = ? OR RIGHT(REGEXP_REPLACE(phone2, '[^0-9]', ''), 9) = ?)
+              AND TRIM(CONCAT_WS(' ', first_name, last_name)) <> '' LIMIT 1`,
+          [lead.company_id, k, k]))[0];
+      if (who && who.name) lead.answered_by_name = who.name;
+    }
+  }
   const conversations = await query(
     'SELECT id, user_id, content, send_by, comment, from_me, created_at FROM lead_conversations WHERE lead_id = ? ORDER BY created_at DESC', [req.params.id]);
   const tags = await query('SELECT t.id, t.label FROM lead_tags lt JOIN tags t ON t.id = lt.tag_id WHERE lt.lead_id = ?', [req.params.id]);
