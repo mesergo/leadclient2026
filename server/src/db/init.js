@@ -189,6 +189,8 @@ async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('webhook_log.service_id', () => ensureColumn('webhook_log', 'service_id', 'service_id BIGINT UNSIGNED NULL'));
   await safe('webhook_log.service_idx', () => ensureIndex('webhook_log', 'idx_wl_service', 'service_id, created_at'));
+  // a lead's incoming virtual number (dial-from-lead goes out through it) is looked up by lead_id
+  await safe('webhook_log.lead_idx', () => ensureIndex('webhook_log', 'idx_wl_lead', 'lead_id'));
   // a manager can limit an agent to the leads assigned to them
   // reminders marked done (mobile gap #6): hidden from lists by default, never fired
   await safe('reminders.done_at', () => ensureColumn('reminders', 'done_at', 'done_at DATETIME NULL'));
