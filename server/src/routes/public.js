@@ -91,6 +91,19 @@ function fireChannelWebhook(serviceId, lead, event = 'call_ended') {
 
 // Public, signed recording download for channel webhooks (no login; no Maskyoo).
 //   GET /api/public/recording/:id?sig=...
+// The mobile app's update notice (set by the super admin): { latest, min, url, message }.
+// The app shows "a new version is available" when it is older than `latest`, and blocks below `min`.
+router.get('/app-version', asyncHandler(async (req, res) => {
+  const rows = await query("SELECT k, v FROM app_settings WHERE k IN ('app_latest_version','app_min_version','app_store_url','app_update_message')").catch(() => []);
+  const m = Object.fromEntries(rows.map((r) => [r.k, r.v]));
+  res.set('Cache-Control', 'no-store').json({
+    latest: m.app_latest_version || null,
+    min: m.app_min_version || null,
+    url: m.app_store_url || 'https://play.google.com/store/apps/details?id=com.leadclient.crm',
+    message: m.app_update_message || null,
+  });
+}));
+
 router.get('/recording/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
   if (!recording.verifySig(id, req.query.sig)) return res.status(403).json({ error: 'bad_signature' });

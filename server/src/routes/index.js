@@ -26,6 +26,7 @@ module.exports = function registerRoutes(app) {
   app.use('/api/maskyoo', require('./maskyoo'));
   app.use('/api/messergo', require('./messergo'));
   app.use('/api/language', require('./languages'));
+  app.use('/api/app-admin', require('./appAdmin'));
   app.use('/api/import', require('./import'));
   app.use('/api/import-live', require('./importLive'));
   app.use('/api/subscription', require('./subscription'));

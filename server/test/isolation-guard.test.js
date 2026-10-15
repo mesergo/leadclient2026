@@ -7,7 +7,7 @@ const ROUTES = path.resolve(__dirname, '../src/routes');
 // routers that legitimately do NOT use company/agency scope:
 const EXEMPT = new Set(['auth.js', 'public.js', 'profile.js', 'notifications.js', 'languages.js', 'index.js',
   'icountIpn.js', 'payLink.js', 'accountDeletion.js', // public endpoints (no logged-in tenant)
-  'importLive.js', 'maskyoo.js', 'messergo.js', 'packages.js', // super_admin only (requireRole)
+  'importLive.js', 'maskyoo.js', 'messergo.js', 'packages.js', 'appAdmin.js', // super_admin only (requireRole)
   'subscription.js']); // works on req.user.company_id only
 const SCOPE_RE = /(companyScope|agencyScope|canAccessCompany)/;
 

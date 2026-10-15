@@ -267,6 +267,16 @@ async function ensureSchema() {
   await safe('leads.call_ended_at', () => ensureColumn('leads', 'call_ended_at', 'call_ended_at DATETIME NULL'));
   await safe('leads.repeat_billed_min', () => ensureColumn('leads', 'repeat_billed_min', 'repeat_billed_min INT NOT NULL DEFAULT 0'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
+  // super admin pushes to the mobile app's users (broadcast / app-update notices)
+  await safe('app_push_log.table', () => query(`CREATE TABLE IF NOT EXISTS app_push_log (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NULL, user_name VARCHAR(120) NULL,
+      kind VARCHAR(20) NOT NULL DEFAULT 'broadcast', target VARCHAR(10) NOT NULL DEFAULT 'all',
+      company_id BIGINT UNSIGNED NULL, target_user_id BIGINT UNSIGNED NULL,
+      title VARCHAR(100) NOT NULL, body VARCHAR(500) NULL, url VARCHAR(500) NULL,
+      users_count INT NOT NULL DEFAULT 0, devices_count INT NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`));
   await safe('app_settings.table', () => query(`CREATE TABLE IF NOT EXISTS app_settings (
       k VARCHAR(64) PRIMARY KEY,
       v TEXT NULL,
