@@ -66,7 +66,7 @@ export default function LanguageEditPage() {
             {files.map((f) => (
               <li key={f.namespace}>
                 <button className={'lng-file' + (file === f.namespace ? ' active' : '')} onClick={() => openFile(f.namespace)}>
-                  <span>{f.namespace}</span>
+                  <span>{f.namespace === 'app' ? t('lng.appFile') : f.namespace}</span>
                   <span className="muted" style={{ fontSize: 11 }}>{Number(f.translated)}/{Number(f.total)}</span>
                 </button>
               </li>
