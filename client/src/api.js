@@ -76,6 +76,7 @@ export const api = {
   createInvite: (body, token) => request('/api/invitations', { method: 'POST', body, token }),
   inviteInfo: (tok) => request(`/api/public/invite/${tok}`),
   acceptInvite: (tok, body) => request(`/api/public/invite/${tok}/accept`, { method: 'POST', body }),
+  joinInvite: (tok, token) => request(`/api/invitations/${tok}/join`, { method: 'POST', token }),
   callbackOptions: (token) => request('/api/callbacks/options', { token }),
   appAdminStats: (token) => request('/api/app-admin/stats', { token }),
   appAdminLog: (token) => request('/api/app-admin/push-log', { token }),

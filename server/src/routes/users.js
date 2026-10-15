@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query, companyScope, canAccessCompany } = require('../db/pool');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, forgetUser } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { issueToken } = require('../services/authService');
 const passwordPolicy = require('../services/passwordPolicy');
@@ -157,6 +157,7 @@ router.post('/:id/companies', asyncHandler(async (req, res) => {
   if (Number(u.company_id) === companyId) return res.status(400).json({ error: 'זו כבר החברה הראשית של המשתמש' });
   if (!(await companyAllowed(req, companyId))) return res.status(403).json({ error: 'אין הרשאה לחברה הזו' });
   await query('INSERT INTO user_companies (user_id, company_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)', [u.id, companyId, role]);
+  forgetUser(u.id);
   res.json({ ok: true });
 }));
 
@@ -166,6 +167,7 @@ router.delete('/:id/companies/:companyId', asyncHandler(async (req, res) => {
   if (!u) return res.status(404).json({ error: 'משתמש לא נמצא' });
   if (!(await companyAllowed(req, req.params.companyId))) return res.status(403).json({ error: 'אין הרשאה לחברה הזו' });
   await query('DELETE FROM user_companies WHERE user_id = ? AND company_id = ?', [u.id, req.params.companyId]);
+  forgetUser(u.id);
   res.json({ ok: true });
 }));
 

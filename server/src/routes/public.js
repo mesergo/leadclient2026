@@ -29,7 +29,10 @@ async function loadInvite(token) {
 router.get('/invite/:token', asyncHandler(async (req, res) => {
   const inv = await loadInvite(req.params.token);
   if (!inv) return res.status(404).json({ error: 'קישור הזמנה לא תקין או שפג תוקפו' });
-  res.json({ company: { name: inv.company_name }, email: inv.email, phone: inv.phone });
+  // an account already exists for these details -> the page asks to sign in and approve instead
+  const inviteRoutes = require('./invitations');
+  const kind = await inviteRoutes.existingKind(inv.company_id, await inviteRoutes.findExisting(inv.email, inv.phone));
+  res.json({ company: { name: inv.company_name }, email: inv.email, phone: inv.phone, existing_account: kind || null });
 }));
 
 router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
@@ -53,8 +56,8 @@ router.post('/invite/:token/accept', asyncHandler(async (req, res) => {
   if (phone) { cond.push("REGEXP_REPLACE(phone,'[^0-9]','') LIKE CONCAT('%', ?)"); params.push(messergo.digits(phone).slice(-9)); }
   const existing = cond.length ? await query(`SELECT id, company_id FROM users WHERE is_active = 1 AND (${cond.join(' OR ')}) LIMIT 1`, params) : [];
   if (existing[0]) {
-    return res.status(409).json({ error: String(existing[0].company_id) === String(inv.company_id)
-      ? 'המשתמש כבר קיים בחברה' : 'האימייל/נייד כבר רשום במערכת. פנה לתמיכה.' });
+    if (String(existing[0].company_id) === String(inv.company_id)) return res.status(409).json({ error: 'המשתמש כבר קיים בחברה' });
+    return res.status(409).json({ error: 'כבר יש לך חשבון בלידקליינט — התחברו אליו כדי לאשר את ההצטרפות', code: 'existing_account' });
   }
   const username = email || phone;
   const uexist = await query('SELECT id FROM users WHERE username = ? LIMIT 1', [username]);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
 import { api } from '../api';
@@ -9,7 +9,11 @@ import logo from '../assets/logo.png';
 export default function LoginPage() {
   const { login, loginWithPhone, loginWithGoogle } = useAuth();
   const { t } = useLang();
-  const nav = useNavigate();
+  const navigate = useNavigate();
+  // back to where the user came from (e.g. an invite to approve) — local paths only
+  const [params] = useSearchParams();
+  const next = /^\/(?!\/)/.test(params.get('next') || '') ? params.get('next') : '/';
+  const nav = (to) => navigate(to === '/' ? next : to);
   const [mode, setMode] = useState('password'); // 'password' | 'phone'
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

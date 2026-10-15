@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LangContext';
-import { api } from '../api';
+import { api, setActiveCompany } from '../api';
 import PasswordRules from '../components/PasswordRules';
 import logo from '../assets/logo.png';
 
 // Employee accepts a company invite. The email/phone the manager set are locked;
 // the employee only fills name, password, and the missing contact field.
+// An employee who already has an account signs in and approves: the company is added to that
+// account, and they switch between their companies from the header ("connected to").
 export default function InvitePage() {
   const { token } = useParams();
-  const { acceptInvite } = useAuth();
+  const { acceptInvite, token: session } = useAuth();
   const { t } = useLang();
   const nav = useNavigate();
 
@@ -25,6 +27,15 @@ export default function InvitePage() {
   }, [token]);
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  async function join() {
+    setBusy(true); setError('');
+    try {
+      const r = await api.joinInvite(token, session);
+      setActiveCompany(String(r.company.id)); // land in the new company
+      window.location.assign('/');
+    } catch (err) { setError(err.message); setBusy(false); }
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -43,6 +54,37 @@ export default function InvitePage() {
     <div className="login-wrap"><div className="login-card">
       <img src={logo} alt="LeadClient" className="login-logo" />
       <p className="error">{t('inv.invalid')}</p>
+    </div></div>
+  );
+
+  const existing = info && info.existing_account;
+  if (existing) return (
+    <div className="login-wrap"><div className="login-card">
+      <img src={logo} alt="LeadClient" className="login-logo" />
+      <h2 style={{ textAlign: 'center', margin: '4px 0 0' }}>{t('inv.title')}</h2>
+      <p className="muted" style={{ textAlign: 'center', marginTop: 2 }}>{`${t('inv.joining')} ${info.company.name}`}</p>
+      {error && <p className="error">{error}</p>}
+      {existing === 'other' ? (
+        <p className="error">{t('inv.adminAccount')}</p>
+      ) : existing === 'same' ? (
+        <>
+          <p style={{ textAlign: 'center' }}>{t('inv.alreadyMember')}</p>
+          <Link className="btn btn-primary" style={{ width: '100%', textAlign: 'center' }} to="/">{t('inv.toLogin')}</Link>
+        </>
+      ) : (
+        <>
+          <p style={{ textAlign: 'center' }}>{t('inv.existingHint').replace('{company}', info.company.name)}</p>
+          {session ? (
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy} onClick={join}>
+              {busy ? t('common.loading') : t('inv.approveJoin')}
+            </button>
+          ) : (
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => nav(`/login?next=${encodeURIComponent(`/invite/${token}`)}`)}>
+              {t('inv.signInToApprove')}
+            </button>
+          )}
+        </>
+      )}
     </div></div>
   );
 

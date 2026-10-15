@@ -95,4 +95,7 @@ async function loadLeadRestriction(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, loadLeadRestriction };
+// drop the cached role/companies after a change (e.g. a new company membership), so it applies now
+const forgetUser = (id) => userCache.delete(id) || userCache.delete(String(id)) || userCache.delete(Number(id));
+
+module.exports = { requireAuth, requireRole, loadLeadRestriction, forgetUser };

@@ -97,6 +97,7 @@ export default function UsersPage() {
           {invResult && (
             <div style={{ marginTop: 10 }}>
               {invResult.warning === 'same' && <p className="error">{t('inv.warnSame')}</p>}
+              {invResult.warning === 'existing' && <p className="muted">{t('inv.warnExisting')}</p>}
               {invResult.warning === 'other' && <p className="error">{t('inv.warnOther')}</p>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <input readOnly value={invResult.link} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
