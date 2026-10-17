@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { asyncHandler } = require('../utils/http');
@@ -10,6 +11,7 @@ const messergo = require('../services/messergo');
 const config = require('../config');
 const { issueToken } = require('../services/authService');
 const passwordPolicy = require('../services/passwordPolicy');
+const netGuard = require('../services/netGuard');
 
 const router = express.Router();
 
@@ -254,12 +256,14 @@ async function ensureWebhookLog() {
 async function logInbound(req, source, x = {}) {
   try {
     await ensureWebhookLog();
-    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || null;
+    // req.ip (trust proxy) = the address the proxy saw — what the IP allowlist checks; the
+    // first X-Forwarded-For entry is client-supplied and can be anything
+    const ip = netGuard.normIp(req.ip) || null;
     const r = await query(
       `INSERT INTO webhook_log (source, method, path, ip, query_data, body_data, matched_number_id, company_id, lead_id, result, error)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [source, req.method, String(req.originalUrl || '').slice(0, 255), ip,
-        JSON.stringify(req.query || {}).slice(0, 8000), JSON.stringify(req.body || {}).slice(0, 8000),
+      [source, req.method, String(req.originalUrl || '').replace(/([?&])key=[^&]*/g, '$1key=***').slice(0, 255), ip,
+        JSON.stringify({ ...(req.query || {}), ...(req.query && req.query.key ? { key: '***' } : {}) }).slice(0, 8000), JSON.stringify(req.body || {}).slice(0, 8000),
         x.numberId || null, x.companyId || null, x.leadId || null, x.result || null, (x.error || '').slice(0, 255) || null]);
     return r.insertId;
   } catch (e) { return null; /* logging must never break the webhook */ }
@@ -313,7 +317,10 @@ async function processCall(num, req, res, logId) {
   // recording pointer: only when the call was answered (Maskyoo records answered calls only).
   // Missed/cancelled calls get no recording, so recording_url stays empty (no false icon).
   // prefer the UUID handle (fetched later via get_record_by_call_uuid) over the download URL.
-  const recStore = answered ? (uuid ? 'maskyoo-uuid:' + uuid : (recording || null)) : (recording || null);
+  // A raw recording URL is kept only when it points at the provider: the server later fetches it
+  // (with the provider token), so an arbitrary URL here would be SSRF / a token leak.
+  const recUrl = recording && netGuard.hostIn(recording, config.maskyoo.recordingHosts) && /^https:\/\//i.test(recording) ? recording : null;
+  const recStore = answered ? (uuid ? 'maskyoo-uuid:' + uuid : recUrl) : recUrl;
 
   // Maskyoo reads the destination to route the call to from the START of the response
   // body (destination number), followed by JSON (as the legacy system returned).
@@ -511,10 +518,54 @@ async function processCall(num, req, res, logId) {
   reply(true, 'lead saved');
 }
 
+// Is this webhook request really from Maskyoo? Checks the configured IP allowlist and/or the
+// shared secret (?key=). Returns null when allowed, else the reason. With the allowlist in
+// report-only mode a foreign IP is only marked in the log (see config.maskyoo.enforceIps).
+const maskyooIps = netGuard.ipList(config.maskyoo.allowedIps);
+async function maskyooRejected(req, logId) {
+  if (config.maskyoo.callbackSecret) {
+    const got = Buffer.from(String(req.query.key || ''));
+    const want = Buffer.from(config.maskyoo.callbackSecret);
+    if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return 'bad_key';
+  }
+  if (maskyooIps && !netGuard.ipAllowed(maskyooIps, req.ip)) {
+    if (config.maskyoo.enforceIps) return 'ip_not_allowed';
+    await updateLog(logId, { error: 'ip_not_allowed (report-only)' });
+    alertForeignIp(req);
+  }
+  return null;
+}
+
+// A call webhook from an IP that is not Maskyoo's is still handled (so a new Maskyoo address
+// never drops calls) but every super admin is alerted — at most once per IP per hour.
+const foreignIpAlerted = new Map(); // ip -> last alert time
+function alertForeignIp(req) {
+  const ip = netGuard.normIp(req.ip);
+  const did = pick(req, 'DDI', 'ddi', 'did', 'number', 'to', 'called', 'virtual', 'dnis');
+  if (!did) return; // not a well-formed call report (rejected later anyway)
+  const last = foreignIpAlerted.get(ip) || 0;
+  if (Date.now() - last < 60 * 60 * 1000) return;
+  foreignIpAlerted.set(ip, Date.now());
+  if (foreignIpAlerted.size > 1000) foreignIpAlerted.clear();
+  query("SELECT id FROM users WHERE role = 'super_admin' AND is_active = 1").then((admins) => Promise.all(admins.map((a) =>
+    notify.notifyUser({
+      userId: a.id, event: 'security_alert', title: 'התראת אבטחה: טלפוניה',
+      body: `התקבל דיווח שיחה מכתובת IP לא מוכרת (${ip}) עבור המספר ${did}. השיחה נקלטה; אם זו כתובת חדשה של מסקיו יש להוסיף אותה ל-MASKYOO_ALLOWED_IPS, אחרת לבדוק ביומן ה-webhook.`,
+    })))).catch(() => {});
+}
+async function guardMaskyoo(req, res, logId) {
+  const why = await maskyooRejected(req, logId);
+  if (!why) return false;
+  await updateLog(logId, { result: 'rejected', error: why });
+  res.status(403).type('text/plain').send('');
+  return true;
+}
+
 // One fixed URL for ALL numbers: Maskyoo sends the dialed number (DID); we match
 // it to our phone_number (by its last digits, format-agnostic).
 router.all('/call', asyncHandler(async (req, res) => {
   const logId = await logInbound(req, 'maskyoo-call', { result: 'received' }); // log raw first, always
+  if (await guardMaskyoo(req, res, logId)) return;
   const did = pick(req, 'DDI', 'ddi', 'did', 'number', 'to', 'called', 'virtual', 'dnis'); // Maskyoo: DDI = dialed number
   const key = String(did || '').replace(/\D/g, '').slice(-9);
   if (!key) { await updateLog(logId, { result: 'missing_dialed_number' }); return res.status(400).json({ error: 'missing_dialed_number' }); }
@@ -528,6 +579,7 @@ router.all('/call', asyncHandler(async (req, res) => {
 // Also addressable per-number by id (optional).
 router.all('/call/:id', asyncHandler(async (req, res) => {
   const logId = await logInbound(req, 'maskyoo-call', { result: 'received' });
+  if (await guardMaskyoo(req, res, logId)) return;
   const rows = await query('SELECT id, company_id, service_id, redirect_to_number, phone_number FROM phone_numbers WHERE id = ? LIMIT 1', [req.params.id]);
   return processCall(rows[0], req, res, logId);
 }));

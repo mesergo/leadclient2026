@@ -2,7 +2,7 @@ const express = require('express');
 const { query, agencyScope } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
-const { upload, fileUrl } = require('../services/uploads');
+const { uploadImage, fileUrl } = require('../services/uploads');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -76,7 +76,7 @@ router.patch('/:id', requireRole('super_admin'), asyncHandler(async (req, res) =
   res.json({ agency: rows[0] });
 }));
 
-router.post('/:id/logo', requireRole('super_admin'), upload.single('logo'), asyncHandler(async (req, res) => {
+router.post('/:id/logo', requireRole('super_admin'), uploadImage.single('logo'), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'חסר קובץ' });
   const url = fileUrl(req.file.filename);
   await query('UPDATE agencies SET logo_url = ? WHERE id = ?', [url, req.params.id]);

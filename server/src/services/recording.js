@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const config = require('../config');
 const { query } = require('../db/pool');
 const maskyoo = require('./maskyoo');
+const netGuard = require('./netGuard');
 
 const REC_DIR = path.join(config.uploadDir, '.recordings');
 
@@ -44,6 +45,23 @@ async function prefetch(leadId) {
   return /^https?:\/\//i.test(u); // legacy direct URL: proxied on demand
 }
 
+// Fetch a stored (legacy) recording URL safely: every hop (up to 3 redirects) must be a public
+// host, and the provider token is sent only to the provider's own hosts. null = refused.
+async function guardedFetch(url) {
+  for (let hop = 0; hop < 4; hop++) {
+    if (!(await netGuard.isPublicUrl(url))) return null;
+    const toProvider = netGuard.hostIn(url, config.maskyoo.recordingHosts);
+    const r = await fetch(url, {
+      redirect: 'manual',
+      headers: toProvider && config.maskyoo.token ? { Authorization: `Bearer ${config.maskyoo.token}` } : {},
+    });
+    const next = r.status >= 300 && r.status < 400 && r.headers.get('location');
+    if (!next) return r;
+    url = new URL(next, url).toString();
+  }
+  return null;
+}
+
 // Stream the recording for a lead row ({id, recording_url}) to res. Handles the
 // local cache, a Maskyoo call-UUID (fetched via REST then cached), and legacy URLs.
 async function serve(res, lead) {
@@ -71,12 +89,16 @@ async function serve(res, lead) {
   }
 
   if (!/^https?:\/\//i.test(lead.recording_url)) return res.status(404).json({ error: 'no_recording' });
+  // legacy direct URL: only to public hosts (no internal addresses), no redirects, and the
+  // provider token only ever goes to the provider's own hosts
   try {
-    const r = await fetch(lead.recording_url, { headers: config.maskyoo.token ? { Authorization: `Bearer ${config.maskyoo.token}` } : {} });
+    const r = await guardedFetch(lead.recording_url);
+    if (!r) return res.status(404).json({ error: 'no_recording' });
     if (!r.ok) return res.status(502).json({ error: 'recording_unavailable' }); // never name the provider
-    const ct = r.headers.get('content-type') || 'audio/mpeg';
-    if (!/audio|octet-stream|mpeg|wav|mp4/i.test(ct)) return res.status(502).json({ error: 'not_audio', ct });
-    const ext = /wav/i.test(ct) ? 'wav' : /mp4|m4a|aac/i.test(ct) ? 'm4a' : 'mp3';
+    const upstream = r.headers.get('content-type') || 'audio/mpeg';
+    if (!/^(audio\/|application\/octet-stream)/i.test(upstream)) return res.status(502).json({ error: 'not_audio' });
+    const ext = /wav/i.test(upstream) ? 'wav' : /mp4|m4a|aac/i.test(upstream) ? 'm4a' : 'mp3';
+    const ct = ext === 'wav' ? 'audio/wav' : ext === 'm4a' ? 'audio/mp4' : 'audio/mpeg'; // never echo the upstream type
     const buf = Buffer.from(await r.arrayBuffer());
     try {
       fs.mkdirSync(REC_DIR, { recursive: true });

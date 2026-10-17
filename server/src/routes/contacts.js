@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, companyScope, canAccessCompany } = require('../db/pool');
+const { query, companyScope, ownsCompany } = require('../db/pool');
 const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -57,7 +57,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 router.post('/', asyncHandler(async (req, res) => {
   const { company_id, first_name, last_name, phone, email } = req.body || {};
   if (!company_id || (!phone && !email)) return res.status(400).json({ error: 'חסרים שדות חובה' });
-  if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (!(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   const r = await query('INSERT INTO contacts (company_id, first_name, last_name, phone, email, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
     [company_id, first_name || null, last_name || null, phone || null, email || null]);
   res.status(201).json({ contact: { id: r.insertId } });

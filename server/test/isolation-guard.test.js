@@ -9,7 +9,7 @@ const EXEMPT = new Set(['auth.js', 'public.js', 'profile.js', 'notifications.js'
   'icountIpn.js', 'payLink.js', 'accountDeletion.js', // public endpoints (no logged-in tenant)
   'importLive.js', 'maskyoo.js', 'messergo.js', 'packages.js', 'appAdmin.js', // super_admin only (requireRole)
   'subscription.js']); // works on req.user.company_id only
-const SCOPE_RE = /(companyScope|agencyScope|canAccessCompany)/;
+const SCOPE_RE = /(companyScope|agencyScope|ownsCompany)/;
 
 test('every business router enforces tenant scope', () => {
   const files = fs.readdirSync(ROUTES).filter((f) => f.endsWith('.js'));
@@ -35,4 +35,10 @@ test('no business router omits requireAuth', () => {
   const files = fs.readdirSync(ROUTES).filter((f) => f.endsWith('.js') && !PUBLIC.includes(f));
   const missing = files.filter((f) => !/requireAuth/.test(fs.readFileSync(path.join(ROUTES, f), 'utf8')));
   assert.deepStrictEqual(missing, [], `routers missing requireAuth: ${missing.join(', ')}`);
+});
+
+test('no router uses canAccessCompany (its agency_admin result is an object, so `=== false` checks never fire)', () => {
+  const files = fs.readdirSync(ROUTES).filter((f) => f.endsWith('.js'));
+  const users = files.filter((f) => /canAccessCompany\s*\(/.test(fs.readFileSync(path.join(ROUTES, f), 'utf8')));
+  assert.deepStrictEqual(users, [], `use ownsCompany() instead in: ${users.join(', ')}`);
 });

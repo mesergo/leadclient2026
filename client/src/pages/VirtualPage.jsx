@@ -93,7 +93,7 @@ export default function VirtualPage() {
     <div>
       <div className="page-header">
         <h1>{t('nav.virtual')}</h1>
-        <button className="btn btn-primary" onClick={() => (adding ? cancelForm() : (setAdding(true), setError(''), setMsg('')))}>{adding ? t('common.cancel') : '+ ' + t('vir.addNumber')}</button>
+        {isSuper && <button className="btn btn-primary" onClick={() => (adding ? cancelForm() : (setAdding(true), setError(''), setMsg('')))}>{adding ? t('common.cancel') : '+ ' + t('vir.addNumber')}</button>}
       </div>
       <p className="muted" style={{ marginTop: -8 }}>{t('vir.poolHint')}</p>
       {error && <p className="error">{error}</p>}
@@ -176,9 +176,10 @@ export default function VirtualPage() {
             <td>{n.redirect_to_number || '-'}</td>
             <td>{Number(n.leads_count).toLocaleString()}</td>
             <td style={{ whiteSpace: 'nowrap' }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => startEdit(n)}>{t('vir.edit')}</button>{' '}
-              <button className="btn btn-secondary btn-sm" onClick={() => openLog(n)}>{t('vir.log')}</button>{' '}
-              <button className="btn btn-danger btn-sm" onClick={() => delNumber(n)}>{t('vir.delete')}</button>
+              {/* adding / renumbering / deleting pool numbers (real provider lines) is super admin only */}
+              {isSuper && <><button className="btn btn-secondary btn-sm" onClick={() => startEdit(n)}>{t('vir.edit')}</button>{' '}</>}
+              <button className="btn btn-secondary btn-sm" onClick={() => openLog(n)}>{t('vir.log')}</button>
+              {isSuper && <>{' '}<button className="btn btn-danger btn-sm" onClick={() => delNumber(n)}>{t('vir.delete')}</button></>}
             </td>
           </tr>
         ))}</tbody>

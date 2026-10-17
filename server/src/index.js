@@ -22,7 +22,7 @@ app.use('/uploads', (req, res, next) => {
   try { p = decodeURIComponent(req.path); } catch { return res.status(400).end(); }
   return /(^|[\\/])\./.test(p) ? res.status(404).end() : next();
 });
-app.use('/uploads', express.static(config.uploadDir, { dotfiles: 'deny' }));
+app.use('/uploads', express.static(config.uploadDir, { dotfiles: 'deny', setHeaders: require('./services/uploads').staticHeaders }));
 app.get('/api/health', async (req, res) => {
   const out = { ok: true, service: 'leadclient-api', env: config.env, timezone: config.timezone };
   try {

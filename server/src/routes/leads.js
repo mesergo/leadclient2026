@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, companyScope, canAccessCompany, leadScope } = require('../db/pool');
+const { query, companyScope, ownsCompany, leadScope } = require('../db/pool');
 const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const fs = require('fs');
@@ -144,7 +144,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
 router.post('/', asyncHandler(async (req, res) => {
   const { company_id, service_id, lead_name, lead_phone, lead_email, status_id } = req.body || {};
   if (!company_id || !lead_phone) return res.status(400).json({ error: 'חסרים שדות חובה' });
-  if (canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (!(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  // the channel / status must be the company's own
+  if (service_id && !(await query('SELECT id FROM services WHERE id = ? AND company_id = ?', [service_id, company_id]))[0]) return res.status(400).json({ error: 'ערוץ לא תקין' });
+  if (status_id && !(await query('SELECT id FROM lead_statuses WHERE id = ? AND company_id = ?', [status_id, company_id]))[0]) return res.status(400).json({ error: 'סטטוס לא תקין' });
   // an agent limited to own leads creates leads for themselves (else they couldn't see it)
   const agentId = req.user.ownLeadsOnly ? req.user.id : null;
   const r = await query(

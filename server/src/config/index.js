@@ -6,6 +6,13 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.e
 const APP_TZ = process.env.APP_TZ || 'Asia/Jerusalem';
 process.env.TZ = APP_TZ;
 
+// the Maskyoo callback URL carries the shared secret (if one is configured)
+function withKey(url) {
+  const key = process.env.MASKYOO_CALLBACK_SECRET;
+  if (!key || /[?&]key=/.test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key);
+}
+
 module.exports = {
   timezone: APP_TZ,
   env: process.env.NODE_ENV || 'development',
@@ -40,8 +47,18 @@ module.exports = {
     token: process.env.MASKYOO_TOKEN || '',               // Bearer token for the Maskyoo API
     apiUrl: process.env.MASKYOO_API_URL || 'https://www.maskyoo.com/leadclient/api/',
     // where Maskyoo reports calls (sent on EVERY number update, with callback_url_option=3)
-    callbackUrl: process.env.MASKYOO_CALLBACK_URL
-      || `${(process.env.APP_URL || 'https://app26.leadclient.net').replace(/\/$/, '')}/api/public/call`,
+    callbackUrl: withKey(process.env.MASKYOO_CALLBACK_URL
+      || `${(process.env.APP_URL || 'https://app26.leadclient.net').replace(/\/$/, '')}/api/public/call`),
+    // Maskyoo's servers, for the public call webhook. MASKYOO_ALLOWED_IPS = "ip, ip, cidr"
+    // (set it to an empty value to turn the check off). A well-formed call from another IP is
+    // still handled, but marked "ip_not_allowed" in the webhook log and the super admins are
+    // alerted; MASKYOO_IP_ENFORCE=true rejects such calls instead.
+    allowedIps: process.env.MASKYOO_ALLOWED_IPS ?? '82.166.142.108',
+    enforceIps: process.env.MASKYOO_IP_ENFORCE === 'true',
+    // optional shared secret: when set, the webhook requires ?key=<secret> (added to callbackUrl)
+    callbackSecret: process.env.MASKYOO_CALLBACK_SECRET || '',
+    // hosts a recording URL from the webhook may point at (anything else is not stored)
+    recordingHosts: (process.env.MASKYOO_RECORDING_HOSTS || 'maskyoo.com,maskyoo.co.il').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   },
   // MesserGO OTP / SMS (dedicated OTP endpoint: SMS with voice failover). No creds => mock.
   messergo: {

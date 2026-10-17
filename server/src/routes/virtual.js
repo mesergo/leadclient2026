@@ -1,6 +1,6 @@
 const express = require('express');
-const { query, companyScope, canAccessCompany } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { query, companyScope, ownsCompany } = require('../db/pool');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { logPhone, companyChangeAction } = require('../services/phoneLog');
 
@@ -19,6 +19,16 @@ function toLocalDisplay(intl) {
   const two = /^0(\d)(\d{5,})$/.exec(local);          // landline: 2-digit prefix
   if (two) return `0${two[1]}-${two[2]}`;
   return local;
+}
+
+// Another row already holding this number (matched on the last 9 digits, like the inbound
+// call matcher)? A duplicate would let its owner capture the real number's calls.
+async function duplicateOf(intl, exceptId = 0) {
+  const key = String(intl || '').replace(/\D/g, '').slice(-9);
+  if (key.length < 9) return null;
+  return (await query(
+    "SELECT id FROM phone_numbers WHERE REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?) AND id <> ? LIMIT 1",
+    [key, exceptId]))[0] || null;
 }
 
 // Virtual numbers = the pool. company_id NULL = available (offered for new channels).
@@ -58,11 +68,13 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // ---- add a number to the pool (available by default; company optional) ----
-router.post('/', asyncHandler(async (req, res) => {
+// Pool numbers are real provider lines: only a super admin adds, renumbers or deletes them.
+router.post('/', requireRole('super_admin'), asyncHandler(async (req, res) => {
   const { company_id, phone_number, number_to_display, ivr_provider } = req.body || {};
   if (!phone_number) return res.status(400).json({ error: 'חסר מספר טלפון' });
-  if (company_id && canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (company_id && !(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   const intl = toIntl(phone_number);
+  if (await duplicateOf(intl)) return res.status(409).json({ error: 'המספר כבר קיים במערכת' });
   const r = await query(
     `INSERT INTO phone_numbers (company_id, ivr_provider, phone_number, number_to_display)
      VALUES (?, ?, ?, ?)`,
@@ -72,15 +84,28 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(201).json({ id: r.insertId });
 }));
 
-router.patch('/:id', asyncHandler(async (req, res) => {
+// agency admins manage their companies' numbers (assign / channel / forwarding); the line
+// itself (number, provider, premium flag) is super admin only
+const SUPER_ONLY_FIELDS = ['phone_number', 'ivr_provider', 'is_premium'];
+router.patch('/:id', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT * FROM phone_numbers WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   const cur = owned[0];
   if (!cur) return res.status(404).json({ error: 'מספר לא נמצא' });
-  if (req.body.company_id && canAccessCompany(req.user, req.body.company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  if (req.user.role !== 'super_admin' && SUPER_ONLY_FIELDS.some((k) => req.body[k] !== undefined)) {
+    return res.status(403).json({ error: 'רק מנהל מערכת יכול לשנות את המספר עצמו' });
+  }
+  if (req.body.company_id && !(await ownsCompany(req.user, req.body.company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   if (req.body.phone_number !== undefined && req.body.phone_number) {
     req.body.phone_number = toIntl(req.body.phone_number);
+    if (await duplicateOf(req.body.phone_number, cur.id)) return res.status(409).json({ error: 'המספר כבר קיים במערכת' });
     if (!req.body.number_to_display) req.body.number_to_display = toLocalDisplay(req.body.phone_number); // auto display
+  }
+  // the channel must belong to the company the number ends up in
+  if (req.body.service_id) {
+    const companyAfter = req.body.company_id !== undefined ? (req.body.company_id || null) : cur.company_id;
+    const svc = companyAfter ? await query('SELECT id FROM services WHERE id = ? AND company_id = ?', [req.body.service_id, companyAfter]) : [];
+    if (!svc[0]) return res.status(400).json({ error: 'הערוץ אינו שייך לחברה של המספר' });
   }
   const f = ['company_id', 'service_id', 'phone_number', 'number_to_display', 'redirect_to_number', 'ivr_provider', 'is_premium', 'is_visible'];
   const sets = [], params = [];
@@ -98,7 +123,7 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', requireRole('super_admin'), asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
   const owned = await query(`SELECT id, company_id, phone_number FROM phone_numbers WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'מספר לא נמצא' });

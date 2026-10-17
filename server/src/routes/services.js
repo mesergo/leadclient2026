@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { query, companyScope, targetCompanyId, ownsCompany } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
-const { upload, fileUrl } = require('../services/uploads');
+const { uploadAudio, fileUrl } = require('../services/uploads');
 const { logPhone } = require('../services/phoneLog');
 const maskyoo = require('../services/maskyoo');
 const channelWebhook = require('../services/channelWebhook');
@@ -272,7 +272,7 @@ router.post('/:id/numbers', requireRole('super_admin', 'agency_admin', 'company_
 
 // Upload an after-hours audio clip for the channel.
 router.post('/:id/close-audio', requireRole('super_admin', 'agency_admin', 'company_admin'),
-  upload.single('audio'), asyncHandler(async (req, res) => {
+  uploadAudio.single('audio'), asyncHandler(async (req, res) => {
     const s = companyScope(req.user, 'company_id');
     const owned = await query(`SELECT id FROM services WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
     if (!owned[0]) return res.status(404).json({ error: 'ערוץ לא נמצא' });

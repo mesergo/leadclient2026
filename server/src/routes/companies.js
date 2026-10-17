@@ -5,7 +5,7 @@ const config = require('../config');
 const { query, companyScope, getPool } = require('../db/pool');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
-const { upload, fileUrl } = require('../services/uploads');
+const { uploadImage, fileUrl } = require('../services/uploads');
 const icount = require('../services/icount');
 const billing = require('../services/billing');
 
@@ -161,7 +161,7 @@ router.delete('/:id', requireRole('super_admin'), asyncHandler(async (req, res) 
   res.json({ ok: true });
 }));
 
-router.post('/:id/logo', requireRole('super_admin', 'agency_admin', 'company_admin'), upload.single('logo'), asyncHandler(async (req, res) => {
+router.post('/:id/logo', requireRole('super_admin', 'agency_admin', 'company_admin'), uploadImage.single('logo'), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'חסר קובץ' });
   const s = companyScope(req.user, 'id');
   const owned = await query(`SELECT id FROM companies WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
