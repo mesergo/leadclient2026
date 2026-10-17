@@ -4,6 +4,9 @@ const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const config = require('../config');
 const notify = require('../services/notify');
+const netGuard = require('../services/netGuard');
+// Web Push services of the browsers (Chrome/Edge via FCM, Firefox, Safari, legacy Edge)
+const PUSH_HOSTS = ['fcm.googleapis.com', 'android.googleapis.com', 'push.services.mozilla.com', 'push.apple.com', 'notify.windows.com'];
 
 const router = express.Router();
 router.use(requireAuth);
@@ -33,6 +36,8 @@ router.get('/vapid-public-key', (req, res) => res.json({ key: config.vapid.publi
 router.post('/subscribe', asyncHandler(async (req, res) => {
   const sub = req.body && req.body.subscription;
   if (!sub || !sub.endpoint || !sub.keys) return res.status(400).json({ error: 'מנוי לא תקין' });
+  // the server later POSTs to this endpoint: only the browsers' real push services
+  if (!/^https:\/\//i.test(sub.endpoint) || !netGuard.hostIn(sub.endpoint, PUSH_HOSTS)) return res.status(400).json({ error: 'מנוי לא תקין' });
   await query(
     `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), p256dh = VALUES(p256dh), auth = VALUES(auth)`,

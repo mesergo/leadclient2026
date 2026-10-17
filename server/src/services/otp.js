@@ -56,7 +56,7 @@ async function requestOtp({ phone, purpose = 'login', campaign, smsText, voiceMe
     return { ok: false, error: sent.error || 'send_failed' };
   }
   const out = { ok: true, mocked: !!sent.mocked };
-  if (sent.mocked) out.devCode = code; // mock only
+  if (sent.mocked && config.env !== 'production') out.devCode = code; // mock only, never in production
   return out;
 }
 
@@ -76,15 +76,14 @@ async function verifyOtp({ phone, code, purpose = 'login' }) {
     await query('UPDATE otp_codes SET consumed = 1 WHERE id = ?', [rec.id]);
     return { ok: false, error: 'expired' };
   }
-  if (rec.attempts >= config.otp.maxAttempts) {
+  // count the attempt BEFORE comparing, atomically: parallel guesses can't all slip under the cap
+  const took = await query('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ? AND attempts < ?', [rec.id, config.otp.maxAttempts]);
+  if (!took.affectedRows) {
     await query('UPDATE otp_codes SET consumed = 1 WHERE id = ?', [rec.id]);
     return { ok: false, error: 'too_many_attempts' };
   }
   const match = crypto.timingSafeEqual(Buffer.from(rec.code_hash, 'hex'), Buffer.from(hash(e164, String(code)), 'hex'));
-  if (!match) {
-    await query('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?', [rec.id]);
-    return { ok: false, error: 'wrong_code' };
-  }
+  if (!match) return { ok: false, error: 'wrong_code' };
   await query('UPDATE otp_codes SET consumed = 1 WHERE id = ?', [rec.id]);
   return { ok: true, phone: e164 };
 }

@@ -93,6 +93,14 @@ router.post('/', asyncHandler(async (req, res) => {
         [own[0].service_id, own[0].company_id]))[0] : null);
     if (leadVia && leadVia.phone_number) via = messergo.toE164(leadVia.phone_number);
   }
+  // the call goes out (and is billed) through `via`: it must be one of the caller's own
+  // companies' virtual numbers, never another company's line
+  const viaKey = messergo.digits(via).slice(-9);
+  const vs = companyScope(req.user, 'company_id');
+  const ownVia = viaKey.length === 9 && (await query(
+    `SELECT id FROM phone_numbers WHERE company_id IS NOT NULL AND REGEXP_REPLACE(phone_number, '[^0-9]', '') LIKE CONCAT('%', ?) AND (${vs.sql}) LIMIT 1`,
+    [viaKey, ...vs.params]))[0];
+  if (!ownVia) return res.status(403).json({ error: 'המספר הווירטואלי אינו שייך לחברה שלך' });
 
   // Record the intent BEFORE placing the call, so the inbound webhook can match it
   // by the customer (DEST) and build the single call_out lead. No dial-time lead.

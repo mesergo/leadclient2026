@@ -135,7 +135,7 @@ router.patch('/:id', asyncHandler(async (req, res) => {
     if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
     sets.push('password_hash = ?', 'must_change_password = 0'); params.push(await bcrypt.hash(req.body.password, 10));
   }
-  if (sets.length) { params.push(req.params.id); await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params); }
+  if (sets.length) { params.push(req.params.id); await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params); forgetUser(req.params.id); }
   const rows = await query(`SELECT ${FIELDS} FROM users u WHERE u.id = ?`, [req.params.id]);
   res.json({ user: rows[0] });
 }));

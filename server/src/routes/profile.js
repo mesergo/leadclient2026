@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, forgetUser } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const passwordPolicy = require('../services/passwordPolicy');
 
@@ -51,6 +51,7 @@ router.patch('/password', asyncHandler(async (req, res) => {
   if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
   // a compliant new password clears the forced-change flag
   await query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [await bcrypt.hash(new_password, 10), req.user.id]);
+  forgetUser(req.user.id); // lift the entry gate at once
   res.json({ ok: true });
 }));
 

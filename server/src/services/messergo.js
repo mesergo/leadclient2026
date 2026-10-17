@@ -60,6 +60,8 @@ async function sendOtp({ phone, code, campaign = 'LeadClient OTP', smsText, voic
   const ch = channel || (isKosher(phone) ? 'SMS_WITH_VOICE_FAILOVER' : 'SMS');
 
   if (!configured()) {
+    // production without credentials must fail, never "succeed" with a code anyone can read
+    if (config.env === 'production') return { ok: false, mocked: false, error: 'sms_not_configured' };
     console.log(`[messergo MOCK] OTP to ${local} (${ch}): ${code}`);
     return { ok: true, mocked: true, channel: ch };
   }

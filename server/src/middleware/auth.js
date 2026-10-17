@@ -11,7 +11,7 @@ async function currentUser(id) {
   const hit = userCache.get(id);
   if (hit && Date.now() - hit.at < USER_TTL_MS) return hit.row;
   const { query } = require('../db/pool');
-  const row = (await query('SELECT role, company_id, agency_id, is_active FROM users WHERE id = ?', [id]))[0] || null;
+  const row = (await query('SELECT role, company_id, agency_id, is_active, phone_verified_at, must_change_password FROM users WHERE id = ?', [id]))[0] || null;
   if (row && COMPANY_ROLES.includes(row.role)) {
     // every company the user works in: the primary one + extra memberships (each with its role)
     const extra = await query('SELECT company_id, role FROM user_companies WHERE user_id = ? ORDER BY id', [id]).catch(() => []);
@@ -24,6 +24,11 @@ async function currentUser(id) {
   if (userCache.size > 5000) userCache.clear();
   return row;
 }
+
+// what a user who has not yet passed the entry gates may still call
+const gateOpen = (req) => req.baseUrl === '/api/auth'
+  || (req.baseUrl === '/api/profile' && req.path === '/password')
+  || (req.baseUrl === '/api/language' && req.method === 'GET');
 
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -57,7 +62,20 @@ async function requireAuth(req, res, next) {
       const want = String(req.headers['x-company'] || '');
       const pick = row.companies.find((c) => String(c.id) === want);
       if (pick) { req.user.company_id = pick.id; req.user.role = pick.role; }
-      else if (want === 'all') req.user.companyIds = row.companies.map((c) => c.id);
+      else if (want === 'all') {
+        req.user.companyIds = row.companies.map((c) => c.id);
+        // one role spans every company here: take the LEAST privileged membership, so being an
+        // admin in one company never grants admin rights in another through the "all" view
+        const rank = { company_admin: 3, company_user: 2, translator: 1 };
+        req.user.role = row.companies.reduce((lo, c) => ((rank[c.role] || 0) < (rank[lo] || 0) ? c.role : lo), row.companies[0].role);
+      }
+    }
+    // the entry gates (verify phone / replace a weak or default password) are enforced here
+    // too, not only in the clients: until passed, only the sign-in/verify/password calls work.
+    // Impersonation sessions skip them, as in the clients.
+    const gated = (config.requirePhoneVerify && !row.phone_verified_at) || Number(row.must_change_password);
+    if (gated && !req.user.impersonated_by && !gateOpen(req)) {
+      return res.status(403).json({ error: 'יש להשלים אימות טלפון / החלפת סיסמה', code: 'entry_gate' });
     }
   } catch (e) {
     // DB hiccup: keep the token's claims rather than failing every request

@@ -66,7 +66,7 @@ docker exec -i $DBC mysql -u$DBUSER -p$DBPASS leadclient < /root/lc/schema.sql
 # 5.3 טרנספורמציה (ETL) — בונה את leadclient מתוך app_leadclient_net
 docker exec -i $DBC mysql -u$DBUSER -p$DBPASS < /root/lc/prod-migrate.mysql.sql
 
-# 5.4 משתמש אדמין לכניסה (admin / admin1234 — יש לשנות אחרי הכניסה הראשונה)
+# 5.4 משתמש אדמין לכניסה — קודם במחשב: ADMIN_PASS='<סיסמה חזקה>' node db/etl/make-admin.js (יוצר db/seed-admin.sql; למחוק אחרי השימוש)
 docker exec -i $DBC mysql -u$DBUSER -p$DBPASS leadclient < /root/lc/seed-admin.sql
 
 # 5.5 (רשות) לנקות את מסד המקור אחרי שהטרנספורמציה הצליחה
@@ -120,7 +120,7 @@ npx -y web-push generate-vapid-keys
 ## 8. בדיקת עשן
 
 - `https://app.example.com/api/health` → `{"ok":true}`
-- טען את הדף → מסך כניסה → התחבר `admin` / `admin1234`
+- טען את הדף → מסך כניסה → התחבר `admin` / `<סיסמה שהוגדרה ב-ADMIN_PASS>`
 - **שנה מיד את סיסמת ה-admin** (פרופיל → סיסמה)
 - ודא שהדשבורד/לידים מציגים נתונים
 

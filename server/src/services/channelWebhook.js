@@ -6,6 +6,7 @@
 const config = require('../config');
 const { query } = require('../db/pool');
 const recording = require('./recording');
+const netGuard = require('./netGuard');
 
 const TIMEOUT_MS = 10000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -172,6 +173,11 @@ async function send(serviceId, payload, opts = {}) {
     await log({ ...base, result: 'bad_url', error: 'הכתובת חייבת להתחיל ב-http:// או https://' });
     return { ok: false, error: 'bad_url' };
   }
+  // the URL is customer-supplied: never let it reach our own network (SSRF)
+  if (!(await netGuard.isPublicUrl(url))) {
+    await log({ ...base, result: 'bad_url', error: 'כתובת פנימית או לא קיימת אינה מותרת' });
+    return { ok: false, error: 'blocked_url' };
+  }
   const started = Date.now();
   let status = null, response = '', error = null;
   const ctrl = new AbortController();
@@ -182,6 +188,7 @@ async function send(serviceId, payload, opts = {}) {
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'LeadClient-Webhook/1.0' },
       body: JSON.stringify(payload),
       signal: ctrl.signal,
+      redirect: 'manual', // a redirect is reported as-is (http_3xx), never followed to another host
     });
     status = res.status;
     response = (await res.text().catch(() => '')).slice(0, 500);

@@ -16,3 +16,5 @@ db/prod-*.sql
 npm-debug.log*
 # the mobile web app (served at /m) needs its icons
 !mobile-web/**
+db/seed.sql
+db/seed-admin.sql

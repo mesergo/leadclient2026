@@ -20,3 +20,7 @@ db/prod-*.sql
 # the mobile web app (served at /m) ships its fonts/icons under assets/node_modules
 !mobile-web/assets/node_modules/
 !mobile-web/**/build/
+
+# generated locally; contain legacy customer data / an admin password hash — never commit
+db/seed.sql
+db/seed-admin.sql

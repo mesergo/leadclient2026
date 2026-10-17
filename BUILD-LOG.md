@@ -38,7 +38,7 @@
 **פתוח לשלב 4:** סיסמאות legacy הן MD5-crypt (`$1$…`) — לא תואמות bcrypt. יווצר משתמש admin עם bcrypt ב-seed נפרד בשלב האימות.
 
 ## שלב 4 — ליבת Backend ✅
-**בוצע:** `config/index.js` (env), `db/scope.js` (**לוגיקת בידוד טהורה**: companyScope/agencyScope/canAccessCompany), `db/pool.js` (mysql2 pool + query + scoped helper), `middleware/auth.js` (requireAuth/requireRole, JWT), `middleware/error.js` (notFound/errorHandler שלא מדליף), `services/uploads.js` (multer), `services/authService.js` (issueToken), `routes/auth.js` (login bcrypt + /me), `index.js` מחווט (cors, rate-limit על login, static uploads, health, error handlers), `server/test/scope.test.js`, `db/etl/make-admin.js` → `db/seed-admin.sql` (משתמש bcrypt: admin/admin1234, כי סיסמאות legacy הן MD5).
+**בוצע:** `config/index.js` (env), `db/scope.js` (**לוגיקת בידוד טהורה**: companyScope/agencyScope/canAccessCompany), `db/pool.js` (mysql2 pool + query + scoped helper), `middleware/auth.js` (requireAuth/requireRole, JWT), `middleware/error.js` (notFound/errorHandler שלא מדליף), `services/uploads.js` (multer), `services/authService.js` (issueToken), `routes/auth.js` (login bcrypt + /me), `index.js` מחווט (cors, rate-limit על login, static uploads, health, error handlers), `server/test/scope.test.js`, `db/etl/make-admin.js` → `db/seed-admin.sql` (משתמש bcrypt: admin/<סיסמה שהוגדרה ב-ADMIN_PASS>, כי סיסמאות legacy הן MD5).
 
 **אומת:**
 - **טסטי בידוד: 7/7 עוברים** (`npm --workspace server run test`) — super_admin רואה הכל; company_user מוגבל לחברה שלו; agency_admin דרך subquery; role לא מוכר → `0=1`; cross-tenant: חברה A לא יכולה לכוון לחברה B, params לעולם לא מדליפים id של חברה אחרת.
@@ -113,4 +113,4 @@
 | 11 תיעוד | widget + 5 מסמכי docs ✓ |
 
 **בדיקת שער סופית:** tests 15/15 · eslint 0 errors · client build נקי · app load OK · schema valid · seed 0 orphan/dup.
-**נותר למשתמש:** הרצה מול MySQL אמיתי + פריסה ל-cPanel לפי `docs/DEPLOYMENT.md` (login: admin/admin1234 — לשנות מיד).
+**נותר למשתמש:** הרצה מול MySQL אמיתי + פריסה ל-cPanel לפי `docs/DEPLOYMENT.md` (login: admin/<סיסמה שהוגדרה ב-ADMIN_PASS> — לשנות מיד).

@@ -12,7 +12,17 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
-app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
+// rate limits per client IP on the unauthenticated / SMS-sending entry points (not on the
+// Maskyoo call webhook: all calls come from Maskyoo's few IPs)
+const limit = (minutes, max) => rateLimit({ windowMs: minutes * 60 * 1000, max, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'יותר מדי ניסיונות, נסו שוב מאוחר יותר' } });
+app.use('/api/auth/login', limit(15, 50));
+app.use('/api/auth/phone/request', limit(15, 10));            // sends an SMS
+app.use('/api/auth/phone/verify-request', limit(15, 10));     // sends an SMS (logged-in)
+app.use(['/api/auth/phone/verify', '/api/auth/phone/verify-confirm'], limit(15, 30)); // code guesses
+app.use(['/api/auth/register', '/api/auth/google'], limit(15, 30));
+app.use('/api/public/invite', limit(15, 60));
+app.use('/api/public/leads', limit(10, 300));                 // lead intake forms / widget (servers may post batches)
 
 // call recordings live in uploads/.recordings (the persistent volume) and must only be served
 // through the authed/signed proxy — never statically. express.static's default ('ignore') only
@@ -64,6 +74,11 @@ if (fs.existsSync(clientDist)) {
 app.use(errorHandler);
 
 if (require.main === module) {
+  // never run production on the code's fallback JWT secret (anyone could forge any session)
+  if (config.env === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+    console.error('FATAL: JWT_SECRET is missing or shorter than 32 characters');
+    process.exit(1);
+  }
   // make sure app-managed columns exist before we accept requests
   require('./db/init').ensureSchema().finally(() => {
     app.listen(config.port, () => {

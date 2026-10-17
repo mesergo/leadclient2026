@@ -5,7 +5,8 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 
 const USERNAME = process.env.ADMIN_USER || 'admin';
-const PASSWORD = process.env.ADMIN_PASS || 'admin1234';
+const PASSWORD = process.env.ADMIN_PASS; // required: no default password, ever
+if (!PASSWORD || PASSWORD.length < 12) { console.error('Set ADMIN_PASS (12+ characters): ADMIN_PASS=... node db/etl/make-admin.js'); process.exit(1); }
 const hash = bcrypt.hashSync(PASSWORD, 10);
 const SQ = String.fromCharCode(39);
 const q = (s) => SQ + String(s).split(SQ).join(SQ + SQ) + SQ;
@@ -16,4 +17,4 @@ VALUES (${q(USERNAME)}, 'super_admin', 'System Admin', ${q(hash)}, 1, NOW())
 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = 'super_admin', is_active = 1;
 `;
 fs.writeFileSync(path.resolve(__dirname, '../seed-admin.sql'), sql);
-console.log(`Wrote db/seed-admin.sql — login: ${USERNAME} / ${PASSWORD}`);
+console.log(`Wrote db/seed-admin.sql — login: ${USERNAME} (password from ADMIN_PASS). Delete the file after use.`);

@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, forgetUser } = require('../middleware/auth');
 const { issueToken, sessionTtl } = require('../services/authService');
 const passwordPolicy = require('../services/passwordPolicy');
 const otp = require('../services/otp');
@@ -60,6 +60,7 @@ router.post('/login', async (req, res, next) => {
     // flag the account so the client forces a password change before entering.
     if (!user.must_change_password && !passwordPolicy.check(password, user).ok) {
       await query('UPDATE users SET must_change_password = 1 WHERE id = ?', [user.id]);
+      forgetUser(user.id);
       user.must_change_password = 1;
     }
     // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
@@ -312,6 +313,7 @@ router.post('/phone/verify-confirm', requireAuth, async (req, res, next) => {
     const v = await otp.verifyOtp({ phone: target, code, purpose: 'verify' });
     if (!v.ok) return res.status(401).json({ error: 'קוד שגוי או שפג תוקפו' });
     await query('UPDATE users SET phone_verified_at = NOW() WHERE id = ?', [req.user.id]);
+    forgetUser(req.user.id); // the entry gate (middleware/auth.js) must see it at once
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
