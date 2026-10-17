@@ -1,5 +1,5 @@
 const express = require('express');
-const { query, companyScope, ownsCompany } = require('../db/pool');
+const { query, companyScope, ownsCompany, contactRestriction } = require('../db/pool');
 const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -19,6 +19,8 @@ router.get('/', asyncHandler(async (req, res) => {
     const v = '%' + req.query.q + '%'; params.push(v, v, v, v);
   }
   if (req.query.active_only === '1') extra += ' AND c.is_active = 1';
+  const own = contactRestriction(req.user, 'c'); // agent limited to own leads -> their leads' contacts only
+  extra += own.sql; params.push(...own.params);
   const rows = await query(
     `SELECT c.id, c.company_id, c.first_name, c.last_name, c.phone, c.phone2, c.email, c.is_active, c.created_at,
             co.name AS company_name
@@ -29,8 +31,9 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Contact + the leads they submitted (matched by phone/email within the company).
 router.get('/:id', asyncHandler(async (req, res) => {
-  const s = companyScope(req.user, 'company_id');
-  const rows = await query(`SELECT * FROM contacts WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const s = companyScope(req.user, 'c.company_id');
+  const own = contactRestriction(req.user, 'c');
+  const rows = await query(`SELECT c.* FROM contacts c WHERE c.id = ? AND (${s.sql})${own.sql}`, [req.params.id, ...s.params, ...own.params]);
   const contact = rows[0];
   if (!contact) return res.status(404).json({ error: 'איש קשר לא נמצא' });
   const co = await query('SELECT co.name, a.name AS agency_name FROM companies co LEFT JOIN agencies a ON a.id = co.agency_id WHERE co.id = ?', [contact.company_id]);
@@ -64,8 +67,9 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 router.patch('/:id', asyncHandler(async (req, res) => {
-  const s = companyScope(req.user, 'company_id');
-  const owned = await query(`SELECT id FROM contacts WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const s = companyScope(req.user, 'c.company_id');
+  const own = contactRestriction(req.user, 'c');
+  const owned = await query(`SELECT c.id FROM contacts c WHERE c.id = ? AND (${s.sql})${own.sql}`, [req.params.id, ...s.params, ...own.params]);
   if (!owned[0]) return res.status(404).json({ error: 'איש קשר לא נמצא' });
   const editable = ['first_name', 'last_name', 'phone', 'phone2', 'email', 'info', 'status', 'is_active'];
   const sets = [], params = [];

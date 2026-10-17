@@ -20,7 +20,7 @@ const NAV = [
   { to: '/users', key: 'nav.users', Icon: Icons.Users, roles: ['super_admin', 'agency_admin', 'company_admin'] },
   { to: '/billing', key: 'nav.billing', Icon: Icons.Card, roles: ['super_admin', 'agency_admin'] },
   { to: '/packages', key: 'nav.packages', Icon: Icons.Grid, roles: ['super_admin'] },
-  { to: '/language', key: 'nav.language', Icon: Icons.Globe, roles: ['super_admin'] },
+  { to: '/language', key: 'nav.language', Icon: Icons.Globe, roles: ['super_admin', 'translator'] },
   { to: '/profile', key: 'nav.profile', Icon: Icons.User },
   { to: '/developers', key: 'nav.developers', Icon: Icons.Code },
   { to: '/import-live', key: 'nav.importLive', Icon: Icons.Upload, roles: ['super_admin'] },
@@ -47,6 +47,8 @@ export default function Layout() {
     const allow = new Set(['/', '/companies', '/leads', '/reports', '/contacts', '/profile']);
     items = items.filter((n) => allow.has(n.to));
   }
+  // translator: the translation screens only
+  if (user?.role === 'translator') items = items.filter((n) => n.to === '/language' || n.to === '/profile');
 
   return (
     <div className="app-shell">

@@ -75,6 +75,12 @@ function Role({ roles, children }) {
   return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
 }
 
+// translators work only in the translation screens
+function Home() {
+  const { user } = useAuth();
+  return user?.role === 'translator' ? <Navigate to="/language" replace /> : <DashboardPage />;
+}
+
 function Routing() {
   return (
     <Routes>
@@ -84,7 +90,7 @@ function Routing() {
       <Route path="/invite/:token" element={<InvitePage />} />
       <Route path="/pay/:token" element={<PayLinkPage />} />
       <Route element={<Protected />}>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/" element={<Home />} />
         <Route path="/agencies" element={<Role roles={['super_admin']}><AgenciesPage /></Role>} />
         <Route path="/agencies/:id" element={<Role roles={["super_admin","agency_admin"]}><AgencyEditPage /></Role>} />
         <Route path="/companies" element={<Role roles={['super_admin', 'agency_admin', 'company_admin', 'sales_manager']}><CompaniesPage /></Role>} />
@@ -107,8 +113,8 @@ function Routing() {
         <Route path="/users/:id/edit" element={<Role roles={['super_admin', 'agency_admin', 'company_admin']}><UserEditPage /></Role>} />
         <Route path="/billing" element={<Role roles={['super_admin', 'agency_admin']}><BillingPage /></Role>} />
         <Route path="/packages" element={<Role roles={['super_admin']}><PackagesPage /></Role>} />
-        <Route path="/language" element={<Role roles={['super_admin', 'agency_admin']}><LanguagePage /></Role>} />
-        <Route path="/language/:slug" element={<Role roles={['super_admin', 'agency_admin']}><LanguageEditPage /></Role>} />
+        <Route path="/language" element={<Role roles={['super_admin', 'translator']}><LanguagePage /></Role>} />
+        <Route path="/language/:slug" element={<Role roles={['super_admin', 'translator']}><LanguageEditPage /></Role>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/import-live" element={<Role roles={['super_admin']}><ImportLivePage /></Role>} />
         <Route path="/app-push" element={<Role roles={['super_admin']}><AppPushPage /></Role>} />

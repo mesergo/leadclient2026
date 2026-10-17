@@ -39,6 +39,19 @@ function leadScope(user, alias = '') {
   return s;
 }
 
+// Contacts an agent limited to own leads (user.ownLeadsOnly) may see: only people who have a
+// lead assigned to that agent in the same company (matched on the last 9 phone digits).
+// Returns an extra AND-fragment (empty sql when the user is not restricted).
+function contactRestriction(user, alias = 'c') {
+  if (!user || !user.ownLeadsOnly) return { sql: '', params: [] };
+  const d9 = (col) => `RIGHT(REGEXP_REPLACE(COALESCE(${col}, ''), '[^0-9]', ''), 9)`;
+  return {
+    sql: ` AND EXISTS (SELECT 1 FROM leads ol WHERE ol.company_id = ${alias}.company_id AND ol.current_agent_id = ?
+             AND ${d9('ol.lead_phone')} <> '' AND ${d9('ol.lead_phone')} IN (${d9(alias + '.phone')}, ${d9(alias + '.phone2')}))`,
+    params: [user.id],
+  };
+}
+
 // Scope for the `agencies` table itself.
 function agencyScope(user, col = 'id') {
   if (!user || !user.role) return { sql: '0 = 1', params: [] };
@@ -61,4 +74,4 @@ function canAccessCompany(user, companyId) {
   return String(user.company_id) === String(companyId);
 }
 
-module.exports = { leadScope, ROLES, companyScope, agencyScope, canAccessCompany };
+module.exports = { leadScope, contactRestriction, ROLES, companyScope, agencyScope, canAccessCompany };

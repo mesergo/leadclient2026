@@ -28,6 +28,8 @@ async function currentUser(id) {
   return row;
 }
 
+const TRANSLATOR_OK = ['/api/auth', '/api/profile', '/api/language', '/api/notifications'];
+
 // what a user who has not yet passed the entry gates may still call
 const gateOpen = (req) => req.baseUrl === '/api/auth'
   || (req.baseUrl === '/api/profile' && req.path === '/password')
@@ -88,6 +90,10 @@ async function requireAuth(req, res, next) {
   } catch (e) {
     // DB hiccup: fail closed — never fall back to the token's (possibly stale) role / company
     return res.status(503).json({ error: 'השרת אינו זמין כרגע, נסו שוב בעוד רגע' });
+  }
+  // translator: only the translation screens (plus sign-in, own profile and the bell)
+  if (req.user.role === 'translator' && !TRANSLATOR_OK.includes(req.baseUrl)) {
+    return res.status(403).json({ error: 'למתרגם הרשאה למסך התרגומים בלבד' });
   }
   // sales_manager is a read-only role: block every write except the auth/OTP
   // flows it needs to sign in and pass the phone-verify gate.

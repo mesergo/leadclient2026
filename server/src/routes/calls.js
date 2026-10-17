@@ -6,7 +6,7 @@
 //     "business" (POST /mobile-call -> a lead + the number joins their business list, so next
 //     time it is recognized automatically) or private (kept on the phone only).
 const express = require('express');
-const { query, leadScope, companyScope } = require('../db/pool');
+const { query, leadScope, companyScope, contactRestriction } = require('../db/pool');
 const { requireAuth, loadLeadRestriction } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 
@@ -61,12 +61,13 @@ router.get('/directory', asyncHandler(async (req, res) => {
   const q = String(req.query.q || '').trim();
   const like = '%' + q + '%';
   const cs = companyScope(req.user, 'c.company_id');
+  const own = contactRestriction(req.user, 'c'); // agent limited to own leads -> their leads' contacts only
   const contacts = await query(
     `SELECT c.id, TRIM(CONCAT_WS(' ', c.first_name, c.last_name)) AS name, c.phone
        FROM contacts c
-      WHERE (${cs.sql}) AND c.phone IS NOT NULL AND c.phone <> ''
+      WHERE (${cs.sql}) AND c.phone IS NOT NULL AND c.phone <> ''${own.sql}
         ${q ? 'AND (c.first_name LIKE ? OR c.last_name LIKE ? OR c.phone LIKE ?)' : ''}
-      ORDER BY c.first_name, c.last_name LIMIT 300`, [...cs.params, ...(q ? [like, like, like] : [])]);
+      ORDER BY c.first_name, c.last_name LIMIT 300`, [...cs.params, ...own.params, ...(q ? [like, like, like] : [])]);
   const ls = leadScope(req.user, 'l');
   const leads = await query(
     `SELECT l.id, l.lead_name AS name, l.lead_phone AS phone
