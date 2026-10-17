@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query, companyScope, canAccessCompany } = require('../db/pool');
+const { query, companyScope, ownsCompany } = require('../db/pool');
 const { requireAuth, requireRole, forgetUser } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const { issueToken } = require('../services/authService');
@@ -8,6 +8,15 @@ const passwordPolicy = require('../services/passwordPolicy');
 
 const router = express.Router();
 router.use(requireAuth, requireRole('super_admin', 'agency_admin', 'company_admin'));
+
+// Which roles each manager may grant / manage: never above their own. A company admin manages
+// only company-level roles; sales_manager is agency-wide, so it is granted by agency admins and up.
+const ASSIGNABLE = {
+  super_admin: ['super_admin', 'agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'],
+  agency_admin: ['agency_admin', 'sales_manager', 'company_admin', 'company_user', 'translator'],
+  company_admin: ['company_admin', 'company_user', 'translator'],
+};
+const canManageRole = (actor, role) => (ASSIGNABLE[actor.role] || []).includes(role);
 
 const FIELDS = `u.id, u.username, u.email, u.first_name, u.last_name, u.display_name, u.role,
   u.company_id, u.agency_id, u.phone, u.current_status, u.last_seen_at, u.is_active, u.created_at`;
@@ -64,24 +73,37 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { username, password, email, first_name, last_name, display_name, role, company_id, phone } = req.body || {};
+  const { username, password, email, first_name, last_name, display_name, phone } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'חסר שם משתמש או סיסמה' });
-  if (company_id && canAccessCompany(req.user, company_id) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const role = req.body.role || 'company_user';
+  if (!canManageRole(req.user, role)) return res.status(403).json({ error: 'אין הרשאה להעניק תפקיד זה' });
+  // a company admin always adds to its own (active) company; an agency admin must name one of its companies
+  const company_id = req.user.role === 'company_admin' ? req.user.company_id : (req.body.company_id || null);
+  if (!company_id && req.user.role !== 'super_admin') return res.status(400).json({ error: 'לא נבחרה חברה' });
+  if (company_id && !(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+  const agency_id = company_id ? ((await query('SELECT agency_id FROM companies WHERE id = ?', [company_id]))[0] || {}).agency_id ?? null : null;
   const pol = passwordPolicy.check(password, { username, email, display_name });
   if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
   const hash = await bcrypt.hash(password, 10);
   const r = await query(
-    `INSERT INTO users (username, password_hash, email, first_name, last_name, display_name, role, company_id, phone, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [username, hash, email || null, first_name || null, last_name || null, display_name || username, role || 'company_user', company_id || null, phone || null]);
+    `INSERT INTO users (username, password_hash, email, first_name, last_name, display_name, role, company_id, agency_id, phone, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [username, hash, email || null, first_name || null, last_name || null, display_name || username, role, company_id, agency_id, phone || null]);
   const rows = await query(`SELECT ${FIELDS} FROM users u WHERE u.id = ?`, [r.insertId]);
   res.status(201).json({ user: rows[0] });
 }));
 
 router.patch('/:id', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'company_id');
-  const owned = await query(`SELECT id FROM users WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  const owned = await query(`SELECT id, role FROM users WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'משתמש לא נמצא' });
+  // no editing (password, role, activation...) of a user above the caller — e.g. a company admin
+  // must not touch an agency admin / super admin who happens to be listed under its company
+  if (!canManageRole(req.user, owned[0].role)) return res.status(403).json({ error: 'אין הרשאה לערוך משתמש זה' });
+  if (req.body.role !== undefined && req.body.role !== owned[0].role) {
+    if (String(owned[0].id) === String(req.user.id)) return res.status(403).json({ error: 'לא ניתן לשנות את התפקיד של עצמך' });
+    if (!canManageRole(req.user, req.body.role)) return res.status(403).json({ error: 'אין הרשאה להעניק תפקיד זה' });
+  }
   const editable = ['username', 'email', 'first_name', 'last_name', 'display_name', 'role', 'phone', 'language', 'is_active', 'suspended_at', 'suspended_until'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
@@ -98,7 +120,7 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   // Reassign the user's company (and keep agency_id in sync with that company).
   if (req.body.company_id !== undefined) {
     const newCompany = req.body.company_id || null;
-    if (newCompany && canAccessCompany(req.user, newCompany) === false) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
+    if (newCompany && !(await ownsCompany(req.user, newCompany))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
     sets.push('company_id = ?'); params.push(newCompany);
     if (newCompany) {
       const c = await query('SELECT agency_id FROM companies WHERE id = ?', [newCompany]);
@@ -172,6 +194,7 @@ router.delete('/:id/companies/:companyId', asyncHandler(async (req, res) => {
 }));
 
 router.post('/:id/impersonate', asyncHandler(async (req, res) => {
+  if (req.user.impersonated_by) return res.status(403).json({ error: 'לא ניתן להתחבר כמשתמש אחר מתוך התחזות' });
   const s = companyScope(req.user, 'company_id');
   const rows = await query(
     `SELECT id, username, display_name, role, company_id, agency_id FROM users WHERE id = ? AND (${s.sql})`,
@@ -179,6 +202,8 @@ router.post('/:id/impersonate', asyncHandler(async (req, res) => {
   const target = rows[0];
   if (!target) return res.status(404).json({ error: 'משתמש לא נמצא' });
   if (String(target.id) === String(req.user.id)) return res.status(400).json({ error: 'לא ניתן להתחבר כעצמך' });
+  // only into users the caller may manage (never a higher role, e.g. an agency admin listed under the company)
+  if (!canManageRole(req.user, target.role)) return res.status(403).json({ error: 'אין הרשאה להתחבר כמשתמש זה' });
   // agency_admin scope needs agency_id; legacy users often have it blank — derive from their company.
   if ((target.role === 'agency_admin' || target.role === 'sales_manager') && !target.agency_id && target.company_id) {
     const c = await query('SELECT agency_id FROM companies WHERE id = ?', [target.company_id]);

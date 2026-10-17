@@ -14,7 +14,15 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, max: 50 }));
 
-app.use('/uploads', express.static(config.uploadDir));
+// call recordings live in uploads/.recordings (the persistent volume) and must only be served
+// through the authed/signed proxy — never statically. express.static's default ('ignore') only
+// hides a dot in the LAST path segment, so deny dot-paths explicitly, plus a hard 404 guard.
+app.use('/uploads', (req, res, next) => {
+  let p;
+  try { p = decodeURIComponent(req.path); } catch { return res.status(400).end(); }
+  return /(^|[\\/])\./.test(p) ? res.status(404).end() : next();
+});
+app.use('/uploads', express.static(config.uploadDir, { dotfiles: 'deny' }));
 app.get('/api/health', async (req, res) => {
   const out = { ok: true, service: 'leadclient-api', env: config.env, timezone: config.timezone };
   try {

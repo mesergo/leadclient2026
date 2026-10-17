@@ -172,6 +172,7 @@ router.post('/:id/logo', requireRole('super_admin', 'agency_admin', 'company_adm
 }));
 
 router.post('/:id/impersonate', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+  if (req.user.impersonated_by) return res.status(403).json({ error: 'לא ניתן להתחבר כמשתמש אחר מתוך התחזות' });
   const s = companyScope(req.user, 'id');
   const owned = await query(`SELECT id FROM companies WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
   if (!owned[0]) return res.status(404).json({ error: 'חברה לא נמצאה' });

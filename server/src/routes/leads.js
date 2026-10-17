@@ -9,8 +9,8 @@ const notify = require('../services/notify');
 const maskyoo = require('../services/maskyoo');
 const recording = require('../services/recording');
 const config = require('../config');
-// recordings are stored in a private dir inside the persistent volume (dot-prefixed
-// so express.static does NOT serve it publicly); only the authed proxy below reads it.
+// recordings are stored in a private dir inside the persistent volume; index.js blocks
+// dot-paths under /uploads, so only the authed proxy below reads it.
 const REC_DIR = path.join(config.uploadDir, '.recordings');
 
 const router = express.Router();
