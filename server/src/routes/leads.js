@@ -14,9 +14,24 @@ const config = require('../config');
 const REC_DIR = path.join(config.uploadDir, '.recordings');
 
 const router = express.Router();
-// allow the recording <audio>/download link to authenticate via ?token=
-router.use((req, res, next) => { if (!req.headers.authorization && req.query.token) req.headers.authorization = `Bearer ${req.query.token}`; next(); });
+// legacy: the recording <audio>/download link may authenticate via ?token= (older app versions).
+// Only for GET /:id/recording — new clients use the short-lived link from /:id/recording-link.
+router.use((req, res, next) => {
+  if (!req.headers.authorization && req.query.token && req.method === 'GET' && /^\/\d+\/recording$/.test(req.path)) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+});
 router.use(requireAuth, loadLeadRestriction); // ownLeadsOnly -> leadScope()
+
+// A short-lived signed link to the lead's recording (for <audio src> / download), so the
+// session token never has to go into a URL.
+router.get('/:id/recording-link', asyncHandler(async (req, res) => {
+  const s = leadScope(req.user);
+  const rows = await query(`SELECT id FROM leads WHERE id = ? AND (${s.sql})`, [req.params.id, ...s.params]);
+  if (!rows[0]) return res.status(404).json({ error: 'ליד לא נמצא' });
+  res.json({ url: recording.tempPath(rows[0].id) });
+}));
 
 // Stream a call recording through our server (Maskyoo download needs a Bearer
 // token + whitelisted IP; the browser cannot send those, so we proxy it).
@@ -175,6 +190,16 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
   // the caller's number on an incoming-call lead is locked — never let it be changed/cleared
   if (lead.lead_through === 'call') delete req.body.lead_phone;
+  // a status / agent from another company must never be attached to this lead
+  if (req.body.status_id && !(await query('SELECT id FROM lead_statuses WHERE id = ? AND company_id = ?', [req.body.status_id, lead.company_id]))[0]) {
+    return res.status(400).json({ error: 'סטטוס לא תקין' });
+  }
+  if (req.body.current_agent_id && !(await query(
+    `SELECT u.id FROM users u WHERE u.id = ? AND u.is_active = 1
+       AND (u.company_id = ? OR EXISTS (SELECT 1 FROM user_companies uc WHERE uc.user_id = u.id AND uc.company_id = ?))`,
+    [req.body.current_agent_id, lead.company_id, lead.company_id]))[0]) {
+    return res.status(400).json({ error: 'נציג לא תקין' });
+  }
   const editable = ['status_id', 'current_agent_id', 'lead_rating', 'lead_name', 'lead_phone', 'lead_email', 'is_converted', 'lead_info'];
   const sets = [], params = [];
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
@@ -258,7 +283,9 @@ router.post('/:id/reminders', asyncHandler(async (req, res) => {
 
 // ---- tags ----
 router.post('/:id/tags', asyncHandler(async (req, res) => {
-  if (!(await ownLead(req))) return res.status(404).json({ error: 'ליד לא נמצא' });
+  const lead = await ownLead(req);
+  if (!lead) return res.status(404).json({ error: 'ליד לא נמצא' });
+  if (!(await query('SELECT id FROM tags WHERE id = ? AND company_id = ?', [req.body.tag_id, lead.company_id]))[0]) return res.status(400).json({ error: 'תגית לא תקינה' });
   await query('INSERT IGNORE INTO lead_tags (lead_id, tag_id) VALUES (?, ?)', [req.params.id, req.body.tag_id]);
   await touchLead(req.params.id);
   res.status(201).json({ ok: true });

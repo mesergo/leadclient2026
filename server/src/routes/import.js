@@ -10,6 +10,7 @@ router.use(requireAuth);
 router.post('/', asyncHandler(async (req, res) => {
   const { company_id, service_id, rows } = req.body || {};
   if (!company_id || !Array.isArray(rows)) return res.status(400).json({ error: 'קלט לא תקין' });
+  if (rows.length > 5000) return res.status(400).json({ error: 'אפשר לייבא עד 5000 שורות בכל פעם' });
   if (!(await ownsCompany(req.user, company_id))) return res.status(403).json({ error: 'אין הרשאה לחברה זו' });
   if (service_id && !(await query('SELECT id FROM services WHERE id = ? AND company_id = ?', [service_id, company_id]))[0]) return res.status(400).json({ error: 'ערוץ לא תקין' });
   let ok = 0, failed = 0;

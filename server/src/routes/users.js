@@ -106,6 +106,8 @@ router.patch('/:id', asyncHandler(async (req, res) => {
   }
   const editable = ['username', 'email', 'first_name', 'last_name', 'display_name', 'role', 'phone', 'language', 'is_active', 'suspended_at', 'suspended_until'];
   const sets = [], params = [];
+  // a changed phone must be verified again by its owner (before phone = ? below, so it compares the old value)
+  if (req.body.phone !== undefined) { sets.push("phone_verified_at = IF(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', ''), phone_verified_at, NULL)"); params.push(req.body.phone || ''); }
   for (const f of editable) if (req.body[f] !== undefined) { sets.push(`${f} = ?`); params.push(req.body[f]); }
   // manager limits an agent to the leads assigned to them
   if (req.body.restrict_own_leads !== undefined) { sets.push('restrict_own_leads = ?'); params.push(req.body.restrict_own_leads ? 1 : 0); }
@@ -133,7 +135,8 @@ router.patch('/:id', asyncHandler(async (req, res) => {
       username: req.body.username ?? cur.username, email: req.body.email ?? cur.email, display_name: req.body.display_name ?? cur.display_name,
     });
     if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
-    sets.push('password_hash = ?', 'must_change_password = 0'); params.push(await bcrypt.hash(req.body.password, 10));
+    // a reset by a manager also ends the user's existing sessions
+    sets.push('password_hash = ?', 'must_change_password = 0', 'password_changed_at = NOW()'); params.push(await bcrypt.hash(req.body.password, 10));
   }
   if (sets.length) { params.push(req.params.id); await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params); forgetUser(req.params.id); }
   const rows = await query(`SELECT ${FIELDS} FROM users u WHERE u.id = ?`, [req.params.id]);

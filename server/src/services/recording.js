@@ -21,6 +21,20 @@ function verifySig(id, sig) {
   const a = Buffer.from(String(sig)); const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// Short-lived variant for our own players (web/app): bound to the lead id + an expiry, so the
+// link (unlike a session token in the URL) is useless once it lapses.
+function signTemp(id, exp) {
+  return crypto.createHmac('sha256', config.jwt.secret).update(`rec:${id}:${exp}`).digest('hex').slice(0, 32);
+}
+function verifyTemp(id, exp, sig) {
+  if (!sig || !/^\d+$/.test(String(exp || '')) || Number(exp) < Math.floor(Date.now() / 1000)) return false;
+  const a = Buffer.from(String(sig)); const b = Buffer.from(signTemp(id, exp));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function tempPath(id, ttlSec = 6 * 3600) {
+  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  return `/api/public/recording/${id}?exp=${exp}&sig=${signTemp(id, exp)}`;
+}
 function publicUrl(id) {
   return `${config.publicUrl}/api/public/recording/${id}?sig=${sign(id)}`;
 }
@@ -112,4 +126,4 @@ async function serve(res, lead) {
   } catch (e) { res.status(502).json({ error: 'fetch_failed' }); }
 }
 
-module.exports = { serve, sign, verifySig, publicUrl, prefetch, REC_DIR };
+module.exports = { serve, sign, verifySig, verifyTemp, tempPath, publicUrl, prefetch, REC_DIR };

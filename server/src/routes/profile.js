@@ -4,6 +4,7 @@ const { query } = require('../db/pool');
 const { requireAuth, forgetUser } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/http');
 const passwordPolicy = require('../services/passwordPolicy');
+const { issueToken } = require('../services/authService');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -30,6 +31,11 @@ router.get('/', asyncHandler(async (req, res) => {
 
 router.patch('/', asyncHandler(async (req, res) => {
   const { username, first_name, last_name, display_name, language, email, phone } = req.body || {};
+  // a changed phone number must be verified again (the old verification lapses)
+  if (phone != null) {
+    await query(`UPDATE users SET phone_verified_at = IF(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', ''), phone_verified_at, NULL) WHERE id = ?`, [phone, req.user.id]);
+    forgetUser(req.user.id);
+  }
   await query(
     `UPDATE users SET username = COALESCE(?, username), first_name = COALESCE(?, first_name),
        last_name = COALESCE(?, last_name), display_name = COALESCE(?, display_name),
@@ -50,9 +56,15 @@ router.patch('/password', asyncHandler(async (req, res) => {
   const pol = passwordPolicy.check(new_password, rows[0] || {});
   if (!pol.ok) return res.status(400).json({ error: passwordPolicy.errorMessage(pol.failed), failed: pol.failed });
   // a compliant new password clears the forced-change flag
-  await query('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?', [await bcrypt.hash(new_password, 10), req.user.id]);
+  await query('UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW() WHERE id = ?', [await bcrypt.hash(new_password, 10), req.user.id]);
   forgetUser(req.user.id); // lift the entry gate at once
-  res.json({ ok: true });
+  // every other session is now ended (see middleware/auth.js); this one continues with a fresh
+  // token (issued after the change) that ends when the current one would have
+  const me = (await query('SELECT id, username, display_name, role, company_id, agency_id FROM users WHERE id = ?', [req.user.id]))[0];
+  await new Promise((r) => setTimeout(r, 1000 - (Date.now() % 1000))); // iat (whole seconds) must be after the change
+  const left = req.user.exp ? req.user.exp - Math.floor(Date.now() / 1000) : 0;
+  const fresh = me && !req.user.impersonated_by && left > 60 ? issueToken(me, {}, { expiresIn: left }) : undefined;
+  res.json({ ok: true, token: fresh });
 }));
 
 router.get('/notifications', asyncHandler(async (req, res) => {

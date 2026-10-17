@@ -45,6 +45,8 @@ export function AuthProvider({ children }) {
     setUser(d.user);
   };
   const refreshUser = async () => { const d = await api.me(token); setUser(d.user); return d.user; };
+  // a password change ends every older session; the server hands this one a fresh token
+  const adoptToken = async (newToken) => { saveToken(newToken); setToken(newToken); const d = await api.me(newToken); setUser(d.user); return d.user; };
   const acceptInvite = async (tok, body) => {
     const d = await api.acceptInvite(tok, body);
     saveToken(d.token, false);
@@ -88,5 +90,5 @@ export function AuthProvider({ children }) {
   // a full reload makes every screen refetch under the new company
   const switchCompany = (v) => { setActiveCompany(v); window.location.reload(); };
 
-  return <AuthContext.Provider value={{ token, user, loading, switchCompany, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, acceptInvite, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, user, loading, switchCompany, adoptToken, login, loginWithPhone, loginWithGoogle, registerAccount, registerWithGoogle, acceptInvite, refreshUser, logout, impersonatorName, startImpersonation, stopImpersonation }}>{children}</AuthContext.Provider>;
 }

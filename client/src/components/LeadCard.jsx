@@ -7,6 +7,25 @@ import { isAutoTag, displayTag, extractRecordingUrl, maskSuppliers } from '../ta
 import { formatIL, waNumber } from '../phone';
 import Dialer from './Dialer';
 
+// The recording plays from a short-lived signed link (fetched per lead), never from a URL
+// carrying the session token.
+function RecordingPlayer({ leadId, token, downloadLabel }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setSrc(null);
+    api.recordingLink(leadId, token).then((d) => { if (alive && d.url) setSrc(API_ORIGIN + d.url); }).catch(() => {});
+    return () => { alive = false; };
+  }, [leadId, token]);
+  if (!src) return <div className="lc-rec" />;
+  return (
+    <div className="lc-rec">
+      <audio controls preload="none" src={src} />
+      <a href={src} target="_blank" rel="noreferrer" className="lc-action small">{downloadLabel}</a>
+    </div>
+  );
+}
+
 const ACTIONS = ['promised', 'offered', 'called', 'meeting', 'other'];
 const CHANNELS = ['sms', 'whatsapp', 'email'];
 
@@ -175,7 +194,6 @@ export default function LeadCard({ id, onClose }) {
           {/* the call: who answered / dialed, outcome, length, recording */}
           {isPhoneLead(l) || l.lead_through === 'mobile' ? (() => {
             const hasRec = !!(l.recording_url || extractRecordingUrl(l.lead_info) || extractRecordingUrl(l.referrer));
-            const recSrc = `${API_ORIGIN}/api/leads/${l.id}/recording?token=${encodeURIComponent(token)}`;
             return (
               <section className="lc-section">
                 <h4>{t('lc.callTitle')}</h4>
@@ -200,12 +218,8 @@ export default function LeadCard({ id, onClose }) {
                     <strong dir="ltr">{durText || '—'}</strong>
                   </div>
                 </div>
-                {hasRec ? (
-                  <div className="lc-rec">
-                    <audio controls preload="none" src={recSrc} />
-                    <a href={recSrc} target="_blank" rel="noreferrer" className="lc-action small">{t('lc.download')}</a>
-                  </div>
-                ) : <p className="muted lc-norec">{t('lc.noRecording')}</p>}
+                {hasRec ? <RecordingPlayer leadId={l.id} token={token} downloadLabel={t('lc.download')} />
+                  : <p className="muted lc-norec">{t('lc.noRecording')}</p>}
               </section>
             );
           })() : null}

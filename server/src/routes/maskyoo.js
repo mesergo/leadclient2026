@@ -5,7 +5,7 @@ const maskyoo = require('../services/maskyoo');
 
 const router = express.Router();
 // allow ?token= so these can be opened directly in the browser for testing
-router.use((req, res, next) => { if (!req.headers.authorization && req.query.token) req.headers.authorization = `Bearer ${req.query.token}`; next(); });
+router.use((req, res, next) => { if (!req.headers.authorization && req.query.token && req.method === 'GET') req.headers.authorization = `Bearer ${req.query.token}`; next(); });
 router.use(requireAuth, requireRole('super_admin'));
 
 // 1) auth + IP connectivity check

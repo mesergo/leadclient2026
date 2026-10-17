@@ -42,12 +42,9 @@ router.get('/:slug/strings', asyncHandler(async (req, res) => {
 }));
 
 // Bulk upsert edited strings for a language.
-router.put('/:slug/strings', requireRole('super_admin', 'agency_admin'), asyncHandler(async (req, res) => {
+// The strings are global (every agency and customer sees them, incl. the login page): super admin only.
+router.put('/:slug/strings', requireRole('super_admin'), asyncHandler(async (req, res) => {
   const items = Array.isArray(req.body.strings) ? req.body.strings : [];
-  // the mobile app's strings (app.*) — super admin only
-  if (req.user.role !== 'super_admin' && items.some((it) => it && String(it.string_key || '').startsWith('app.'))) {
-    return res.status(403).json({ error: 'אין הרשאה' });
-  }
   for (const it of items) {
     if (!it || !it.string_key) continue;
     const ns = it.namespace ?? (it.string_key.includes('.') ? it.string_key.split('.')[0] : 'general');

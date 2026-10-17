@@ -11,7 +11,10 @@ async function currentUser(id) {
   const hit = userCache.get(id);
   if (hit && Date.now() - hit.at < USER_TTL_MS) return hit.row;
   const { query } = require('../db/pool');
-  const row = (await query('SELECT role, company_id, agency_id, is_active, phone_verified_at, must_change_password FROM users WHERE id = ?', [id]))[0] || null;
+  const row = (await query(
+    'SELECT role, company_id, agency_id, is_active, phone_verified_at, must_change_password, UNIX_TIMESTAMP(password_changed_at) AS pwd_changed_ts FROM users WHERE id = ?',
+    [id]).catch((e) => (e.code === 'ER_BAD_FIELD_ERROR' // column not migrated yet
+    ? query('SELECT role, company_id, agency_id, is_active, phone_verified_at, must_change_password FROM users WHERE id = ?', [id]) : Promise.reject(e))))[0] || null;
   if (row && COMPANY_ROLES.includes(row.role)) {
     // every company the user works in: the primary one + extra memberships (each with its role)
     const extra = await query('SELECT company_id, role FROM user_companies WHERE user_id = ? ORDER BY id', [id]).catch(() => []);
@@ -47,11 +50,16 @@ async function requireAuth(req, res, next) {
     agency_id: payload.agency_id ?? null,
     name: payload.name || null,
     impersonated_by: payload.impersonated_by || null,
+    exp: payload.exp || null, // session end (seconds), e.g. to re-issue with the same lifetime
   };
   try {
     const row = await currentUser(payload.sub);
     if (!row) return res.status(401).json({ error: 'המשתמש לא נמצא' });
     if (!Number(row.is_active)) return res.status(401).json({ error: 'המשתמש אינו פעיל' });
+    // a password change ends every session issued before it (on any device)
+    if (row.pwd_changed_ts && Number(payload.iat) < Math.floor(Number(row.pwd_changed_ts))) {
+      return res.status(401).json({ error: 'הסיסמה הוחלפה, יש להתחבר מחדש' });
+    }
     req.user.role = row.role;
     req.user.company_id = row.company_id ?? null;
     req.user.agency_id = row.agency_id ?? null;
@@ -78,7 +86,8 @@ async function requireAuth(req, res, next) {
       return res.status(403).json({ error: 'יש להשלים אימות טלפון / החלפת סיסמה', code: 'entry_gate' });
     }
   } catch (e) {
-    // DB hiccup: keep the token's claims rather than failing every request
+    // DB hiccup: fail closed — never fall back to the token's (possibly stale) role / company
+    return res.status(503).json({ error: 'השרת אינו זמין כרגע, נסו שוב בעוד רגע' });
   }
   // sales_manager is a read-only role: block every write except the auth/OTP
   // flows it needs to sign in and pass the phone-verify gate.

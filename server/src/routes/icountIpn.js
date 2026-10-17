@@ -33,9 +33,21 @@ router.all('/ipn', async (req, res) => {
     const expectedPage = config.icount.paypageId || Number(await icount.getSetting('icount_paypage_id')) || null;
     if (expectedPage && b.cp && Number(b.cp) !== expectedPage) { await log(req, 'wrong_paypage', { companyId: sub.company_id }); return res.status(403).send('forbidden'); }
 
+    // a closed checkout / cancelled subscription is never revived by a (possibly replayed) callback
+    if (sub.status === 'cancelled' || sub.status === 'abandoned') { await log(req, 'ignored_closed', { companyId: sub.company_id }); return res.send('OK'); }
     const wasActive = sub.status === 'active' || sub.status === 'past_due';
-    await billing.activateSubscription(subId, { hk_id: b.hk_id, client_id: b.customer_id, cc_last4: b.cc_last4 });
-    if (Number(b.sum) > 0) {
+    if (!wasActive) {
+      // first activation: the standing order must really exist in iCount (the payload alone is not trusted)
+      if (!icount.isMock()) {
+        let real = false;
+        try { const hk = b.hk_id ? await icount.hkInfo(b.hk_id) : null; real = !!hk && !hk.is_deleted; } catch (e) { real = false; }
+        if (!real) { await log(req, 'unverified_hk', { companyId: sub.company_id }); return res.send('OK'); } // the return-page check may still activate
+      }
+      await billing.activateSubscription(subId, { hk_id: b.hk_id, client_id: b.customer_id, cc_last4: b.cc_last4 });
+    }
+    // the same document reported twice (retry / replay) is recorded once
+    const dup = b.docnum && (await query('SELECT id FROM billing_charges WHERE subscription_id = ? AND icount_ref = ? LIMIT 1', [subId, String(b.docnum)]))[0];
+    if (Number(b.sum) > 0 && !dup) {
       // money moved: the first debit (start date today) or a later recurring one on the same IPN URL
       await query(
         `INSERT INTO billing_charges (company_id, subscription_id, kind, amount, status, icount_ref)

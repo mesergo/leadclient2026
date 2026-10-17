@@ -269,6 +269,8 @@ async function ensureSchema() {
   // repeat calls: when the call ended (a redial within 2 min joins this lead), and the billed
   // minutes of the earlier calls folded into it (each call is still billed on its own)
   await safe('leads.call_ended_at', () => ensureColumn('leads', 'call_ended_at', 'call_ended_at DATETIME NULL'));
+  // set on every password change: sessions issued before it are rejected (middleware/auth.js)
+  await safe('users.password_changed_at', () => ensureColumn('users', 'password_changed_at', 'password_changed_at DATETIME NULL'));
   await safe('leads.repeat_billed_min', () => ensureColumn('leads', 'repeat_billed_min', 'repeat_billed_min INT NOT NULL DEFAULT 0'));
   // small key/value store (e.g. the auto-created iCount PayPage id)
   // a user who works in several companies: extra memberships beyond users.company_id (the primary),

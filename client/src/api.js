@@ -125,6 +125,7 @@ export const api = {
 
   leads: (token, f) => request(`/api/leads${qs(f)}`, { token }),
   lead: (id, token) => request(`/api/leads/${id}`, { token }),
+  recordingLink: (id, token) => request(`/api/leads/${id}/recording-link`, { token }),
   updateLead: (id, body, token) => request(`/api/leads/${id}`, { method: 'PATCH', body, token }),
   addNote: (id, body, token) => request(`/api/leads/${id}/notes`, { method: 'POST', body, token }),
   addTreatment: (id, body, token) => request(`/api/leads/${id}/treatment`, { method: 'POST', body, token }),

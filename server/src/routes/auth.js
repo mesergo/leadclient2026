@@ -183,8 +183,8 @@ async function googleRegisterHandler(req, res, next) {
     let rows = await query(`SELECT ${USER_COLS} FROM users WHERE google_id = ? AND is_active = 1 LIMIT 1`, [p.sub]);
     let user = rows[0];
     if (!user) {
-      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 1`, [p.email]);
-      user = rows[0];
+      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 2`, [p.email]);
+      user = rows.length === 1 ? rows[0] : null; // an email shared by several accounts never auto-links
       if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]);
     }
     if (user) { // already registered -> sign in
@@ -244,8 +244,8 @@ router.post('/google', async (req, res, next) => {
     let rows = await query(`SELECT ${USER_COLS} FROM users WHERE google_id = ? AND is_active = 1 LIMIT 1`, [p.sub]);
     let user = rows[0];
     if (!user) {
-      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 1`, [p.email]);
-      user = rows[0];
+      rows = await query(`SELECT ${USER_COLS} FROM users WHERE email = ? AND is_active = 1 LIMIT 2`, [p.email]);
+      user = rows.length === 1 ? rows[0] : null; // an email shared by several accounts never auto-links
       if (user) await query('UPDATE users SET google_id = ? WHERE id = ?', [p.sub, user.id]); // link on first use
     }
     if (!user) return res.status(404).json({ error: 'לא נמצא חשבון המשויך לכתובת גוגל זו' });
@@ -293,7 +293,8 @@ router.post('/phone/verify', async (req, res, next) => {
 router.post('/phone/verify-request', requireAuth, async (req, res, next) => {
   try {
     const phone = (req.body && req.body.phone) || null;
-    if (phone) await query('UPDATE users SET phone = ? WHERE id = ?', [messergo.toE164(phone), req.user.id]);
+    // a different number is not verified yet: the old verification lapses (entry gate applies)
+    if (phone) { const p = messergo.toE164(phone); await query(`UPDATE users SET phone_verified_at = IF(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', ''), phone_verified_at, NULL), phone = ? WHERE id = ?`, [p, p, req.user.id]); forgetUser(req.user.id); }
     const rows = await query('SELECT phone FROM users WHERE id = ?', [req.user.id]);
     const target = rows[0] && rows[0].phone;
     if (!target) return res.status(400).json({ error: 'אין מספר טלפון לאימות' });

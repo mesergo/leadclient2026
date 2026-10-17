@@ -50,6 +50,7 @@ router.get('/:id', requireRole('super_admin', 'agency_admin'), asyncHandler(asyn
             icount_pass, allow_add_user_external, control_templates, is_active, created_at, public_token, is_default_signup
      FROM agencies WHERE id = ? AND (${scope.sql})`, [req.params.id, ...scope.params]);
   if (!rows[0]) return res.status(404).json({ error: 'סוכנות לא נמצאה' });
+  if (req.user.role !== 'super_admin') delete rows[0].icount_pass; // a credential: only the super admin (who edits it) sees it
   const [ph] = await query('SELECT COUNT(*) n FROM phone_numbers p JOIN companies c ON c.id = p.company_id WHERE c.agency_id = ?', [req.params.id]);
   res.json({ agency: { ...rows[0], phones_in_use: ph.n } });
 }));

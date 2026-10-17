@@ -65,6 +65,10 @@ const EDITABLE = ['name', 'phone', 'fax', 'address', 'zip_code', 'industry', 'is
   'returning_sms_enabled', 'returning_sms_from', 'returning_sms_text', 'leads_distribution_enabled',
   'quota_users', 'quota_numbers', 'quota_leads', 'quota_channels', 'package_id'];
 
+// commercial / account-state fields a company admin must not change on its own company
+// (e.g. re-activating a suspended account, switching package or contacts access)
+const MANAGER_ONLY = ['package_id', 'is_active', 'payment_package', 'contacts_access', 'is_donation_center'];
+
 // Usage vs quota for a company (anyone who can see the company). Read-only.
 router.get('/:id/usage', asyncHandler(async (req, res) => {
   const s = companyScope(req.user, 'id');
@@ -94,8 +98,8 @@ router.patch('/:id', requireRole('super_admin', 'agency_admin', 'company_admin')
   const sets = [], params = [];
   for (const f of EDITABLE) {
     if (req.body[f] === undefined) continue;
+    if ((f.startsWith('quota_') || MANAGER_ONLY.includes(f)) && !isManager) continue; // only managers (not the customer) set these
     if (f.startsWith('quota_') || f === 'package_id') {
-      if (!isManager) continue;                       // only managers set quotas / package (not the customer)
       const v = req.body[f];
       sets.push(`${f} = ?`); params.push(v === '' || v == null ? null : Number(v)); // empty = unlimited / no package
     } else { sets.push(`${f} = ?`); params.push(req.body[f]); }

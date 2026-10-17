@@ -9,7 +9,7 @@ import logo from '../assets/logo.png';
 // Shown instead of the app when the server flagged the account (must_change_password):
 // the password used at login no longer meets the policy. Changing it lets them in.
 export default function ChangePasswordPage() {
-  const { token, user, refreshUser, logout } = useAuth();
+  const { token, user, refreshUser, adoptToken, logout } = useAuth();
   const { t } = useLang();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -25,8 +25,9 @@ export default function ChangePasswordPage() {
     if (next !== confirm) return setError(t('ue.pwMismatch'));
     setBusy(true);
     try {
-      await api.updatePassword({ current_password: current, new_password: next }, token);
-      await refreshUser(); // must_change_password is now 0 -> the gate lets them in
+      const d = await api.updatePassword({ current_password: current, new_password: next }, token);
+      // must_change_password is now 0 -> the gate lets them in (with the fresh session token)
+      if (d && d.token) await adoptToken(d.token); else await refreshUser();
     } catch (err) {
       setError(err.message);
     } finally {

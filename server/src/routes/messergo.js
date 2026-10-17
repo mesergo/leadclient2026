@@ -6,7 +6,7 @@ const config = require('../config');
 
 const router = express.Router();
 // allow ?token= so this can be opened directly in the browser for testing
-router.use((req, res, next) => { if (!req.headers.authorization && req.query.token) req.headers.authorization = `Bearer ${req.query.token}`; next(); });
+router.use((req, res, next) => { if (!req.headers.authorization && req.query.token && req.method === 'GET') req.headers.authorization = `Bearer ${req.query.token}`; next(); });
 router.use(requireAuth, requireRole('super_admin'));
 
 // Send a REAL test OTP (code 123456) and return MesserGO's full response so the

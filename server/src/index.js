@@ -3,6 +3,7 @@ const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 const config = require('./config');
 const { notFound, errorHandler } = require('./middleware/error');
 
@@ -10,6 +11,34 @@ const app = express();
 // behind one reverse proxy (Coolify/Traefik): take the client IP from X-Forwarded-For,
 // so rate limits count per user and not for everyone together
 app.set('trust proxy', 1);
+// security headers. Tuned for this app: Google sign-in opens a popup (COOP allow-popups),
+// uploads/logos may be shown on other sites (CORP cross-origin), no iframing by other sites.
+// The CSP is report-only for now (browser console shows violations, nothing is blocked) —
+// switch reportOnly off once it has run clean in production.
+app.use(helmet({
+  contentSecurityPolicy: {
+    reportOnly: true,
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://accounts.google.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      mediaSrc: ["'self'", 'blob:'],
+      fontSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'", 'https://accounts.google.com'],
+      frameSrc: ['https://accounts.google.com'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+    },
+  },
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+  frameguard: { action: 'sameorigin' },
+  hsts: { maxAge: 180 * 24 * 3600, includeSubDomains: false },
+}));
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 // rate limits per client IP on the unauthenticated / SMS-sending entry points (not on the
@@ -41,7 +70,7 @@ app.get('/api/health', async (req, res) => {
     const [r] = await require('./db/pool').query(
       'SELECT NOW() AS db_now, @@session.time_zone AS db_session_tz, @@global.time_zone AS db_global_tz, @@system_time_zone AS db_system_tz');
     out.time = { server_now: fmt(new Date()), ...r };
-  } catch (e) { out.time = { error: e.message }; }
+  } catch (e) { out.time = { error: 'db_unavailable' }; }
   // push readiness only (true/false) — never any part of the keys
   out.push = { mobile_fcm: require('./services/fcm').isReady(), web: require('./services/notify').isPushReady() };
   res.json(out);

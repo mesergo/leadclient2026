@@ -11,7 +11,7 @@ const N_EVENTS = ['new_lead', 'status_change', 'reminder_due', 'lead_message'];
 const N_CHANS = ['app', 'browser', 'sms'];
 
 export default function ProfilePage() {
-  const { token, refreshUser } = useAuth();
+  const { token, refreshUser, adoptToken } = useAuth();
   const { t, setLang, langs } = useLang();
 
   const [u, setU] = useState(null);
@@ -46,7 +46,11 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!pw.new_password) return;
     if (pw.new_password !== pw.confirm) return setError(t('ue.pwMismatch'));
-    try { await api.updatePassword({ current_password: pw.current_password, new_password: pw.new_password }, token); ok(); setPw({ current_password: '', new_password: '', confirm: '' }); }
+    try {
+      const d = await api.updatePassword({ current_password: pw.current_password, new_password: pw.new_password }, token);
+      if (d && d.token) adoptToken(d.token); // older sessions (other devices) were signed out
+      ok(); setPw({ current_password: '', new_password: '', confirm: '' });
+    }
     catch (er) { setError(er.message); }
   };
   const saveNotif = async () => {

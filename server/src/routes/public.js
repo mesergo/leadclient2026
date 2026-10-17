@@ -111,7 +111,9 @@ router.get('/app-version', asyncHandler(async (req, res) => {
 
 router.get('/recording/:id', asyncHandler(async (req, res) => {
   const id = req.params.id;
-  if (!recording.verifySig(id, req.query.sig)) return res.status(403).json({ error: 'bad_signature' });
+  // ?exp=&sig= : short-lived link for our own players; ?sig= alone : the customer webhook link
+  const ok = req.query.exp ? recording.verifyTemp(id, req.query.exp, req.query.sig) : recording.verifySig(id, req.query.sig);
+  if (!ok) return res.status(403).json({ error: 'bad_signature' });
   const rows = await query('SELECT id, recording_url FROM leads WHERE id = ? LIMIT 1', [id]);
   if (!rows[0]) return res.status(404).json({ error: 'not_found' });
   return recording.serve(res, rows[0]);
